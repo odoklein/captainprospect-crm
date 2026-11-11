@@ -149,6 +149,17 @@ function hostOf(url: string): string {
     }
 }
 
+/** "Suzalink" → "suzalink", "Agence Été & Co" → "agence-ete-co". */
+export function slugOf(name: string): string {
+    const slug = name
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    return slug || "crm";
+}
+
 /** URL a slot is served from: the uploaded file, or the /public default. */
 export function brandAssetUrl(slot: BrandAssetSlot, s: BrandSettingsValues): string {
     const key = s[BRAND_ASSET_COLUMNS[slot]];
@@ -184,6 +195,9 @@ export function resolveBrand(row?: Partial<BrandSettingsValues> | null): Brand {
         fontPreset: isFontPreset(s.fontPreset) ? s.fontPreset : "default",
         appUrl,
         appHost: hostOf(appUrl),
+        assistantName: `${s.name} AI`,
+        agentName: `${s.name} Agent`,
+        slug: slugOf(s.name),
         version: s.logoVersion || s.updatedAt || "0",
     };
 }
@@ -195,17 +209,17 @@ export function brandUrlOf(b: Brand, path = "/"): string {
     return `${b.appUrl}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
-/** `"Captain Prospect" <notifications@…>` — the From header of automatic emails. */
+/** `"Suzalink" <notifications@…>` — the From header of automatic emails. */
 export function brandSenderOf(b: Brand, address: string = b.email.notificationsAddress): string {
     return `${b.email.senderName} <${address}>`;
 }
 
-/** `-//Captain Prospect CRM//RDV//FR` — iCalendar PRODID. */
+/** `-//Suzalink CRM//RDV//FR` — iCalendar PRODID. */
 export function brandIcsProdIdOf(b: Brand, kind = "RDV"): string {
     return `-//${b.productName}//${kind}//${b.locale.lang.toUpperCase()}`;
 }
 
-/** `<page> | Captain Prospect` — consistent document titles. */
+/** `<page> | Suzalink` — consistent document titles. */
 export function brandTitleOf(b: Brand, page?: string): string {
     return page ? `${page} | ${b.name}` : b.productName;
 }

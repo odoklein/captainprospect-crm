@@ -23,6 +23,7 @@ import { formatCallbackDate } from "@/lib/utils/parseDateFromNote";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { ManagerSupportSidebarEntry } from "@/components/support/ManagerSupportSidebarEntry";
 import { AiMark } from "@/components/ui/AiMark";
+import { useBrand } from "@/lib/brand/client";
 
 const CAPTAIN_AI_HREF = "/manager/assistant";
 
@@ -304,6 +305,7 @@ const COMMS_HREFS = [
 ];
 
 export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
+    const brand = useBrand();
     const { data: session } = useSession();
     const {
         isCollapsed,
@@ -507,7 +509,7 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                     </button>
                 )}
 
-                {/* Captain AI — its own loud entry, not buried in a sub-menu */}
+                {/* The AI assistant — its own loud entry, not buried in a sub-menu */}
                 {userRole === "MANAGER" &&
                     (isExpanded ? (
                         <Link
@@ -519,7 +521,7 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                             <span className="cp-ai-trigger-icon">
                                 <AiMark className="w-3.5 h-3.5" />
                             </span>
-                            <span>Captain AI</span>
+                            <span>{brand.assistantName}</span>
                         </Link>
                     ) : (
                         <Link
@@ -527,8 +529,8 @@ export function GlobalSidebar({ navigation }: GlobalSidebarProps) {
                             onClick={closeMobile}
                             className="cp-ai-trigger-mini"
                             data-active={pathname === CAPTAIN_AI_HREF}
-                            aria-label="Captain AI"
-                            title="Captain AI"
+                            aria-label={brand.assistantName}
+                            title={brand.assistantName}
                         >
                             <AiMark className="w-4 h-4" />
                             <span className="cp-ai-trigger-dot" aria-hidden />

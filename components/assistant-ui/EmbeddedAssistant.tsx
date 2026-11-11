@@ -23,6 +23,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Thread, type StartRequest } from "./workspace/thread/Thread";
 import { useChatStream } from "./workspace/useChatStream";
 import { useIsMac } from "./workspace/Composer";
+import { useBrand } from "@/lib/brand/client";
 
 export interface EmbeddedAssistantProps {
     /** The client the assistant is bound to. */
@@ -47,6 +48,7 @@ export { EmbeddedAssistant };
 type Boot = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; folder: FolderCard | null; conversationId: string | null };
 
 function EmbeddedInner({ fixedClientId, fixedMissionId, className, onDataChanged }: EmbeddedAssistantProps) {
+    const brand = useBrand();
     const toast = useToast();
     const actions = useThreadActions();
     const stream = useChatStream();
@@ -69,7 +71,7 @@ function EmbeddedInner({ fixedClientId, fixedMissionId, className, onDataChanged
                 if (!cancelled) setBoot({ status: "ready", ...result });
             })
             .catch((e: unknown) => {
-                if (!cancelled) setBoot({ status: "error", message: e instanceof Error ? e.message : "Captain AI est indisponible." });
+                if (!cancelled) setBoot({ status: "error", message: e instanceof Error ? e.message : "L'assistant est indisponible." });
             });
         return () => {
             cancelled = true;
@@ -125,7 +127,7 @@ function EmbeddedInner({ fixedClientId, fixedMissionId, className, onDataChanged
                         </Link>
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Ouvrir dans Captain AI</TooltipContent>
+                <TooltipContent>Ouvrir dans {brand.assistantName}</TooltipContent>
             </Tooltip>
         </>
     );
@@ -152,7 +154,7 @@ function EmbeddedInner({ fixedClientId, fixedMissionId, className, onDataChanged
                         <Building2 className="size-5" aria-hidden />
                     </span>
                     <div>
-                        <p className="text-sm font-semibold text-ink">Captain AI n’a pas pu s’ouvrir</p>
+                        <p className="text-sm font-semibold text-ink">{brand.assistantName} n’a pas pu s’ouvrir</p>
                         <p className="mt-0.5 text-[13px] text-ink-3">{boot.message}</p>
                     </div>
                     <Button

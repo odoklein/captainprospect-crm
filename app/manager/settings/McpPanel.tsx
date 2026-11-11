@@ -16,6 +16,7 @@ import { SegmentedControl, Shimmer, StatusPill } from "@/components/accueil/Accu
 import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SECONDARY_BUTTON, SettingsCard,
 } from "@/components/settings/SettingsUI";
+import { useBrand } from "@/lib/brand/client";
 
 interface McpKey {
     id: string;
@@ -98,6 +99,7 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
 }
 
 export function McpPanel() {
+    const brand = useBrand();
     const toast = useToast();
     const [keys, setKeys] = useState<McpKey[] | null>(null);
     const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
@@ -133,14 +135,14 @@ export function McpPanel() {
 
     const mcpUrl = `${origin}/api/mcp`;
     const claudeCmd = useMemo(
-        () => (created ? `claude mcp add --transport http captain-prospect ${mcpUrl} --header "Authorization: Bearer ${created.apiKey}"` : ""),
-        [created, mcpUrl],
+        () => (created ? `claude mcp add --transport http ${brand.slug} ${mcpUrl} --header "Authorization: Bearer ${created.apiKey}"` : ""),
+        [created, mcpUrl, brand.slug],
     );
     const jsonConfig = useMemo(
         () => (created
-            ? JSON.stringify({ mcpServers: { "captain-prospect": { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${created.apiKey}` } } } }, null, 2)
+            ? JSON.stringify({ mcpServers: { [brand.slug]: { type: "http", url: mcpUrl, headers: { Authorization: `Bearer ${created.apiKey}` } } } }, null, 2)
             : ""),
-        [created, mcpUrl],
+        [created, mcpUrl, brand.slug],
     );
 
     const toggleScope = (s: ReadScope) =>

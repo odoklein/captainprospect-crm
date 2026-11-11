@@ -42,6 +42,7 @@ import {
     slashQuery,
     type SlashCommand,
 } from "./thread/composer-logic";
+import { useBrand } from "@/lib/brand/client";
 
 export interface ComposerHandle {
     focus(): void;
@@ -154,7 +155,7 @@ export function Composer({
     attachments,
     attachDisabledReason,
     folderId = null,
-    placeholder = "Demandez à Captain AI…",
+    placeholder,
     compact,
     autoFocus,
     isMac,
@@ -179,6 +180,7 @@ export function Composer({
     autoFocus?: boolean;
     isMac?: boolean;
 }) {
+    const brand = useBrand();
     const [text, setText] = useDraftText(draftKey);
     const [caret, setCaret] = useState(0);
     const [deep, setDeep] = useState(false);
@@ -468,8 +470,8 @@ export function Composer({
                         }}
                         rows={1}
                         autoFocus={autoFocus}
-                        placeholder={placeholder}
-                        aria-label="Message à Captain AI"
+                        placeholder={placeholder ?? `Demandez à ${brand.assistantName}…`}
+                        aria-label={`Message à ${brand.assistantName}`}
                         aria-autocomplete="list"
                         aria-expanded={menu !== null}
                         aria-controls={menu ? menuId : undefined}
@@ -572,7 +574,7 @@ export function Composer({
                     <p className="mt-2 hidden items-center justify-center gap-1.5 text-center text-[11px] text-ink-4 sm:flex">
                         <Kbd>Entrée</Kbd> envoyer · <Kbd>Maj</Kbd>
                         <Kbd>Entrée</Kbd> à la ligne · <Kbd>/</Kbd> commandes{folderId ? <> · <Kbd>@</Kbd> fichiers</> : null} · <Kbd>{mod}</Kbd>
-                        <Kbd>K</Kbd> chercher · Captain AI peut se tromper, vérifiez les chiffres sourcés.
+                        <Kbd>K</Kbd> chercher · {brand.assistantName} peut se tromper, vérifiez les chiffres sourcés.
                     </p>
                 )
             )}

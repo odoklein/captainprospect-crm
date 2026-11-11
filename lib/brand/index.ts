@@ -2,7 +2,7 @@
 // BRAND — the DEFAULT brand (brand/brand.config.ts), sync and client-safe.
 //
 // import { brand } from "@/lib/brand";
-//   brand.name            "Captain Prospect"
+//   brand.name            "Suzalink"
 //   brand.appUrl          env NEXT_PUBLIC_APP_URL → NEXTAUTH_URL → config
 //   brand.palette.primary[600]  hex, same value the CSS token carries
 //
@@ -42,17 +42,17 @@ export function brandUrl(path = "/", b: Brand = brand): string {
     return brandUrlOf(b, path);
 }
 
-/** `"Captain Prospect" <notifications@…>` — the From header of automatic emails. */
+/** `"Suzalink" <notifications@…>` — the From header of automatic emails. */
 export function brandSender(address?: string, b: Brand = brand): string {
     return brandSenderOf(b, address ?? b.email.notificationsAddress);
 }
 
-/** `-//Captain Prospect CRM//RDV//FR` — iCalendar PRODID. */
+/** `-//Suzalink CRM//RDV//FR` — iCalendar PRODID. */
 export function brandIcsProdId(kind = "RDV", b: Brand = brand): string {
     return brandIcsProdIdOf(b, kind);
 }
 
-/** `<page> | Captain Prospect` — consistent document titles. */
+/** `<page> | Suzalink` — consistent document titles. */
 export function brandTitle(page?: string, b: Brand = brand): string {
     return brandTitleOf(b, page);
 }

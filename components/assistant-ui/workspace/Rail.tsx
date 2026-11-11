@@ -66,6 +66,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/shadcn/
 import { DeleteConversationDialog, MoveConversationDialog } from "./thread/ConversationDialogs";
 import { formatEuros, sortClients, type ClientSort } from "./thread/model";
 import { usePdfExport } from "./thread/usePdfExport";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // localStorage-backed state (SSR-safe, synced across tabs)
@@ -419,6 +420,7 @@ export interface RailProps {
 }
 
 export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenCaptain, onOpenOperations, onOpenSearch, onOpenFolder, onOpenConversation, onCollapse, onConversationDeleted, mobile }: RailProps) {
+    const brand = useBrand();
     const toast = useToast();
     const actions = useThreadActions();
     const pdf = usePdfExport();
@@ -567,7 +569,7 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenCapt
                 <span className="mr-1 flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-600 text-accent-fg shadow-2xs">
                     <AiMark className="size-4" aria-hidden />
                 </span>
-                <span className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold tracking-tight text-ink">Captain AI</span>
+                <span className="min-w-0 flex-1 truncate font-display text-[15px] font-semibold tracking-tight text-ink">{brand.assistantName}</span>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <Button type="button" variant="ghost" size="icon-sm" onClick={onNewChat} aria-label="Nouvelle conversation" aria-keyshortcuts={isMac ? "Meta+Shift+O" : "Control+Shift+O"}>
@@ -617,7 +619,7 @@ export const Rail = memo(function Rail({ activeKey, isMac, onNewChat, onOpenCapt
 
             {/* Radix lays the viewport content out as a table: make it a block so long names truncate. */}
             <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block">
-                <nav aria-label="Captain AI" className="px-2 pb-4">
+                <nav aria-label={brand.assistantName} className="px-2 pb-4">
                     <div ref={contentRef} className="relative">
                         <span
                             ref={indicatorRef}

@@ -13,9 +13,9 @@
 export const brandConfig = {
     identity: {
         /** The brand people see: sidebar, login, emails, PDFs. */
-        name: "Captain Soft",
+        name: "Suzalink",
         /** Product name for <title>, browser tabs, calendar PRODID, notifications. */
-        productName: "Captain Soft CRM",
+        productName: "Suzalink CRM",
         /** One-line positioning, used under the logo and in meta descriptions. */
         tagline: "Plateforme d'exécution commerciale",
         /** What the agency does, as AI prompts should describe it. */
@@ -28,20 +28,20 @@ export const brandConfig = {
 
     web: {
         /** Public URL of the app — fallback when NEXT_PUBLIC_APP_URL / NEXTAUTH_URL are unset. */
-        appUrl: "https://app.captainprospect.fr",
+        appUrl: "https://app.suzalink.com",
         /** Marketing site. */
-        website: "https://captainprospect.fr",
+        website: "https://suzalink.com",
     },
 
     email: {
-        /** Display name on automatic emails ("Captain Prospect" <…>). */
-        senderName: "Captain Soft",
+        /** Display name on automatic emails ("Suzalink" <…>). */
+        senderName: "Suzalink",
         /** Default sender for notifications when no SMTP sender is configured. */
-        notificationsAddress: "notifications@captainprospect.fr",
+        notificationsAddress: "notifications@suzalink.com",
         /** Where blocked or lost users are told to write. */
         supportAddress: "support@suzalink.com",
         /** Email domains offered first in address pickers. */
-        domains: ["captainprospect.fr", "suzaliconseil.com"],
+        domains: ["suzalink.com", "suzaliconseil.com", "captainprospect.fr"],
     },
 
     locale: {

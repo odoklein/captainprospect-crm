@@ -24,6 +24,7 @@ import { RunDetail } from "./RunDetail";
 import { RunsTimeline } from "./RunsTimeline";
 import { SettingsTab } from "./SettingsTab";
 import { CountChip } from "./shared";
+import { useBrand } from "@/lib/brand/client";
 
 const WEEKLY_BILAN = "report.weekly_bilan";
 
@@ -32,6 +33,7 @@ type PanelTab = "inbox" | "jobs" | "runs";
 const PANEL_CONTENT = "outline-none motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:duration-200 ease-snappy";
 
 export function FolderAgentPanel(props: { folderId: string; clientId: string | null }) {
+    const brand = useBrand();
     const { folderId, clientId } = props;
     const toast = useToast();
     const [tab, setTab] = useState<PanelTab>("inbox");
@@ -78,7 +80,7 @@ export function FolderAgentPanel(props: { folderId: string; clientId: string | n
                         <AiMark className="size-4" aria-hidden />
                     </span>
                     <div className="min-w-0">
-                        <h2 className="text-sm font-semibold text-ink">Captain Agent</h2>
+                        <h2 className="text-sm font-semibold text-ink">{brand.agentName}</h2>
                         <p className="truncate text-2xs text-ink-3">Veille, rapports et missions {client ? `pour ${client.name}` : "de ce dossier"}</p>
                     </div>
                 </div>
@@ -86,12 +88,12 @@ export function FolderAgentPanel(props: { folderId: string; clientId: string | n
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <Button asChild variant="ghost" size="icon-sm">
-                                <Link href="/manager/assistant/agent" aria-label="Ouvrir Captain Agent">
+                                <Link href="/manager/assistant/agent" aria-label={`Ouvrir ${brand.agentName}`}>
                                     <ArrowUpRight aria-hidden />
                                 </Link>
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Ouvrir Captain Agent</TooltipContent>
+                        <TooltipContent>Ouvrir {brand.agentName}</TooltipContent>
                     </Tooltip>
                     <Button type="button" variant="ai" size="sm" onClick={() => setComposing(true)}>
                         <AiMark aria-hidden />

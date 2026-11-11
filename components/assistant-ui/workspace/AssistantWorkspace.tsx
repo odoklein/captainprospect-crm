@@ -35,6 +35,7 @@ import { Rail, RailStrip, useLocalStorageState } from "./Rail";
 import { Thread, type DraftScope, type StartRequest } from "./thread/Thread";
 import { useChatStream } from "./useChatStream";
 import { canKeepContextualThread, resolveWorkspaceView, WORKSPACE_VIEWS, type WorkspaceView } from "./workspace-state";
+import { useBrand } from "@/lib/brand/client";
 
 export const WORKSPACE_TABS = ["conversations", "memoire", "fichiers", "tableau", "agent"] as const;
 export type WorkspaceTab = (typeof WORKSPACE_TABS)[number];
@@ -59,6 +60,7 @@ export function AssistantWorkspace() {
 }
 
 function WorkspaceShell() {
+    const brand = useBrand();
     const toast = useToast();
     const actions = useThreadActions();
     const { mutate } = useSWRConfig();
@@ -226,7 +228,7 @@ function WorkspaceShell() {
 
     // Below md the rail is a Sheet; from md up the folded rail keeps its own expand button.
     const railToggle = (
-        <Button type="button" variant="ghost" size="icon-sm" onClick={() => setMobileRail(true)} aria-label="Afficher le panneau Captain AI" className="md:hidden">
+        <Button type="button" variant="ghost" size="icon-sm" onClick={() => setMobileRail(true)} aria-label={`Afficher le panneau ${brand.assistantName}`} className="md:hidden">
             <PanelLeftOpen aria-hidden />
         </Button>
     );
@@ -275,7 +277,7 @@ function WorkspaceShell() {
         <div className="relative flex h-full min-h-0 w-full overflow-hidden bg-canvas">
             {/* Docked rail (md+): full, or folded to a strip of icons */}
             <aside
-                aria-label="Navigation Captain AI"
+                aria-label={`Navigation ${brand.assistantName}`}
                 className={cn(
                     "hidden h-full shrink-0 overflow-hidden border-r border-line bg-surface-2 md:block",
                     "motion-safe:transition-[width] motion-safe:duration-200 ease-snappy",
@@ -303,7 +305,7 @@ function WorkspaceShell() {
             {/* Rail as a left Sheet (< md) */}
             <Sheet open={mobileRail} onOpenChange={setMobileRail}>
                 <SheetContent side="left" showCloseButton={false} className="w-[min(300px,86vw)] gap-0 bg-surface-2 p-0 pt-[env(safe-area-inset-top)] md:hidden">
-                    <SheetTitle className="sr-only">Navigation Captain AI</SheetTitle>
+                    <SheetTitle className="sr-only">Navigation {brand.assistantName}</SheetTitle>
                     <SheetDescription className="sr-only">Dossiers, clients et conversations.</SheetDescription>
                     <Rail {...railProps} mobile onCollapse={closeMobile} />
                 </SheetContent>

@@ -22,6 +22,7 @@ import { DailyReportModal } from "@/components/sdr/DailyReportModal";
 import { useSdrDailyReport } from "@/components/sdr/useSdrDailyReport";
 import { cn } from "@/lib/utils";
 import { RefreshCw, AlertTriangle, BellRing, CheckCircle2, PhoneCall } from "lucide-react";
+import { useBrand } from "@/lib/brand/client";
 
 interface AppLayoutShellProps {
     children: React.ReactNode;
@@ -50,6 +51,7 @@ function InnerLayout({
     allowedRoles,
     customNavigation,
 }: AppLayoutShellProps) {
+    const brand = useBrand();
     const { data: session, status } = useSession();
     const router = useRouter();
     const pathname = usePathname();
@@ -198,8 +200,8 @@ function InnerLayout({
         planning: "Planning",
         projects: "Projets",
         emails: "Email Hub",
-        assistant: "Captain AI",
-        agent: "Captain Agent",
+        assistant: brand.assistantName,
+        agent: brand.agentName,
         appels: "Appels",
         focus: "Mode Focus",
     };

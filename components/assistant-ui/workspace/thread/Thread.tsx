@@ -45,6 +45,7 @@ import { renderKeys } from "./handover";
 import { isLocalId, lastOfRole, parseAction, patchMessage } from "./model";
 import { useAttachments } from "./useAttachments";
 import { pdfExportKey, usePdfExport } from "./usePdfExport";
+import { useBrand } from "@/lib/brand/client";
 
 /** A starter question, as a card. */
 function SuggestionCard({ children, onClick, delay, className }: { children: ReactNode; onClick: () => void; delay: number; className?: string }) {
@@ -129,6 +130,7 @@ export function Thread({
     inspector = false,
     isMac,
 }: ThreadProps) {
+    const brand = useBrand();
     const toast = useToast();
     const actions = useThreadActions();
     const { data: session } = useSession();
@@ -613,7 +615,7 @@ export function Thread({
                         attachments={attachments}
                         attachDisabledReason={attachDisabledReason}
                         folderId={folderId && !folderId.startsWith("tmp-") ? folderId : null}
-                        placeholder={folderKind === "AGENCY" ? "Demandez à Captain AI…" : `Demandez à Captain AI sur ${folderName}…`}
+                        placeholder={folderKind === "AGENCY" ? `Demandez à ${brand.assistantName}…` : `Demandez à ${brand.assistantName} sur ${folderName}…`}
                         compact={compact}
                         autoFocus={!compact}
                         isMac={isMac}

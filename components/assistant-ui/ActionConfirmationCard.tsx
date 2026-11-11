@@ -22,6 +22,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/shadcn/alert-dialog";
 import type { StoredAction } from "./types";
+import { useBrand } from "@/lib/brand/client";
 
 interface ActionConfirmationCardProps {
     action: StoredAction;
@@ -32,6 +33,7 @@ interface ActionConfirmationCardProps {
 }
 
 export function ActionConfirmationCard({ action, busy = false, onConfirm, onCancel, className }: ActionConfirmationCardProps) {
+    const brand = useBrand();
     const [confirming, setConfirming] = useState(false);
     const isPending = action.state === "pending";
     const isConfirmed = action.state === "confirmed";
@@ -120,7 +122,7 @@ export function ActionConfirmationCard({ action, busy = false, onConfirm, onCanc
                         <AlertDialogHeader>
                             <AlertDialogTitle>{action.card.title}</AlertDialogTitle>
                             <AlertDialogDescription>
-                                {action.card.warning ?? "Cette action modifie des données et ne pourra pas être annulée depuis Captain AI."}
+                                {action.card.warning ?? `Cette action modifie des données et ne pourra pas être annulée depuis ${brand.assistantName}.`}
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

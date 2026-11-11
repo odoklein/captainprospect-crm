@@ -2,7 +2,7 @@ import { createLucideIcon } from "lucide-react";
 
 // The one glyph for AI-powered features (drafting, analysis, suggestions,
 // enrichment). A compass needle rather than the generic sparkle: it ties AI
-// to the Captain Prospect brand and reads as "guidance", not magic.
+// to the brand (accent colour) and reads as "guidance", not magic.
 // Built with createLucideIcon, so it is a drop-in LucideIcon: same props
 // (size, strokeWidth, className) and assignable to `icon: LucideIcon` fields.
 export const AiMark = createLucideIcon("ai-mark", [

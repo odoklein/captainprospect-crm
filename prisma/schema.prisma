@@ -3905,20 +3905,20 @@ model SystemConfig {
 // brand: no tenantId, no relation to Client.
 model BrandSettings {
   id               String @id @default("default")
-  name             String @default("Captain Prospect")
-  productName      String @default("Captain Prospect CRM")
+  name             String @default("Suzalink")
+  productName      String @default("Suzalink CRM")
   tagline          String @default("Plateforme d'exécution commerciale")
   description      String @default("agence de prospection commerciale B2B")
   companyName      String @default("Suzali Conseil")
   companyShortName String @default("Suzali")
 
-  appUrl  String @default("https://app.captainprospect.fr") // used only when NEXTAUTH_URL / NEXT_PUBLIC_APP_URL are unset
-  website String @default("https://captainprospect.fr")
+  appUrl  String @default("https://app.suzalink.com") // used only when NEXTAUTH_URL / NEXT_PUBLIC_APP_URL are unset
+  website String @default("https://suzalink.com")
 
-  senderName           String   @default("Captain Prospect")
-  notificationsAddress String   @default("notifications@captainprospect.fr")
+  senderName           String   @default("Suzalink")
+  notificationsAddress String   @default("notifications@suzalink.com")
   supportAddress       String   @default("support@suzalink.com")
-  emailDomains         String[] @default(["captainprospect.fr", "suzaliconseil.com"])
+  emailDomains         String[] @default(["suzalink.com", "suzaliconseil.com", "captainprospect.fr"])
 
   lang     String @default("fr")
   locale   String @default("fr-FR")

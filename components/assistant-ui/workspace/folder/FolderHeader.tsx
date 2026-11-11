@@ -77,6 +77,7 @@ import { EYEBROW, FOCUS_RING } from "@/components/ui/recipes";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { InlineTitleInput, Spinner } from "./parts";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // Folder glyph (also used by the command palette)
@@ -190,13 +191,14 @@ export function FolderHeaderSkeleton() {
 
 /** Head of the agency view (no folder). */
 export function AgencyHeader() {
+    const brand = useBrand();
     return (
         <Card className="flex-row items-center gap-4 p-5 motion-safe:animate-ds-enter sm:p-6">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-panel bg-primary-600 text-white shadow-2xs" aria-hidden>
                 <Globe className="size-6" />
             </span>
             <div className="min-w-0">
-                <p className={EYEBROW}>Captain AI</p>
+                <p className={EYEBROW}>{brand.assistantName}</p>
                 <h1 className="truncate text-xl font-bold tracking-tight text-ink sm:text-2xl">Pilotage</h1>
                 <p className="mt-0.5 text-sm text-ink-3">Conversations hors dossier et mémoire commune de l&apos;agence.</p>
             </div>
@@ -423,6 +425,7 @@ const nowMs = () => Date.now();
 type SaveState = { kind: "idle" } | { kind: "dirty" } | { kind: "saving" } | { kind: "saved"; at: number } | { kind: "error"; message: string };
 
 function InstructionsPanel({ detail }: { detail: FolderDetail }) {
+    const brand = useBrand();
     const { saveInstructions } = useFolderMutations(detail.id);
     const [open, setOpen] = useState(false);
     const [text, setText] = useState(detail.instructions ?? "");
@@ -520,7 +523,7 @@ function InstructionsPanel({ detail }: { detail: FolderDetail }) {
                     <span className="min-w-0 flex-1">
                         <span className="block text-sm font-semibold text-ink">Instructions du dossier</span>
                         <span className="block truncate text-xs text-ink-3">
-                            {preview || "Des consignes que Captain suit dans chaque conversation de ce dossier."}
+                            {preview || `Des consignes que ${brand.assistantName} suit dans chaque conversation de ce dossier.`}
                         </span>
                     </span>
                     <SaveStatus state={state} now={now} />

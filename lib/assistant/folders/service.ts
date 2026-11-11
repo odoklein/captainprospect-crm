@@ -88,7 +88,7 @@ export async function ensureStorageFolder(folderId: string, attempt = 0): Promis
     const created = await prisma.folder.create({
         data: {
             name: `${STORAGE_FOLDER_PREFIX}${folder.name}`,
-            description: "Fichiers du dossier Captain AI, gérés par l'assistant.",
+            description: "Fichiers du dossier de l'assistant IA, gérés par l'assistant.",
             isPublic: false,
             clientId: null,
             missionId: null,

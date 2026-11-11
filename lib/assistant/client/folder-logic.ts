@@ -329,12 +329,12 @@ export type StatusTone = "emerald" | "amber" | "rose" | "violet" | "slate";
 export type StatusBadge = "success" | "ai" | "secondary" | "danger" | "warning" | "outline";
 
 export const FILE_STATUS: Record<FileTextStatus, { label: string; tone: StatusTone; badge: StatusBadge; spinner: boolean; pulse: boolean; hint: string }> = {
-    READY: { label: "Prêt", tone: "emerald", badge: "success", spinner: false, pulse: false, hint: "Indexé : Captain peut le citer." },
+    READY: { label: "Prêt", tone: "emerald", badge: "success", spinner: false, pulse: false, hint: "Indexé : l'assistant peut le citer." },
     PROCESSING: { label: "Indexation…", tone: "violet", badge: "ai", spinner: true, pulse: true, hint: "Extraction du texte en cours." },
     PENDING: { label: "En attente", tone: "slate", badge: "secondary", spinner: false, pulse: true, hint: "L'indexation va démarrer." },
     FAILED: { label: "Échec", tone: "rose", badge: "danger", spinner: false, pulse: false, hint: "L'indexation a échoué. Tu peux relancer." },
     NEEDS_OCR: { label: "PDF scanné (OCR)", tone: "amber", badge: "warning", spinner: false, pulse: false, hint: "Ce PDF est une image : son texte n'a pas pu être lu." },
-    UNSUPPORTED: { label: "Non pris en charge", tone: "slate", badge: "outline", spinner: false, pulse: false, hint: "Ce format ne peut pas être lu par Captain." },
+    UNSUPPORTED: { label: "Non pris en charge", tone: "slate", badge: "outline", spinner: false, pulse: false, hint: "Ce format ne peut pas être lu par l'assistant." },
 };
 
 export function fileStatusView(status: FileTextStatus) {

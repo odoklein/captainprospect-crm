@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Captain Agent — the home of the background agent: worker status, today's
+ * The background agent's home (shown as brand.agentName) — the home of the background agent: worker status, today's
  * figures, and four tabs in the URL (`?tab=`): « À traiter » (inbox),
  * « Activité » (runs), « Rapports », « Réglages » (scheduled tasks). The
  * open run lives in the URL too (`?run=<id>`), so a run can be linked to and
@@ -33,6 +33,7 @@ import { RunDetail } from "./RunDetail";
 import { RunsTimeline } from "./RunsTimeline";
 import { SettingsTab } from "./SettingsTab";
 import { CountChip, CountUp, LiveDot, stagger, TONE_BADGE } from "./shared";
+import { useBrand } from "@/lib/brand/client";
 
 const TABS = ["a-traiter", "activite", "rapports", "reglages"] as const;
 type AgentTab = (typeof TABS)[number];
@@ -40,6 +41,7 @@ type AgentTab = (typeof TABS)[number];
 const TAB_CONTENT = "outline-none motion-safe:data-[state=active]:animate-in motion-safe:data-[state=active]:fade-in-0 motion-safe:data-[state=active]:slide-in-from-bottom-1 motion-safe:duration-200 ease-snappy";
 
 export function AgentHome() {
+    const brand = useBrand();
     const [tab, setTab] = useQueryState("tab", parseAsStringLiteral(TABS).withDefault("a-traiter"));
     const [runId, setRunId] = useQueryState("run");
     const [composing, setComposing] = useState(false);
@@ -60,7 +62,7 @@ export function AgentHome() {
                     className={cn("-ml-1.5 inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-semibold text-ink-3 transition-colors duration-150 hover:text-ink", FOCUS_RING)}
                 >
                     <ArrowLeft className="size-3.5" aria-hidden />
-                    Captain AI
+                    {brand.assistantName}
                 </Link>
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex min-w-0 items-center gap-3.5">
@@ -69,7 +71,7 @@ export function AgentHome() {
                         </span>
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2.5">
-                                <h1 className="text-2xl font-bold tracking-tight text-ink">Captain Agent</h1>
+                                <h1 className="text-2xl font-bold tracking-tight text-ink">{brand.agentName}</h1>
                                 <WorkerStatus overview={overview} loading={loadingFirst} />
                             </div>
                             <p className="mt-0.5 text-xs text-ink-3 sm:text-sm">Il surveille, rédige et enquête en arrière-plan. Rien ne s’exécute sans ta validation.</p>
@@ -133,7 +135,7 @@ export function AgentHome() {
             {/* Tabs */}
             <Tabs value={tab} onValueChange={(v) => void setTab(v === "a-traiter" ? null : (v as AgentTab))} className="gap-5">
                 <div className="-mx-1 overflow-x-auto px-1">
-                    <TabsList variant="underline" aria-label="Sections de Captain Agent" className="min-w-full">
+                    <TabsList variant="underline" aria-label={`Sections de ${brand.agentName}`} className="min-w-full">
                         <TabsTrigger value="a-traiter">
                             À traiter
                             {toHandle > 0 && <CountChip count={toHandle} tone={counts && counts.critical > 0 ? "danger" : "primary"} />}

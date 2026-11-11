@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Mémoire tab: what Captain remembers, by layer (Agence, Dossier, Mes
+ * Mémoire tab: what the assistant remembers, by layer (Agence, Dossier, Mes
  * préférences), one Card per layer. Kind filter (ToggleGroup), « Supprimés »
  * switch, inline edit, pin Toggle, row menu, add in a Dialog, delete with
  * undo. Every write is optimistic and rolls back on error.
@@ -64,6 +64,7 @@ import { useToast } from "@/components/ui/Toast";
 import { AiMark } from "@/components/ui/AiMark";
 import { cn } from "@/lib/utils";
 import { DegradedNotice, ENTER, ErrorState, Spinner, stagger } from "./parts";
+import { useBrand } from "@/lib/brand/client";
 
 const KIND_BADGE: Record<MemoryKind, "info" | "secondary" | "warning" | "success" | "danger"> = {
     FACT: "info",
@@ -83,6 +84,7 @@ const LAYER_HINT: Record<MemoryLayer, string> = {
 const ALL = "ALL";
 
 export function MemoryTab({ folderId, folderName, onOpenConversation }: { folderId: string | null; folderName: string | null; onOpenConversation(id: string): void }) {
+    const brand = useBrand();
     const [includeDeleted, setIncludeDeleted] = useState(false);
     const [kind, setKind] = useState<MemoryKind | null>(null);
     const [adding, setAdding] = useState(false);
@@ -208,7 +210,7 @@ export function MemoryTab({ folderId, folderName, onOpenConversation }: { folder
                                     {kind
                                         ? `Aucun souvenir de type « ${memoryKindLabel(kind)} » ici.`
                                         : g.layer === "user"
-                                          ? "Captain retiendra ici tes préférences de travail."
+                                          ? `${brand.assistantName} retiendra ici tes préférences de travail.`
                                           : "Rien de retenu pour l'instant."}
                                 </p>
                             ) : (
@@ -268,6 +270,7 @@ function MemoryRow({
     onOpenConversation(id: string): void;
 }) {
     const [editing, setEditing] = useState(false);
+    const brand = useBrand();
     const [draft, setDraft] = useState(item.content);
     const [menuOpen, setMenuOpen] = useState(false);
     const ref = useRef<HTMLTextAreaElement>(null);
@@ -361,7 +364,7 @@ function MemoryRow({
                     {item.source?.by === "model" ? (
                         <span className="inline-flex items-center gap-1 text-accent-600">
                             <AiMark className="size-3" aria-hidden />
-                            Retenu par Captain
+                            Retenu par {brand.assistantName}
                         </span>
                     ) : (
                         <span>Ajouté à la main</span>
@@ -506,6 +509,7 @@ function AddMemoryForm({
     onSubmit(body: { scope: MemoryScope; kind: MemoryKind; content: string }): Promise<void>;
 }) {
     const [scope, setScope] = useState<MemoryScope>(hasFolder ? "FOLDER" : "AGENCY");
+    const brand = useBrand();
     const [kind, setKind] = useState<MemoryKind>("FACT");
     const [content, setContent] = useState("");
     const [busy, setBusy] = useState(false);
@@ -543,7 +547,7 @@ function AddMemoryForm({
                     <Brain className="size-5 text-ink-3" aria-hidden />
                     Ajouter un souvenir
                 </DialogTitle>
-                <DialogDescription>Captain s&apos;en servira dans les prochaines conversations, selon la portée choisie.</DialogDescription>
+                <DialogDescription>{brand.assistantName} s&apos;en servira dans les prochaines conversations, selon la portée choisie.</DialogDescription>
             </DialogHeader>
 
             <fieldset className="grid gap-2">

@@ -9,7 +9,7 @@ The brand has two layers:
 
 One image serves every agency: each instance has its own database and its own
 `BrandSettings` row. An empty or missing table renders the defaults, i.e. the
-Captain Prospect brand. Operating instances, the signed API, logo uploads and
+Suzalink brand. Operating instances, the signed API, logo uploads and
 env vars: **`docs/WHITE_LABEL.md`**.
 
 ## 1. Reading the brand in code
@@ -26,7 +26,7 @@ a module-level constant.
 | Per-instance browser config (socket, OpenReplay, feature flags) | `useRuntimeConfig()` / `getRuntimeConfig()` (`@/lib/runtime-config/client`) |
 
 `import { brand } from "@/lib/brand"` still compiles everywhere, but it is the
-**config defaults only**: anything that renders it shows Captain Prospect
+**config defaults only**: anything that renders it shows Suzalink
 values on another agency's instance. Treat a new bare `brand.*` in rendered
 output as a bug. The helpers `brandUrl`, `brandSender`, `brandIcsProdId` and
 `brandTitle` accept the runtime brand as their last argument.
@@ -122,6 +122,11 @@ Code always uses Geist Mono. To add a family: a new `next/font` call with a
 (`lib/brand/types.ts`), then rebuild the image.
 
 ## 6. Text
+
+The assistant and agent names in the UI are derived from `brand.name`
+(`brand.assistantName` = "Suzalink AI", `brand.agentName` = "Suzalink Agent",
+`brand.slug` = "suzalink" for the MCP server name), so they follow a rename.
+
 
 `brand.name`, `brand.productName`, `brand.tagline`, `brand.companyName`,
 `brand.email.*` and `brandUrl("/path", brand)` replace every hard-coded agency

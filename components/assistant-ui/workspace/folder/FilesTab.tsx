@@ -63,6 +63,7 @@ import { FOCUS_RING } from "@/components/ui/recipes";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 import { DegradedNotice, ENTER, EmptyState, ErrorState, Spinner, stagger } from "./parts";
+import { useBrand } from "@/lib/brand/client";
 
 const ACCEPT: Record<string, string[]> = Object.fromEntries(Object.entries(FILE_ACCEPT).map(([mime, ext]) => [mime, [...ext]]));
 const PARALLEL = 3;
@@ -85,6 +86,7 @@ function fileGlyph(name: string, mime: string) {
 }
 
 export function FilesTab({ folderId, isClient }: { folderId: string; isClient: boolean }) {
+    const brand = useBrand();
     const { data, error, isLoading, addUploaded, remove, reindex, indexProject, reload } = useFolderFiles(folderId);
     const toast = useToast();
     const [uploads, setUploads] = useState<Upload[]>([]);
@@ -238,7 +240,7 @@ export function FilesTab({ folderId, isClient }: { folderId: string; isClient: b
                     {isDragReject ? "Format non pris en charge" : isDragActive ? "Dépose pour ajouter au dossier" : "Glisse des documents ici"}
                 </p>
                 <p className="max-w-sm text-xs leading-relaxed text-ink-3">
-                    PDF, Word, Excel, CSV, Markdown ou texte, jusqu&apos;à {formatBytes(FILE_MAX_BYTES)} par fichier. Captain les lit et les cite.
+                    PDF, Word, Excel, CSV, Markdown ou texte, jusqu&apos;à {formatBytes(FILE_MAX_BYTES)} par fichier. {brand.assistantName} les lit et les cite.
                 </p>
                 <Button
                     variant="outline"
@@ -343,7 +345,7 @@ export function FilesTab({ folderId, isClient }: { folderId: string; isClient: b
                     icon={FileText}
                     tone="primary"
                     title="Pas encore de documents"
-                    hint="Ajoute des briefs, des comptes rendus ou des exports : Captain s'en sert pour répondre et cite la page exacte."
+                    hint={`Ajoute des briefs, des comptes rendus ou des exports : ${brand.assistantName} s'en sert pour répondre et cite la page exacte.`}
                 />
             ) : (
                 <Card className="gap-0 overflow-hidden py-0">
@@ -373,7 +375,7 @@ export function FilesTab({ folderId, isClient }: { folderId: string; isClient: b
                         <AlertDialogTitle>Supprimer ce fichier ?</AlertDialogTitle>
                         <AlertDialogDescription>
                             {confirm
-                                ? `« ${confirm.name} » sera retiré du dossier et Captain ne pourra plus le citer. Les réponses passées gardent leurs citations.`
+                                ? `« ${confirm.name} » sera retiré du dossier et ${brand.assistantName} ne pourra plus le citer. Les réponses passées gardent leurs citations.`
                                 : ""}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
