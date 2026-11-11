@@ -54,6 +54,10 @@
     html {
       scroll-behavior: smooth;
     }
+    /* Lenis drives the scroll (components/ui/SmoothScroll.tsx): native smoothing would fight it. */
+    html.lenis {
+      scroll-behavior: auto;
+    }
   }
 
   body {

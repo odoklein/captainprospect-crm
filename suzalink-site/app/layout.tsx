@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { site } from "@/content/site";
 import { MotionProvider } from "@/components/ui/motion";
+import { SmoothScroll } from "@/components/ui/SmoothScroll";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Aller au contenu
         </a>
+        <SmoothScroll />
         <MotionProvider>{children}</MotionProvider>
       </body>
     </html>
