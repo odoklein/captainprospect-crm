@@ -1518,14 +1518,20 @@ export function UnifiedActionDrawer({
         },
     });
 
-    const canOpenClientCalendar = hasClientCalendar && Boolean((contactId && contact) || (companyId && company));
+    // The booking drawer opens for every RDV. With a client calendar the SDR books the
+    // slot in it (that is where the commercial is picked); without one they enter the
+    // date, type and place by hand. Saving "RDV pris" with only a note would create a
+    // meeting with no date.
+    const canOpenBooking = Boolean((contactId && contact) || (companyId && company));
     const handleAddAction = (andNext?: boolean) => {
-        // An RDV must go through the calendar: that is where the commercial is picked
-        // (list's commercials first, others as fallback). Saving "RDV pris" with only a
-        // note would create a meeting with no commercial and no slot.
-        if (newActionResult === "MEETING_BOOKED" && canOpenClientCalendar) {
+        if (newActionResult === "MEETING_BOOKED" && canOpenBooking) {
             setShowBookingDrawer(true);
-            showInfo("Choisissez le créneau", "Le RDV est enregistré une fois le créneau réservé dans le calendrier.");
+            showInfo(
+                hasClientCalendar ? "Choisissez le créneau" : "Renseignez le RDV",
+                hasClientCalendar
+                    ? "Le RDV est enregistré une fois le créneau réservé dans le calendrier."
+                    : "Pas de calendrier client : indiquez la date et le type du RDV, puis confirmez.",
+            );
             return;
         }
         addActionMutation.mutate({ andNext });
@@ -3754,11 +3760,13 @@ export function UnifiedActionDrawer({
                                     {/* Contextual: meeting booking — always shown for MEETING_BOOKED */}
                                     {newActionResult === "MEETING_BOOKED" && (
                                         <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-3.5 space-y-3">
-                                            {/* Calendar button — only when a booking URL or at least one interlocuteur calendar exists */}
-                                            {canOpenClientCalendar && (
+                                            {/* Booking: in the client calendar when there is one, by hand otherwise */}
+                                            {canOpenBooking && (
                                                 <>
                                                     <p className="text-xs text-primary-700">
-                                                        Réservez le créneau dans le calendrier : le RDV est enregistré à la confirmation.
+                                                        {hasClientCalendar
+                                                            ? "Réservez le créneau dans le calendrier : le RDV est enregistré à la confirmation."
+                                                            : "Ce client n'a pas de calendrier : renseignez la date, le type et le lieu du RDV, il est enregistré dans le CRM."}
                                                     </p>
                                                     <Button
                                                         type="button"
@@ -3767,7 +3775,7 @@ export function UnifiedActionDrawer({
                                                         className="gap-2 w-full"
                                                     >
                                                         <Calendar className="w-4 h-4" aria-hidden="true" />
-                                                        Ouvrir le calendrier client
+                                                        {hasClientCalendar ? "Ouvrir le calendrier client" : "Saisir le RDV"}
                                                     </Button>
                                                 </>
                                             )}
@@ -4103,7 +4111,7 @@ export function UnifiedActionDrawer({
                 />
             )}
 
-            {(contactId && contact || companyId && company) && hasClientCalendar && (
+            {canOpenBooking && (
                 <BookingDrawer
                     isOpen={showBookingDrawer}
                     onClose={() => setShowBookingDrawer(false)}

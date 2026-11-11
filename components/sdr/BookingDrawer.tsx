@@ -1216,8 +1216,10 @@ export function BookingDrawer({
                             {!selectedOption ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-50">
                                     <Calendar className="w-8 h-8 text-slate-300" />
-                                    <p className="text-sm font-semibold text-slate-600">Aucun calendrier configuré</p>
-                                    <p className="text-xs text-slate-400">Contactez votre administrateur</p>
+                                    <p className="text-sm font-semibold text-slate-600">Pas de calendrier pour ce client</p>
+                                    <p className="max-w-xs text-center text-xs text-slate-500">
+                                        Renseignez la date, l&apos;heure et le type du RDV à gauche, puis « Confirmer le RDV » : il est enregistré dans le CRM.
+                                    </p>
                                 </div>
                             ) : (
                                 <>
@@ -1273,7 +1275,7 @@ export function BookingDrawer({
                                                     <Calendar className="w-6 h-6" aria-hidden="true" />
                                                 </span>
                                                 <div>
-                                                    <p className="text-sm font-semibold text-slate-700">Ce calendrier ne peut pas s'afficher ici</p>
+                                                    <p className="text-sm font-semibold text-slate-700">Ce calendrier ne peut pas s&apos;afficher ici</p>
                                                     <p className="text-xs text-slate-500 mt-1 max-w-sm">
                                                         Ouvrez-le dans un nouvel onglet pour réserver le créneau, puis revenez renseigner la date ci-contre.
                                                     </p>
