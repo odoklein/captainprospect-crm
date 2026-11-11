@@ -252,12 +252,14 @@ export function touchesFromFabienne(source: string, sheet: Sheet): Touch[] {
 
 // ── merge ────────────────────────────────────────────────────────────────────
 
-const normName = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+export const normName = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const RANK: Record<Category, number> = { RDV: 3, BOITE: 2, RAPPEL: 1, NEGATIVE: 0, NEUTRAL: 0 };
 
-export function buildBase(touches: Touch[]): { practices: Practice[]; report: BuildReport } {
-    // Union-find on phone numbers and name+postcode, so one practice reached
-    // through two numbers (or listed in two files) stays one.
+/**
+ * Groups touches into practices: union-find on phone numbers and name + postcode,
+ * so one practice reached through two numbers (or listed in two files) stays one.
+ */
+export function groupTouches(touches: Touch[]): Map<string, Touch[]> {
     const parent = new Map<string, string>();
     const find = (k: string): string => {
         const p = parent.get(k) ?? k;
@@ -288,6 +290,12 @@ export function buildBase(touches: Touch[]): { practices: Practice[]; report: Bu
         g.push(t);
         groups.set(root, g);
     }
+
+    return groups;
+}
+
+export function buildBase(touches: Touch[]): { practices: Practice[]; report: BuildReport } {
+    const groups = groupTouches(touches);
 
     const report: BuildReport = {
         touches: touches.length,
