@@ -13,10 +13,10 @@ export const site = {
   lang: "fr",
 
   seo: {
-    title: "Suzalink — Le CRM d'exécution outbound",
+    title: "Suzalink — RDV B2B qualifiés et CRM de prospection",
     titleTemplate: "%s · Suzalink",
     description:
-      "Le CRM d'exécution outbound qui réunit appels, emails, séquences et IA dans une instance dédiée. Téléphonie Allo et OnOff, fiche de RDV générée par l'IA, dès 59 € HT par mois.",
+      "Nos SDR prennent vos RDV B2B, ou votre équipe appelle avec notre CRM : téléphonie, appels enregistrés, IA et portail client. Une marque de Suzali Conseil.",
     ogImageAlt: "Suzalink — Votre prospection. Vos règles.",
   },
 
@@ -29,43 +29,45 @@ export const site = {
 
   announcement: {
     badge: "Nouveau",
-    text: "L'IA génère votre fiche de RDV en 10 secondes",
-    href: "/#ia",
+    text: "Sprint test : 2 semaines de prospection pour juger sur pièces",
+    href: "/tarifs#sprint",
   },
 
   nav: [
+    { label: "Prospection", href: "/prospection-externalisee" },
+    { label: "CRM agences", href: "/crm-agence-prospection" },
     { label: "Produit", href: "/#produit" },
-    { label: "Solutions", href: "/#roles" },
-    { label: "Tarifs", href: "/#tarifs" },
-    { label: "Ressources", href: "/#cas-clients" },
+    { label: "Tarifs", href: "/tarifs" },
     { label: "Sécurité", href: "/#securite" },
   ] satisfies NavLink[],
 
   footer: {
-    tagline: "Le CRM d'exécution outbound. Appels, emails, séquences et IA dans une instance dédiée.",
+    tagline: "Des RDV B2B pris par nos SDR, ou le CRM pour les prendre vous-même.",
+    /** Maison mère : affichée sous le logo et dans les données structurées. */
+    parent: { name: "Suzali Conseil", url: "https://suzaliconseil.com", label: "Une marque de Suzali Conseil" },
     columns: [
+      {
+        title: "Offres",
+        links: [
+          { label: "Prospection externalisée", href: "/prospection-externalisee" },
+          { label: "Sprint test", href: "/tarifs#sprint" },
+          { label: "CRM pour agences", href: "/crm-agence-prospection" },
+          { label: "Tarifs", href: "/tarifs" },
+        ],
+      },
       {
         title: "Produit",
         links: [
           { label: "Exécution", href: "/#execution" },
           { label: "IA", href: "/#ia" },
           { label: "Instance dédiée", href: "/#instance" },
-          { label: "Tarifs", href: "/#tarifs" },
-        ],
-      },
-      {
-        title: "Solutions",
-        links: [
-          { label: "SDR", href: "/#roles" },
-          { label: "Managers", href: "/#roles" },
-          { label: "Business Developers", href: "/#roles" },
           { label: "Portail client", href: "/#roles" },
         ],
       },
       {
         title: "Ressources",
         links: [
-          { label: "Cas clients", href: "/#cas-clients" },
+          { label: "Prospection des cabinets dentaires", href: "/secteurs/cabinets-dentaires" },
           { label: "Comparatif des coûts", href: "/#cout" },
           { label: "Demander une démo", href: "/demo" },
         ],
@@ -73,6 +75,7 @@ export const site = {
       {
         title: "Entreprise",
         links: [
+          { label: "Suzali Conseil", href: "https://suzaliconseil.com" },
           { label: "Sécurité", href: "/#securite" },
           { label: "Contact", href: "/demo" },
         ],
@@ -99,6 +102,6 @@ export const site = {
       // La version anglaise n'existe pas encore : le bouton EN est désactivé.
       other: { code: "EN", note: "English version coming soon" },
     },
-    copyright: "Suzalink. Tous droits réservés.",
+    copyright: "Suzalink, une marque de Suzali Conseil. Tous droits réservés.",
   },
 } as const;

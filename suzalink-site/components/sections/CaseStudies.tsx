@@ -35,7 +35,7 @@ export function CaseStudies() {
                 <div className="flex flex-1 flex-col gap-3 p-6">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="eyebrow text-muted">{item.eyebrow}</p>
-                    <PlaceholderBadge>{cases.placeholderBadge}</PlaceholderBadge>
+                    {"placeholder" in item && item.placeholder === false ? null : <PlaceholderBadge>{cases.placeholderBadge}</PlaceholderBadge>}
                   </div>
                   <h3 className="font-display-tight text-2xl leading-tight font-light">{item.title}</h3>
                   <Link

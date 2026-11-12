@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { demo } from "@/content/demo";
-import { plans } from "@/content/pricing";
+import { interests } from "@/content/offers";
 
 const e = demo.form.errors;
 const teamSizes = demo.form.teamSizes.map((t) => t.value) as [string, ...string[]];
-const planIds = plans.map((p) => p.id) as [string, ...string[]];
+const planIds = interests.map((i) => i.id) as [string, ...string[]];
 
 /** Shared by the browser (instant feedback) and the server action (source of truth). */
 export const demoSchema = z.object({

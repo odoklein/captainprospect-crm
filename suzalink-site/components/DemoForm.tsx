@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { submitDemo, type DemoState } from "@/app/demo/actions";
 import { demo } from "@/content/demo";
-import { plans } from "@/content/pricing";
+import { findInterest } from "@/content/offers";
 import { demoFields, validateDemo, type DemoErrors, type DemoField } from "@/lib/demo-schema";
 import { ButtonLink, cx } from "@/components/ui/primitives";
 
@@ -21,7 +21,7 @@ export function DemoForm({ plan }: { plan?: string }) {
 
   const errors: DemoErrors = { ...state.errors, ...clientErrors };
   const errorCount = demoFields.filter((k) => errors[k]).length;
-  const selectedPlan = plans.find((p) => p.id === plan);
+  const selectedPlan = findInterest(plan);
 
   useEffect(() => {
     if (state.status === "success") successRef.current?.focus();

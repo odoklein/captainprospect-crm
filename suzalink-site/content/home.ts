@@ -15,15 +15,37 @@ export type Action = { label: string; href: string };
 export const hero = {
   eyebrow: "CRM d'exécution outbound",
   /** Pill above the title: who Suzalink is for. */
-  audience: "Agences de prospection et équipes SDR",
+  audience: "PME, agences de prospection et équipes SDR",
   titleLines: ["Votre prospection.", "Vos règles."],
   subtitle:
-    "Le CRM d'exécution outbound qui réunit appels, emails, séquences et IA dans une instance dédiée.",
+    "Nos SDR prennent vos RDV B2B, ou votre équipe appelle avec notre CRM. Dans les deux cas, chaque appel reste visible.",
   primary: { label: "Demander une démo", href: "/demo" },
-  secondary: { label: "Voir les tarifs", href: "/#tarifs" },
+  secondary: { label: "Faire prospecter par nos SDR", href: "/prospection-externalisee" },
   mockupLabel:
     "Aperçu de l'espace SDR : file d'appels, fiche du contact en cours, résultats en un clic et bouton Appel suivant.",
 };
+
+/** Juste sous le hero : les deux façons de travailler avec Suzalink. */
+export const doors = {
+  eyebrow: "Deux façons de travailler avec nous",
+  title: "Vous déléguez, ou vous appelez vous-même",
+  items: [
+    {
+      eyebrow: "Suzalink Prospection",
+      title: "Nos SDR prennent vos RDV",
+      body: "Pour les dirigeants de PME et les directeurs commerciaux qui veulent des RDV qualifiés sans recruter. Chaque appel est enregistré et visible dans votre portail.",
+      points: ["Sprint test de 2 semaines, 990 € HT", "RDV non honoré remplacé", "Sans engagement après le sprint"],
+      action: { label: "Découvrir la prospection", href: "/prospection-externalisee" },
+    },
+    {
+      eyebrow: "Suzalink CRM",
+      title: "Votre équipe appelle avec notre CRM",
+      body: "Pour les agences de prospection et les équipes SDR. File d'appels, téléphonie, IA et portail client, à votre marque.",
+      points: ["Marque blanche et portail client", "Téléphonie Allo et OnOff intégrée", "Dès 59 € HT par mois"],
+      action: { label: "Découvrir le CRM", href: "/crm-agence-prospection" },
+    },
+  ],
+} as const;
 
 export const logos = {
   eyebrow: "Références",
@@ -163,14 +185,15 @@ export const stack = {
 export const cases = {
   eyebrow: "Cas clients",
   title: "Pourquoi les équipes nous font confiance",
-  subtitle: "Trois façons de prospecter, une même plateforme. Les cas détaillés arrivent bientôt.",
-  action: { label: "Voir tous les cas clients", href: "#" }, // TODO : page cas clients
+  subtitle: "Une mission réelle, chiffres à l'appui. Les autres cas sont en cours de validation avec nos clients.",
+  action: { label: "Voir la mission dentaire", href: "/secteurs/cabinets-dentaires" },
   placeholderBadge: "Placeholder",
   readLabel: "Lire",
   // TODO : remplacer les « XX » par des résultats réels, validés par écrit avec chaque client.
   items: [
+    // Mission réelle (client anonymisé) : Drive « LES RDV », nov.–déc. 2025.
+    { image: "caseSmb", eyebrow: "Cabinets dentaires · 2025", title: "147 RDV terrain et 36 boîtes de collecte en deux mois", href: "/secteurs/cabinets-dentaires", placeholder: false },
     { image: "caseAgency", eyebrow: "Agence de prospection", title: "XX SDRs pilotés sur une seule instance", href: "#" },
-    { image: "caseSmb", eyebrow: "PME B2B", title: "+XX % de RDV qualifiés en XX jours", href: "#" },
     { image: "caseFreelance", eyebrow: "SDR indépendant", title: "XX appels par jour, sans changer d'outil", href: "#" },
   ],
 } as const;

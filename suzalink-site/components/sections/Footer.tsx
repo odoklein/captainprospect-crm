@@ -17,6 +17,9 @@ export function Footer() {
               <Logo className="h-24 w-auto sm:h-28" title="" />
             </Link>
             <p className="max-w-[34ch] text-muted">{footer.tagline}</p>
+            <a href={footer.parent.url} className="w-fit text-[14px] font-medium text-navy underline-offset-4 hover:underline">
+              {footer.parent.label}
+            </a>
           </div>
 
           <nav aria-label="Pied de page" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">

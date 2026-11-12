@@ -4,6 +4,7 @@ import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { site } from "@/content/site";
 import { MotionProvider } from "@/components/ui/motion";
 import { SmoothScroll } from "@/components/ui/SmoothScroll";
+import { JsonLd } from "@/components/ui/JsonLd";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -56,6 +57,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Aller au contenu
         </a>
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": `${site.url}/#organisation`,
+            name: site.name,
+            url: site.url,
+            logo: `${site.url}/brand/logo.png`,
+            description: site.seo.description,
+            parentOrganization: { "@type": "Organization", name: site.footer.parent.name, url: site.footer.parent.url },
+          }}
+        />
         <SmoothScroll />
         <MotionProvider>{children}</MotionProvider>
       </body>

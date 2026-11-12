@@ -15,7 +15,10 @@ UI). Explique ce que tu fais en français simple, sans jargon technique, et mont
 |---|---|
 | Textes de l'accueil, section par section | `content/home.ts` |
 | Nom, SEO (titre, description), menu, pied de page, réseaux sociaux | `content/site.ts` |
-| Prix et offres | `content/pricing.ts` |
+| Prix et offres du CRM | `content/pricing.ts` |
+| Offres de prospection (sprint, mission, 100 % résultat) et garanties | `content/offers.ts` |
+| Pages d'offre : /prospection-externalisee, /crm-agence-prospection, /tarifs | `content/pages/<page>.ts` |
+| Pages secteur /secteurs/<cible> (une entrée = une page, sitemap inclus) | `content/pages/secteurs.ts` |
 | Logos clients et outils cités | `content/brands.ts` (+ fichiers dans `public/logos/`) |
 | Photos et leur texte alternatif | `content/images.ts` (+ fichiers dans `public/photos/`) |
 | Page et formulaire de démo | `content/demo.ts` |

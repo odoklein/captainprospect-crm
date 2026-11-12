@@ -4,6 +4,7 @@ import { AnnouncementBar } from "@/components/sections/AnnouncementBar";
 import { SiteHeader } from "@/components/sections/SiteHeader";
 import { Hero } from "@/components/sections/Hero";
 import { LogoStrip } from "@/components/sections/LogoStrip";
+import { Doors } from "@/components/sections/Doors";
 import { Features } from "@/components/sections/Features";
 import { AiSplit } from "@/components/sections/AiSplit";
 import { Engines } from "@/components/sections/Engines";
@@ -30,7 +31,7 @@ function StructuredData() {
     url: site.url,
     description: site.seo.description,
     image: `${site.url}/opengraph-image.png`,
-    publisher: { "@type": "Organization", name: site.name, logo: `${site.url}/brand/logo.png` },
+    publisher: { "@id": `${site.url}/#organisation` },
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "EUR",
@@ -42,7 +43,7 @@ function StructuredData() {
         name: p.name,
         price: p.price.monthly,
         priceCurrency: "EUR",
-        url: `${site.url}/#tarifs`,
+        url: `${site.url}/tarifs#crm`,
         priceSpecification: {
           "@type": "UnitPriceSpecification",
           price: p.price.monthly,
@@ -70,6 +71,7 @@ export default function HomePage() {
       <SiteHeader />
       <main id="contenu" tabIndex={-1} className="outline-none">
         <Hero />
+        <Doors />
         <LogoStrip />
         <Features />
         <AiSplit />
