@@ -14,7 +14,11 @@ UI). Explique ce que tu fais en français simple, sans jargon technique, et mont
 | Besoin | Fichier |
 |---|---|
 | Textes de l'accueil, section par section | `content/home.ts` |
-| Nom, SEO (titre, description), menu, pied de page, réseaux sociaux | `content/site.ts` |
+| Nom, SEO (titre, description), pied de page, réseaux sociaux | `content/site.ts` |
+| Menu principal (panneaux Produit, Solutions, Ressources) | `content/menu.ts` |
+| Guides /guides/<sujet> (réponse directe en tête de section, liens [texte](/url)) | `content/pages/guides.ts` |
+| Pages /guides, /secteurs, /a-propos | `content/pages/hubs.ts` |
+| Visuels produit (PNG/WebP sans fond) | `public/visuals/` |
 | Prix et offres du CRM | `content/pricing.ts` |
 | Offres de prospection (sprint, mission, 100 % résultat) et garanties | `content/offers.ts` |
 | Pages d'offre : /prospection-externalisee, /crm-agence-prospection, /tarifs | `content/pages/<page>.ts` |

@@ -22,19 +22,33 @@ export const sectors: Sector[] = [
         "Vous vendez aux cabinets dentaires ? Nos SDR obtiennent l'accord de l'assistante et remplissent vos tournées. 147 RDV terrain sur une mission de fin 2025.",
     },
     breadcrumb: "Cabinets dentaires",
+    updated: "2026-11-12",
     hero: {
       eyebrow: "Secteur · Cabinets dentaires",
       title: "Joignez les cabinets dentaires, pas seulement leur répondeur",
       lead: "Dans un cabinet, la personne qui décroche est presque toujours l'assistante. C'est souvent elle qui dit oui. Nos SDR savent lui parler, au bon moment, avec une demande qu'elle peut accepter seule.",
       primary: { label: "Lancer un sprint test", href: "/demo?offre=sprint" },
       secondary: { label: "Voir la méthode", href: "#ce-qui-marche" },
-      bullets: [
-        "147 RDV terrain sur une mission de deux mois",
-        "Plus de 20 départements, RDV groupés par tournée",
-        "Fichier national nettoyé avant le premier appel",
-      ],
+      visual: {
+        src: "/visuals/tournees-dentaires.webp",
+        alt: "Illustration : carte de France des tournées, avec les départements où des RDV et des boîtes de collecte ont été obtenus.",
+        width: 1254,
+        height: 1254,
+      },
     },
     blocks: [
+      {
+        kind: "answer",
+        question: "Comment prospecter les cabinets dentaires par téléphone ?",
+        answer:
+          "Appelez hors des heures de soins, parlez d'abord à l'assistante, qui gère l'agenda et les fournisseurs, et proposez une demande simple qu'elle peut accepter seule, comme le passage d'un commercial. Rappelez à d'autres heures les cabinets non joints et groupez les RDV par département pour remplir des tournées.",
+        facts: [
+          "**147 RDV** terrain en deux mois, fin 2025",
+          "**36 boîtes de collecte** acceptées",
+          "Plus de **20 départements** couverts",
+          "Fichier national nettoyé : **6 732 cabinets**",
+        ],
+      },
       {
         kind: "proof",
         id: "mission",

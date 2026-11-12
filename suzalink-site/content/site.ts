@@ -33,13 +33,8 @@ export const site = {
     href: "/tarifs#sprint",
   },
 
-  nav: [
-    { label: "Prospection", href: "/prospection-externalisee" },
-    { label: "CRM agences", href: "/crm-agence-prospection" },
-    { label: "Produit", href: "/#produit" },
-    { label: "Tarifs", href: "/tarifs" },
-    { label: "Sécurité", href: "/#securite" },
-  ] satisfies NavLink[],
+  // Menu principal : content/menu.ts
+
 
   footer: {
     tagline: "Des RDV B2B pris par nos SDR, ou le CRM pour les prendre vous-même.",
@@ -67,14 +62,18 @@ export const site = {
       {
         title: "Ressources",
         links: [
+          { label: "Guides", href: "/guides" },
+          { label: "Externaliser sa prospection", href: "/guides/externaliser-prospection-commerciale" },
+          { label: "Prix d'un RDV qualifié", href: "/guides/prix-rdv-qualifie" },
+          { label: "Barrage secrétaire", href: "/guides/barrage-secretaire" },
+          { label: "Secteurs", href: "/secteurs" },
           { label: "Prospection des cabinets dentaires", href: "/secteurs/cabinets-dentaires" },
-          { label: "Comparatif des coûts", href: "/#cout" },
-          { label: "Demander une démo", href: "/demo" },
         ],
       },
       {
         title: "Entreprise",
         links: [
+          { label: "À propos", href: "/a-propos" },
           { label: "Suzali Conseil", href: "https://suzaliconseil.com" },
           { label: "Sécurité", href: "/#securite" },
           { label: "Contact", href: "/demo" },

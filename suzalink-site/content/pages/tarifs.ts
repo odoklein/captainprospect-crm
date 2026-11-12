@@ -13,6 +13,7 @@ export const tarifsPage: LandingPage = {
       "Prix publics, hors taxes : sprint test de prospection à 990 €, mission mensuelle, paiement au RDV honoré, et CRM de prospection dès 59 € par mois.",
   },
   breadcrumb: "Tarifs",
+  updated: "2026-11-12",
   hero: {
     eyebrow: "Tarifs",
     title: "Des prix publics, des RDV garantis",
@@ -23,11 +24,38 @@ export const tarifsPage: LandingPage = {
   },
   blocks: [
     {
+      kind: "answer",
+      question: "Combien coûte la prospection externalisée chez Suzalink ?",
+      answer:
+        "Le sprint test coûte 990 € HT pour deux semaines, déduits si vous continuez. La mission mensuelle coûte 1 290 € HT par mois plus 100 € HT par RDV honoré. Sur les cibles déjà prouvées, vous pouvez ne payer que les RDV honorés, de 180 à 300 € HT. Le CRM seul commence à 59 € HT par mois.",
+      facts: ["Prix publics, hors taxes", "RDV non honoré remplacé", "Sans engagement après le sprint", "Le calcul détaillé : [prix d'un RDV qualifié](/guides/prix-rdv-qualifie)"],
+    },
+    {
       kind: "offers",
       id: "prospection",
       eyebrow: "Suzalink Prospection",
       title: "Nos SDR prennent vos RDV",
       intro: "Commencez par deux semaines de test. Vous continuez seulement si le coût d'un RDV vous convient.",
+    },
+    {
+      kind: "showcase",
+      id: "bilan",
+      eyebrow: "À la fin du sprint",
+      title: "Vous connaissez le prix réel d'un RDV",
+      intro: "Le bilan du sprint met tout sur la table : appels, contacts joints, intéressés, RDV, et le coût d'un RDV sur votre cible. Vous décidez ensuite, chiffres en main.",
+      points: [
+        "Le coût réel d'un RDV, calculé sur vos appels",
+        "Tous les enregistrements, téléchargeables",
+        "Les objections les plus fréquentes et ce qu'on change",
+      ],
+      image: {
+        src: "/visuals/bilan-sprint.webp",
+        alt: "Illustration d'un bilan de sprint : 820 appels, 310 contacts joints, 41 intéressés, 7 RDV, soit 142 € HT par RDV pour un sprint à 990 € HT.",
+        width: 1448,
+        height: 1086,
+      },
+      reverse: true,
+      action: { label: "Lancer un sprint test", href: "/demo?offre=sprint" },
     },
     { kind: "crm-pricing", id: "crm" },
     {

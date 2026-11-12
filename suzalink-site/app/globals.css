@@ -169,3 +169,23 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ───────── Inside pages: hover light on cards (components/landing/interactive.tsx) ───────── */
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  background: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 0%), rgba(185, 237, 214, 0.5), transparent 65%);
+}
+.spotlight-dark::before {
+  background: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 0%), rgba(185, 237, 214, 0.16), transparent 65%);
+}
+.spotlight:hover::before,
+.spotlight:focus-within::before {
+  opacity: 1;
+}

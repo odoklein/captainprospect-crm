@@ -14,20 +14,33 @@ export const crmAgencePage: LandingPage = {
       "Le CRM des agences de prospection : téléphonie, enregistrements, IA et portail client à votre marque. Domaine, logo, couleurs. Dès 419 € HT par mois.",
   },
   breadcrumb: "CRM pour agences",
+  updated: "2026-11-12",
   hero: {
     eyebrow: "CRM pour agences de prospection",
     title: "Le CRM de votre agence, à votre marque",
     lead: "Vos SDR appellent, vos clients suivent leurs RDV dans un portail à vos couleurs. Nous l'utilisons chaque jour pour nos propres missions : chaque fonction est née d'un problème de terrain.",
     primary: { label: "Voir le CRM à vos couleurs", href: "/demo?offre=medium-business" },
     secondary: { label: "Voir les tarifs", href: "/tarifs#crm" },
-    bullets: [
-      "Votre domaine, votre logo, vos couleurs",
-      "Portail client inclus",
-      "Téléphonie Allo et OnOff, appels enregistrés",
-      "Une instance et une base par agence",
-    ],
+    visual: {
+      src: "/visuals/marque-blanche.webp",
+      alt: "Illustration : le même portail client aux couleurs de deux agences fictives, avec les RDV de la semaine.",
+      width: 1536,
+      height: 1024,
+    },
   },
   blocks: [
+    {
+      kind: "answer",
+      question: "Qu'est-ce qu'un CRM pour agence de prospection ?",
+      answer:
+        "C'est un CRM conçu pour faire appeler plusieurs SDR sur les missions de plusieurs clients, et pour montrer à chaque client ses propres résultats. Suzalink réunit la file d'appels, la téléphonie, les enregistrements, la fiche de RDV rédigée par l'IA et un portail client à la marque de l'agence.",
+      facts: [
+        "Votre domaine, votre logo, vos couleurs",
+        "Portail client inclus",
+        "Téléphonie Allo et OnOff, appels enregistrés",
+        "Dès **419 € HT par mois** pour 8 utilisateurs",
+      ],
+    },
     {
       kind: "pains",
       id: "constat",
@@ -36,7 +49,7 @@ export const crmAgencePage: LandingPage = {
       items: [
         {
           title: "Un outil par besoin",
-          body: "Un CRM, une téléphonie, un outil d'enregistrement, des séquences, un tableur pour le client. Chaque abonnement se paie par commercial, et rien ne se parle.",
+          body: "Un CRM, une téléphonie, un outil d'enregistrement, des séquences, un tableur pour le client. Chaque abonnement se paie par commercial, et rien ne se parle. Voir [le comparatif des coûts](/#cout).",
         },
         {
           title: "Des clients qui veulent voir",
@@ -44,7 +57,7 @@ export const crmAgencePage: LandingPage = {
         },
         {
           title: "Des SDR sur plusieurs missions",
-          body: "Le matin pour un client, l'après-midi pour un autre. Si l'outil ne suit pas, on mélange les scripts, les fichiers et les rappels.",
+          body: "Le matin pour un client, l'après-midi pour un autre. Si l'outil ne suit pas, on mélange les scripts, les fichiers et les rappels. C'est notre quotidien chez [Suzalink Prospection](/prospection-externalisee).",
         },
         {
           title: "Le rapport du vendredi",
@@ -68,6 +81,26 @@ export const crmAgencePage: LandingPage = {
         { icon: "check", title: "RDV sans agenda client", body: "Votre client n'a pas de calendrier connecté ? Le SDR pose quand même le RDV, et le client le retrouve dans son portail." },
         { icon: "lock", title: "Instance dédiée", body: "Une instance et une base de données par agence. Vos données ne côtoient jamais celles d'une autre." },
       ],
+    },
+    {
+      kind: "showcase",
+      id: "ia",
+      eyebrow: "IA intégrée",
+      title: "Vos SDR passent l'appel, l'IA écrit la fiche",
+      intro: "Fini le compte rendu tapé à la main après chaque RDV. L'IA prépare la fiche, le SDR la relit, votre client la reçoit dans son portail.",
+      points: [
+        "Besoin, budget, décideur et objections, rangés au même endroit",
+        "Résultat d'appel proposé par l'IA, confirmé en un clic",
+        "Digest du matin : les priorités de la journée par SDR",
+      ],
+      image: {
+        src: "/visuals/fiche-rdv-ia.webp",
+        alt: "Illustration d'une fiche de RDV rédigée par l'IA, avec les boutons Confirmer et Modifier.",
+        width: 1122,
+        height: 1402,
+      },
+      reverse: true,
+      action: { label: "Voir le produit en détail", href: "/#produit" },
     },
     {
       kind: "proof",
@@ -135,6 +168,9 @@ export const crmAgencePage: LandingPage = {
         { label: "Tarifs du CRM", href: "/tarifs#crm", body: "Indépendant, Small Business, Medium Business : tout est public." },
         { label: "Le produit en détail", href: "/#produit", body: "File d'appels, IA, journal d'appels et portail client." },
         { label: "Sécurité", href: "/#securite", body: "Instance dédiée, base isolée, rôles et permissions." },
+        { label: "Passer le barrage secrétaire", href: "/guides/barrage-secretaire", body: "Le guide à partager avec vos SDR, tiré de nos appels." },
+        { label: "Prix d'un RDV qualifié", href: "/guides/prix-rdv-qualifie", body: "Pour fixer vos propres prix d'agence face au marché." },
+        { label: "À propos", href: "/a-propos", body: "Suzali Conseil, Suzalink, et pourquoi nous avons construit ce CRM." },
       ],
     },
     {

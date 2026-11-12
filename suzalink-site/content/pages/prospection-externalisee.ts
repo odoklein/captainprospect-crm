@@ -19,20 +19,33 @@ export const prospectionPage: LandingPage = {
       "Externalisez votre prospection téléphonique B2B : un SDR dédié, chaque appel enregistré et visible. Un sprint test de 2 semaines pour juger sur pièces.",
   },
   breadcrumb: "Prospection externalisée",
+  updated: "2026-11-12",
   hero: {
     eyebrow: "Prospection externalisée",
     title: "Des RDV qualifiés dans votre agenda, sans recruter",
     lead: "Nos SDR appellent vos cibles depuis notre propre CRM. Vous voyez chaque appel, chaque objection et chaque RDV le jour même. Et si un RDV n'est pas honoré, on le remplace.",
     primary: { label: "Lancer un sprint test", href: "/demo?offre=sprint" },
     secondary: { label: "Voir les tarifs", href: "/tarifs" },
-    bullets: [
-      "Sprint test de 2 semaines, 990 € HT",
-      "Chaque appel enregistré et consultable",
-      "RDV non honoré remplacé sous 14 jours",
-      "Sans engagement après le sprint",
-    ],
+    visual: {
+      src: "/visuals/mission-semaine.webp",
+      alt: "Illustration du portail client : appels de la semaine, taux de joignabilité, RDV pris et enregistrements à écouter.",
+      width: 1536,
+      height: 1024,
+    },
   },
   blocks: [
+    {
+      kind: "answer",
+      question: "Qu'est-ce que la prospection externalisée ?",
+      answer:
+        "La prospection externalisée consiste à confier à une équipe extérieure les appels qui mènent à vos rendez-vous commerciaux. Chez Suzalink, un SDR dédié appelle vos cibles depuis notre CRM, chaque appel est enregistré, et vous ne gardez que les RDV qualifiés : un RDV non honoré est remplacé.",
+      facts: [
+        "Sprint test de 2 semaines : **990 € HT**",
+        "Chaque appel enregistré et consultable le jour même",
+        "RDV non honoré remplacé sous 14 jours",
+        "Sans engagement après le sprint",
+      ],
+    },
     {
       kind: "pains",
       id: "constat",
@@ -42,7 +55,7 @@ export const prospectionPage: LandingPage = {
       items: [
         {
           title: "Recruter un SDR prend des mois",
-          body: "Annonce, entretiens, formation, premiers appels hésitants. Le premier RDV arrive tard. Et si la personne part au bout de six mois, tout recommence.",
+          body: "Annonce, entretiens, formation, premiers appels hésitants. Le premier RDV arrive tard. Et si la personne part au bout de six mois, tout recommence. Nous comparons les deux options dans [notre guide pour externaliser sa prospection](/guides/externaliser-prospection-commerciale).",
         },
         {
           title: "Les agences montrent des chiffres, pas des appels",
@@ -54,7 +67,7 @@ export const prospectionPage: LandingPage = {
         },
         {
           title: "Le standard filtre, le décideur ne rappelle pas",
-          body: "Assistante, accueil, « il est en réunion ». Passer ce premier filtre demande des rappels à des heures différentes et une phrase d'accroche qui tient en dix secondes.",
+          body: "Assistante, accueil, « il est en réunion ». Passer ce premier filtre demande des rappels à des heures différentes et une phrase d'accroche qui tient en dix secondes. Notre méthode est détaillée dans [passer le barrage secrétaire](/guides/barrage-secretaire).",
         },
       ],
     },
@@ -63,6 +76,7 @@ export const prospectionPage: LandingPage = {
       id: "methode",
       eyebrow: "Comment se passe une mission",
       title: "Cinq étapes, toutes visibles dans votre portail",
+      howto: true,
       items: [
         {
           when: "jours 1 à 3",
@@ -92,6 +106,26 @@ export const prospectionPage: LandingPage = {
       ],
     },
     {
+      kind: "showcase",
+      id: "fiche-rdv",
+      eyebrow: "Ce que vous recevez",
+      title: "Chaque RDV arrive préparé",
+      intro: "Dès qu'un RDV est pris, l'IA rédige la fiche à partir de l'appel. Le SDR la relit et la confirme avant qu'elle n'arrive chez vous.",
+      points: [
+        "Le besoin, dit avec les mots du prospect",
+        "Le budget et l'horizon, quand ils ont été évoqués",
+        "Le décideur et les autres personnes impliquées",
+        "Les objections déjà levées, pour ne pas les rejouer",
+      ],
+      image: {
+        src: "/visuals/fiche-rdv-ia.webp",
+        alt: "Illustration d'une fiche de RDV rédigée par l'IA : date, interlocuteur, besoin, budget, décideur et objections levées.",
+        width: 1122,
+        height: 1402,
+      },
+      action: { label: "Voir le CRM qui la produit", href: "/crm-agence-prospection" },
+    },
+    {
       kind: "proof",
       id: "preuve",
       eyebrow: "Une vraie mission",
@@ -105,7 +139,7 @@ export const prospectionPage: LandingPage = {
       ],
       story:
         "Ce qui a marché : parler d'abord à l'assistante, qui décide souvent seule, et proposer une demande simple (« notre commercial peut-il passer déposer une boîte ? ») plutôt qu'un RDV de trente minutes. 36 cabinets ont dit oui à la boîte.",
-      note: "Client anonymisé. Chiffres issus de notre suivi de mission.",
+      note: "Client anonymisé. Chiffres issus de notre suivi de mission. Détail dans notre page sur la prospection des cabinets dentaires.",
     },
     {
       kind: "compare",
@@ -145,13 +179,13 @@ export const prospectionPage: LandingPage = {
         {
           title: "Ce qu'est un RDV qualifié",
           paragraphs: [
-            "Un RDV avec la bonne personne, dans la bonne entreprise, qui a accepté de parler de votre sujet à une date précise. On le définit avec vous dès le cadrage : taille d'entreprise, fonction, besoin, horizon. Un RDV qui ne coche pas ces cases ne vous est pas facturé.",
+            "Un RDV avec la bonne personne, dans la bonne entreprise, qui a accepté de parler de votre sujet à une date précise. On le définit avec vous dès le cadrage : taille d'entreprise, fonction, besoin, horizon. Un RDV qui ne coche pas ces cases ne vous est pas facturé. Pour les prix pratiqués, lisez [combien coûte un rendez-vous qualifié](/guides/prix-rdv-qualifie).",
           ],
         },
         {
           title: "Forfait ou paiement au RDV",
           paragraphs: [
-            "Le forfait mensuel vous assure un SDR dédié et un volume d'appels régulier. Le paiement au RDV transfère le risque sur nous, donc nous ne l'acceptons que sur des cibles que nous connaissons. Le plus sain pour démarrer : un test court, qui donne le coût réel d'un RDV sur votre marché.",
+            "Le forfait mensuel vous assure un SDR dédié et un volume d'appels régulier. Le paiement au RDV transfère le risque sur nous, donc nous ne l'acceptons que sur des cibles que nous connaissons. Le plus sain pour démarrer : un test court, qui donne le coût réel d'un RDV sur votre marché. Tous nos prix sont sur la [page tarifs](/tarifs).",
           ],
         },
         {
@@ -202,7 +236,10 @@ export const prospectionPage: LandingPage = {
       items: [
         { label: "Tarifs", href: "/tarifs", body: "Toutes nos offres de prospection et de CRM, prix publics." },
         { label: "Prospection des cabinets dentaires", href: "/secteurs/cabinets-dentaires", body: "Ce que nous avons appris en appelant des milliers de cabinets." },
+        { label: "Guide : externaliser sa prospection", href: "/guides/externaliser-prospection-commerciale", body: "Quand le faire, combien ça coûte, les pièges à éviter." },
+        { label: "Prix d'un RDV qualifié", href: "/guides/prix-rdv-qualifie", body: "Forfait, paiement au RDV, coût interne : le calcul complet." },
         { label: "CRM pour agences", href: "/crm-agence-prospection", body: "Vous avez votre propre équipe ? Utilisez notre CRM à votre marque." },
+        { label: "Passer le barrage secrétaire", href: "/guides/barrage-secretaire", body: "Les phrases et les horaires qui marchent, tirés de nos appels." },
       ],
     },
     {

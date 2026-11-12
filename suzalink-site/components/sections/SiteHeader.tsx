@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { site } from "@/content/site";
+import { MegaMenu, MobileMenu } from "./MegaMenu";
 import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/ui/Icon";
 import { ButtonLink, cx } from "@/components/ui/primitives";
@@ -11,26 +12,16 @@ import { ButtonLink, cx } from "@/components/ui/primitives";
 /** 2. Sticky navigation with a disclosure menu on small screens. */
 export function SiteHeader() {
   const pathname = usePathname();
-  const [activeSection, setActiveSection] = useState("");
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    let frame = 0;
-    const update = () => {
-      setScrolled(window.scrollY > 8);
-      const sections = site.nav.map(item => document.getElementById(item.href.split("#")[1]))
-        .filter((section): section is HTMLElement => Boolean(section))
-        .sort((a, b) => a.offsetTop - b.offsetTop);
-      const current = sections.filter(section => section.getBoundingClientRect().top <= 160).at(-1);
-      setActiveSection(current?.id ?? "");
-    };
-    const onScroll = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
+    const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { cancelAnimationFrame(frame); window.removeEventListener("scroll", onScroll); };
+    return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
   useEffect(() => {
@@ -62,21 +53,7 @@ export function SiteHeader() {
           <Logo className="h-[52px] w-auto" title="" />
         </Link>
 
-        <nav aria-label="Navigation principale" className="hidden flex-1 justify-center lg:flex">
-          <ul className="flex items-center gap-1">
-            {site.nav.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  aria-current={activeSection === item.href.split("#")[1] ? "location" : undefined}
-                  className="rounded-full px-3.5 py-2 text-[15px] text-ink/80 transition-colors hover:bg-ink/[.04] hover:text-ink aria-[current=location]:bg-mint/60 aria-[current=location]:text-navy"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <MegaMenu />
 
         <div className="ml-auto hidden items-center gap-2 lg:flex">
           <a href={site.loginUrl} className="rounded-full px-3.5 py-2 text-[15px] text-ink/80 hover:text-ink">
@@ -100,22 +77,9 @@ export function SiteHeader() {
         </button>
       </div>
 
-      <div id={menuId} hidden={!open} className="border-t border-line bg-paper lg:hidden">
+      <div id={menuId} hidden={!open} className="max-h-[calc(100dvh-72px)] overflow-y-auto border-t border-line bg-paper lg:hidden">
         <nav aria-label="Navigation mobile" className="mx-auto max-w-[1240px] px-4 py-4 sm:px-6">
-          <ul className="flex flex-col">
-            {site.nav.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={activeSection === item.href.split("#")[1] ? "location" : undefined}
-                  className="font-display-tight block border-b border-line py-3.5 text-2xl font-light aria-[current=location]:text-ok"
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <MobileMenu onNavigate={() => setOpen(false)} />
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href={site.demoHref} onClick={() => setOpen(false)}>
               {site.demoLabel}
