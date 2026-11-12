@@ -91,6 +91,17 @@ export function ReadinessPanel({
                     </section>
                 )}
                 {ready && <div className="cw-ready" role="status"><Check /><div><strong>Toutes les bases actives sont prêtes</strong><p>Les SDR ont accès au ciblage, au pitch et au script de chaque base.</p></div></div>}
+                {activeLists.length > 0 && <section className="cw-panel">
+                    <header className="cw-panel-toolbar"><div><h2>Préparation par base</h2><small>Ouvrez directement le point à compléter.</small></div><Database className="cw-muted" /></header>
+                    <div className="divide-y divide-slate-100">{activeLists.map(list => {
+                        const missing = CHECKS.filter(check => list.readiness && !list.readiness[check.value] && (check.key === "strategy" || list.readiness.hasStrategy));
+                        return <div key={list.id} className="px-5 py-4"><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold text-slate-800">{list.name}</h3><span className="text-xs text-slate-500">{CHECKS.every(check => list.readiness?.[check.value]) ? "Prête à prospecter" : missing.length ? `${missing.length} point${missing.length > 1 ? "s" : ""} à compléter` : "Vérification en attente"}</span></div><div className="mt-3 flex flex-wrap gap-2">{CHECKS.map(check => {
+                            const complete = Boolean(list.readiness?.hasStrategy && list.readiness[check.value]);
+                            const disabled = !list.readiness || (!list.readiness.hasStrategy && check.key !== "strategy");
+                            return <button key={check.key} className="cw-button" disabled={disabled} onClick={() => onFixStrategy(check.key, list)} title={complete ? `Consulter ou modifier : ${check.label}` : check.action}>{complete ? <Check className="text-teal-600" /> : <check.icon />}{check.label}{!complete && !disabled && <ChevronRight />}</button>;
+                        })}</div></div>;
+                    })}</div>
+                </section>}
                 <section className="cw-panel">
                     <header className="cw-panel-toolbar"><div><h2>Vérifications de lancement</h2><small>Préparation des bases de prospects</small></div><ListChecks className="cw-muted" /></header>
                     {readiness ? <ul className="cw-checklist">

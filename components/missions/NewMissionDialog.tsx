@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Drawer } from "@/components/ui/Drawer";
 import { useToast } from "@/components/ui";
 import { createMission, CreateMissionInput } from "@/app/actions/mission-wizard";
 import { Channel } from "@prisma/client";
@@ -81,7 +82,7 @@ const STEPS = [
     { id: 1, label: "Mission", icon: Building2, description: "Infos générales" },
     { id: 2, label: "Stratégie", icon: Target, description: "ICP & Pitch" },
     { id: 3, label: "Script", icon: MessageSquare, description: "Argumentaire" },
-    { id: 4, label: "Lancer", icon: CheckCircle2, description: "Récapitulatif" },
+    { id: 4, label: "Vérifier", icon: CheckCircle2, description: "Récapitulatif" },
 ];
 
 const SCRIPT_SECTIONS = [
@@ -270,21 +271,13 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
     const channelOption = CHANNEL_OPTIONS.find(c => c.value === form.channel);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
-                onClick={onClose}
-            />
-
-            {/* Dialog */}
-            <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200/50">
-
+        <Drawer isOpen={isOpen} onClose={() => { if (!isSubmitting) onClose(); }} title="Nouvelle mission" description={clientName ? `Client · ${clientName}` : "Préparer une mission"} size="xl" closeOnOverlay={false} closeOnEscape={!isSubmitting} showCloseButton={!isSubmitting} bodyClassName="p-0">
+            <div className="flex min-h-full flex-col bg-white">
                 {/* ── Header ─────────────────────────────────────────────── */}
-                <div className="relative overflow-hidden bg-slate-900 px-8 pt-8 pb-6 flex-shrink-0">
+                <div className="relative overflow-hidden bg-teal-950 px-6 pt-5 pb-5 flex-shrink-0">
 
                     <div className="relative z-10">
-                        <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-start justify-between mb-4">
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center">
@@ -292,7 +285,7 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
                                     </div>
                                     <span className="text-xs font-semibold text-primary-300 uppercase tracking-widest">Nouvelle mission</span>
                                 </div>
-                                <h2 className="text-2xl font-bold text-white">
+                                <h2 className="text-lg font-semibold text-white">
                                     {step === 1 && "Informations générales"}
                                     {step === 2 && "Stratégie de prospection"}
                                     {step === 3 && "Script d'appel"}
@@ -302,15 +295,10 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
                                     {step === 1 && "Nommez votre mission et choisissez le canal"}
                                     {step === 2 && "Définissez votre cible et votre argumentaire"}
                                     {step === 3 && "Construisez votre script de prospection"}
-                                    {step === 4 && "Vérifiez et lancez votre mission"}
+                                    {step === 4 && "Vérifiez la configuration avant de créer votre mission"}
                                 </p>
                             </div>
-                            <button
-                                onClick={onClose}
-                                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white/70 hover:text-white"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
+
                         </div>
 
                         {/* Step indicator */}
@@ -324,7 +312,7 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
                                         <button
                                             onClick={() => done ? (setDirection(s.id < step ? "back" : "forward"), setStep(s.id)) : undefined}
                                             className={`flex items-center gap-2 ${done ? "cursor-pointer" : "cursor-default"}`}
-                                            disabled={!done && !active}
+                                            disabled={isSubmitting || (!done && !active)}
                                         >
                                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300 text-xs font-bold ${done
                                                     ? "bg-emerald-500 text-white"
@@ -353,7 +341,7 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
 
                 {/* ── Body ───────────────────────────────────────────────── */}
                 <div className="flex-1 overflow-y-auto">
-                    <div className="p-8">
+                    <div className="p-6">
 
                         {/* ── STEP 1: Mission basics ── */}
                         {step === 1 && (
@@ -691,11 +679,12 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
                 </div>
 
                 {/* ── Footer ─────────────────────────────────────────────── */}
-                <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50/80 px-8 py-5 flex items-center justify-between gap-4">
+                <div className="flex-shrink-0 border-t border-slate-100 bg-slate-50/80 sticky bottom-0 z-10 px-6 py-4 flex items-center justify-between gap-4">
                     {/* Back */}
                     <button
                         type="button"
                         onClick={step === 1 ? onClose : goBack}
+                        disabled={isSubmitting}
                         className="flex items-center gap-2 h-10 px-5 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all"
                     >
                         <ChevronLeft className="w-4 h-4" />
@@ -738,12 +727,12 @@ export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }
                             {isSubmitting ? (
                                 <><Loader2 className="w-4 h-4 animate-spin" /> Création...</>
                             ) : (
-                                <><Check className="w-4 h-4" /> Lancer la mission</>
+                                <><Check className="w-4 h-4" /> Créer la mission</>
                             )}
                         </button>
                     )}
                 </div>
             </div>
-        </div>
+        </Drawer>
     );
 }

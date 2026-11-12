@@ -35,7 +35,10 @@ import {
     AlertTriangle,
     Rocket,
 } from "lucide-react";
-import Link from "next/link";
+import { Upload } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
+import { MissionAudienceDrawer } from "./MissionAudienceDrawer";
+import { CSVImportDialog } from "@/components/dialogs/CSVImportDialog";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
@@ -613,7 +616,9 @@ export function MissionWorkspace({
     const [showStatusWorkflowDrawer, setShowStatusWorkflowDrawer] = useState(false);
 
     // Context bar
-    const [moreOpen, setMoreOpen] = useState(false);
+    const [audiencePanel, setAudiencePanel] = useState<{ id: string; name: string } | "new" | null>(null);
+    const [showCsvImport, setShowCsvImport] = useState(false);
+    const [campaignEditor, setCampaignEditor] = useState<string | "new" | null>(null);
     const [fieldSaveState, setFieldSaveState] = useState<"saving" | "saved" | null>(null);
     const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -1800,18 +1805,20 @@ export function MissionWorkspace({
                     </span>
                     <StatusSelect status={mission.status} disabled={isToggling} onSelect={changeStatus} />
                     {visibleTab !== "lancement" && <button className="cw-button cw-primary" onClick={() => onTabChange("lancement")}><Rocket /> {canStart ? "Préparer le lancement" : "Voir le lancement"}</button>}
-                    <div className="relative">
-                        <button type="button" onClick={() => setMoreOpen((value) => !value)} className="cw-button cw-icon-button" aria-label="Plus d’actions" aria-expanded={moreOpen}><MoreHorizontal /></button>
-                        {moreOpen && <>
-                            <div className="fixed inset-0 z-10" onClick={() => setMoreOpen(false)} aria-hidden />
-                            <div className="cw-overflow-menu">
-                                <button onClick={() => { setMoreOpen(false); setShowEditMissionDialog(true); }}><Edit /> Modifier la mission et le client</button>
-                                <button onClick={() => { setMoreOpen(false); setShowStatusWorkflowDrawer(true); }}><ShieldCheck /> Statuts et workflow</button>
-                                {mission.status === "ACTIVE" && !isPortalLaunching && <button onClick={() => { setMoreOpen(false); setShowPortalLaunchModal(true); }}><EyeOff /> Configurer la visibilité du portail</button>}
-                                <button onClick={() => { setMoreOpen(false); onTabChange("reglages"); }}><Trash2 /> Zone de danger</button>
-                            </div>
-                        </>}
-                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild><button className="cw-button cw-icon-button" aria-label="Actions de la mission"><MoreHorizontal /></button></DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                            <DropdownMenuLabel>Préparer la mission</DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => setShowEditMissionDialog(true)}><Edit />Modifier la mission</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setAudiencePanel("new")}><Plus />Créer une base de prospects</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setShowCsvImport(true)}><Upload />Importer un fichier CSV</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setCampaignEditor("new")}><FileText />Créer un ciblage et un script</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onSelect={() => setShowStatusWorkflowDrawer(true)}><ShieldCheck />Statuts et workflow</DropdownMenuItem>
+                            {mission.status === "ACTIVE" && !isPortalLaunching && <DropdownMenuItem onSelect={() => setShowPortalLaunchModal(true)}><EyeOff />Visibilité du portail</DropdownMenuItem>}
+                            <DropdownMenuItem onSelect={() => onTabChange("reglages")}><Edit />Administration</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </header>
 
@@ -1865,7 +1872,7 @@ export function MissionWorkspace({
                 active={mission.status === "ACTIVE"}
                 publishing={isPortalLaunching}
                 onStart={() => setShowPortalLaunchModal(true)}
-                onFixAudience={() => onTabChange("audience")}
+                onFixAudience={() => mission.lists.length ? onTabChange("audience") : setAudiencePanel("new")}
                 onFixTeam={() => onTabChange("equipe")}
                 onFixStrategy={(field, list) => setLaunchFix({ field, list })}
                 onClientOnboarding={onClientOnboarding}
@@ -2550,13 +2557,13 @@ export function MissionWorkspace({
                                     </div>
                                     <h2 className="text-lg font-semibold text-slate-900">Listes de contacts</h2>
                                 </div>
-                                <Link
-                                    href={`/manager/lists/new?missionId=${mission.id}`}
+                                <button type="button" onClick={() => setAudiencePanel("new")}
                                     className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
                                 >
                                     <ListIcon className="w-4 h-4" />
-                                    Nouvelle
-                                </Link>
+                                    Créer une base
+                                </button>
+                                <button className="cw-button ml-2" onClick={() => setShowCsvImport(true)}><Upload /> Importer CSV</button>
                             </div>
                             {mission.lists.length === 0 ? (
                                 <p className="text-sm text-slate-500">Aucune liste</p>
@@ -2606,9 +2613,8 @@ export function MissionWorkspace({
                                             }}
                                         >
                                             <div className={`mgr-mission-card group flex items-center gap-4 p-4 ${!isListActive ? "opacity-70 bg-slate-50" : ""}`}>
-                                                <Link
-                                                    href={`/manager/lists/${list.id}`}
-                                                    className="flex items-center gap-4 flex-1 min-w-0"
+                                                <button type="button" onClick={() => setAudiencePanel({ id: list.id, name: list.name })}
+                                                    className="flex items-center gap-4 flex-1 min-w-0 text-left"
                                                 >
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isListActive ? "bg-amber-100" : "bg-slate-200"}`}>
                                                         <ListIcon className={`w-5 h-5 ${isListActive ? "text-amber-600" : "text-slate-500"}`} />
@@ -2627,7 +2633,7 @@ export function MissionWorkspace({
                                                                 : 0} contacts
                                                         </p>
                                                     </div>
-                                                </Link>
+                                                </button>
                                                 {!isListActive && (
                                                     <span className="text-xs font-medium text-slate-500 px-2 py-1 bg-slate-200 rounded">
                                                         Désactivée
@@ -3121,12 +3127,11 @@ export function MissionWorkspace({
                                         Une campagne porte l&apos;ICP, le pitch et le script utilisés par les SDR.
                                     </p>
                                 </div>
-                                <a
-                                    href={`/manager/campaigns/new?missionId=${mission.id}`}
+                                <button type="button" onClick={() => setCampaignEditor("new")}
                                     className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                                 >
                                     <Plus className="h-4 w-4" /> Nouvelle campagne
-                                </a>
+                                </button>
                             </div>
                             {mission.campaigns.length === 0 ? (
                                 <div className="px-5 py-10 text-center">
@@ -3152,13 +3157,12 @@ export function MissionWorkspace({
                                             <span className="text-xs text-slate-500">
                                                 {c.isActive ? "Active" : "Inactive"}
                                             </span>
-                                            <a
-                                                href={`/manager/campaigns/${c.id}`}
+                                            <button type="button" onClick={() => setCampaignEditor(c.id)}
                                                 className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
                                                 aria-label={`Ouvrir la campagne ${c.name}`}
                                             >
-                                                <ExternalLink className="h-4 w-4" />
-                                            </a>
+                                                <Edit className="h-4 w-4" />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -3818,16 +3822,7 @@ export function MissionWorkspace({
                                     <p className="text-sm text-slate-500 mb-4">
                                         Créez des templates partagés dans la section Email
                                     </p>
-                                    <a
-                                        href={`/manager/emails/templates?new=1${mission?.id ? `&mission=${mission.id}` : ""}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Créer un template
-                                        <ExternalLink className="w-4 h-4" />
-                                    </a>
+                                    <button type="button" onClick={() => { setShowAddTemplateModal(false); setShowCreateTemplateModal(true); }} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700"><Plus className="h-4 w-4" />Créer un modèle</button>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -4112,10 +4107,13 @@ export function MissionWorkspace({
                 }}
             />
 
+            {audiencePanel && <MissionAudienceDrawer key={audiencePanel === "new" ? "new" : audiencePanel.id} missionId={mission.id} missionName={mission.name} list={audiencePanel === "new" ? null : audiencePanel} onClose={() => setAudiencePanel(null)} onCreated={setAudiencePanel} onChanged={() => { void fetchMission(); onMissionMutated?.(); }} />}
+            {showCsvImport && <CSVImportDialog isOpen onClose={() => setShowCsvImport(false)} missions={[{ id: mission.id, name: mission.name }]} onSuccess={() => { setShowCsvImport(false); void fetchMission(); onMissionMutated?.(); onTabChange("audience"); }} />}
+            {campaignEditor && <StrategyEditorDrawer isOpen onClose={() => setCampaignEditor(null)} campaignId={campaignEditor === "new" ? null : campaignEditor} missionId={mission.id} lists={mission.lists} onSaved={() => { void fetchMission(); onMissionMutated?.(); }} />}
             {launchFix && <StrategyEditorDrawer
                 isOpen
                 onClose={() => setLaunchFix(null)}
-                campaignId={launchFix.field === "strategy" ? null : launchFix.list.readiness?.inheritedCampaignId ?? launchFix.list.campaignId ?? null}
+                campaignId={launchFix.list.readiness?.inheritedCampaignId ?? launchFix.list.campaignId ?? null}
                 initialAssignToListId={launchFix.field === "strategy" ? launchFix.list.id : undefined}
                 focusField={launchFix.field === "strategy" ? undefined : launchFix.field}
                 missionId={mission.id}

@@ -292,10 +292,10 @@ export const PUT = withErrorHandler(async (
     const { icp, defaultMailboxId, portalAllowExport, ...rest } = data;
     const cleanData = {
         ...rest,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
-        industry: data.industry || undefined,
-        bookingUrl: data.bookingUrl || undefined,
+        email: data.email === undefined ? undefined : data.email || null,
+        phone: data.phone === undefined ? undefined : data.phone || null,
+        industry: data.industry === undefined ? undefined : data.industry || null,
+        bookingUrl: data.bookingUrl === undefined ? undefined : data.bookingUrl || null,
     };
 
     await prisma.$transaction(async (tx) => {

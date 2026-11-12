@@ -29,6 +29,8 @@ import { OnboardingChecklist, onboardingChecklistKey } from "@/components/onboar
 import { AccessLinksCard } from "@/components/onboarding/AccessLinksCard";
 import { WeeklyBilanModal } from "@/components/reporting/WeeklyBilanModal";
 import type { ChecklistView } from "@/lib/onboarding/checklist-service";
+import { ClientManagementDrawer, type ClientManagementSection } from "@/components/manager/ClientManagementDrawer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
 import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
 import { DailyReportBody, type DailyReportLike } from "@/components/sdr/DailyReportView";
 import {
@@ -148,9 +150,12 @@ interface InterlocuteurLite {
     id: string;
     firstName: string;
     lastName: string;
-    email: string | null;
-    phone: string | null;
-    jobTitle: string | null;
+    email?: string | null;
+    phone?: string | null;
+    jobTitle?: string | null;
+    title?: string | null;
+    emails?: Array<{ value: string; isPrimary: boolean }>;
+    phones?: Array<{ value: string; isPrimary: boolean }>;
     createdAt: string;
     portalUser?: { id: string; email: string; name: string | null; isActive: boolean } | null;
 }
@@ -496,8 +501,7 @@ export function ClientDrawer({
     const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState(false);
-    const moreBtnRef = useRef<HTMLButtonElement | null>(null);
-    const [moreOpen, setMoreOpen] = useState(false);
+    const [managementSection, setManagementSection] = useState<ClientManagementSection | null>(null);
     const [showNewMission, setShowNewMission] = useState(false);
 
     const activeMissionId = openMissionId ?? null;
@@ -624,7 +628,7 @@ export function ClientDrawer({
 
     const missions: MissionLite[] = (clientDetail?.missions ?? []) as MissionLite[];
     const usersList: ClientUserLite[] = (clientDetail?.users ?? []) as ClientUserLite[];
-    const interlocuteurs: InterlocuteurLite[] = (clientDetail?.interlocuteurs ?? []) as InterlocuteurLite[];
+    const interlocuteurs: InterlocuteurLite[] = ((clientDetail?.interlocuteurs ?? []) as InterlocuteurLite[]).map(person => ({ ...person, email: person.emails?.find(entry => entry.isPrimary)?.value ?? person.emails?.[0]?.value ?? person.email, phone: person.phones?.find(entry => entry.isPrimary)?.value ?? person.phones?.[0]?.value ?? person.phone, jobTitle: person.title ?? person.jobTitle }));
     const production = clientDetail?.insights?.production as ClientProductionInsights | undefined;
     const engagement = clientDetail?.insights?.engagement as ClientEngagementInsights | null | undefined;
     const recentActions = (clientDetail?.insights?.recentActions ?? []) as ClientActionInsight[];
@@ -686,6 +690,7 @@ export function ClientDrawer({
                 <div><h1>{client.name}</h1><p>{client.industry || "Espace client"}</p></div>
             </div>
             <div className="cw-actions">
+                <button className="cw-button" onClick={() => setManagementSection("profile")}><Settings2 /> Gérer le client</button>
                 <button className="cw-button cw-primary" onClick={() => setShowNewMission(true)}><Plus /> Nouvelle mission</button>
             </div>
         </div>
@@ -726,37 +731,20 @@ export function ClientDrawer({
                     </>
                 )}
             </div>
-            {/* Overflow menu */}
-            <button
-                ref={moreBtnRef}
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-label="Plus d’actions"
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
-            >
-                <MoreHorizontal className="w-5 h-5" />
-            </button>
-            <PopoverPanel open={moreOpen} onClose={() => setMoreOpen(false)} anchor={moreBtnRef} width={200} align="end">
-                <div className="py-1">
-                    <Link
-                        href={`/manager/clients/${client.id}`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <ExternalLink className="w-4 h-4 text-slate-400" />
-                        Page détaillée
-                    </Link>
-                    <div className="border-t border-slate-100 my-1" />
-                    <button
-                        onClick={() => {
-                            setMoreOpen(false);
-                            setShowDeleteConfirm(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer le client
-                    </button>
-                </div>
-            </PopoverPanel>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild><button className="cw-icon-button" aria-label="Actions du client"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>Gérer {client.name}</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => setManagementSection("profile")}><Building2 />Informations du client</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setManagementSection("contacts")}><Users />Interlocuteurs et agendas</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setManagementSection("portal")}><ShieldCheck />Accès au portail</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setShowNewMission(true)}><Plus />Nouvelle mission</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setActiveTab("onboarding")}><ListChecks />Suivre l’intégration</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => setShowDeleteConfirm(true)}><Trash2 />Supprimer le client</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 
@@ -1019,13 +1007,12 @@ export function ClientDrawer({
                 title="Utilisateurs portail client"
                 icon={<ShieldCheck className="w-3.5 h-3.5" />}
                 action={
-                    <Link
-                        href={`/manager/clients/${client.id}`}
+                    <button type="button" onClick={() => setManagementSection("portal")}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 text-xs font-semibold uppercase tracking-wider transition-colors"
                     >
                         {usersList.length > 0 ? "Gérer" : "Créer un accès"}
                         <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                    </button>
                 }
             >
                 {usersList.length === 0 ? (
@@ -1144,12 +1131,11 @@ export function ClientDrawer({
                         {interlocuteurs.length} contact{interlocuteurs.length > 1 ? "s" : ""} chez ce client
                     </p>
                 </div>
-                <Link
-                    href={`/manager/clients/${client.id}`}
+                <button type="button" onClick={() => setManagementSection("contacts")}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                     <Plus className="w-4 h-4" /> Ajouter
-                </Link>
+                </button>
             </div>
 
             {interlocuteurs.length === 0 ? (
@@ -1837,6 +1823,7 @@ export function ClientDrawer({
                 isLoading={isDeleting}
             />
 
+            {managementSection && <ClientManagementDrawer key={`${client.id}:${managementSection}`} clientId={client.id} clientName={client.name} section={managementSection} onClose={() => setManagementSection(null)} onSaved={refreshClientQueries} />}
             <NewMissionDialog
                 initialClientId={client.id}
                 isOpen={showNewMission}
@@ -1893,8 +1880,6 @@ function MissionRow({
         ARCHIVED: <Archive className="w-3.5 h-3.5" />,
     };
 
-    const [moreOpen, setMoreOpen] = useState(false);
-    const moreRef = useRef<HTMLButtonElement | null>(null);
 
     return (
         <div
@@ -1983,71 +1968,19 @@ function MissionRow({
                 Script
             </button>
 
-            {/* More menu */}
-            <button
-                ref={moreRef}
-                onClick={() => setMoreOpen((v) => !v)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Plus d’actions"
-            >
-                <MoreHorizontal className="w-4 h-4" />
-            </button>
-
-            <PopoverPanel
-                open={moreOpen}
-                onClose={() => setMoreOpen(false)}
-                anchor={moreRef}
-                width={220}
-                align="end"
-            >
-                <div className="py-1">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen();
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <ExternalLink className="w-4 h-4 text-slate-400" />
-                        Ouvrir la mission
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen("equipe");
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <UserCog className="w-4 h-4 text-slate-400" />
-                        Équipe & campagnes
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen("strategy");
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        Stratégie & scripts
-                    </button>
-                    <div className="border-t border-slate-100 my-1" />
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen("general");
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <TrendingUp className="w-4 h-4 text-slate-400" />
-                        Insights de la mission
-                    </button>
-                </div>
-            </PopoverPanel>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild><button className="cw-icon-button" aria-label={`Actions de ${mission.name}`}><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-60" onClick={event => event.stopPropagation()}>
+                    <DropdownMenuLabel>{mission.name}</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => onOpen("lancement")}><Rocket />Préparer le lancement</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={onScriptClick}><FileText />Consulter le script</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onOpen("strategies")}><Crosshair />Ciblage et scripts</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onOpen("audience")}><Inbox />Bases de prospects</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => onOpen("equipe")}><UserCog />Affecter l’équipe</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => onOpen("reglages")}><Settings2 />Réglages de la mission</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
             </div>
         </div>
     );

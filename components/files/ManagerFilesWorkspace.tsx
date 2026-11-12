@@ -175,7 +175,7 @@ function getFolderPseudoFile(folder: FolderItem): FileListItem {
   };
 }
 
-export default function ManagerFilesWorkspace() {
+export default function ManagerFilesWorkspace({ fixedClientId }: { fixedClientId?: string } = {}) {
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -192,7 +192,7 @@ export default function ManagerFilesWorkspace() {
   const deferredSearch = useDeferredValue(search);
   const debouncedSearch = useDebouncedValue(deferredSearch);
   const [typeFilter, setTypeFilter] = useState("");
-  const [clientFilter, setClientFilter] = useState("");
+  const [clientFilter, setClientFilter] = useState(fixedClientId ?? "");
   const [sort, setSort] = useState("recent");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
@@ -745,7 +745,7 @@ export default function ManagerFilesWorkspace() {
               <button
                 type="button"
                 onClick={() => driveStatusQuery.data?.connected && setActiveTab("drive")}
-                disabled={!driveStatusQuery.data?.connected}
+                disabled={!!fixedClientId || !driveStatusQuery.data?.connected}
                 className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium ${
                   activeTab === "drive"
                     ? "border-blue-600 bg-blue-600 text-white"
@@ -879,6 +879,7 @@ export default function ManagerFilesWorkspace() {
                   </label>
                   <select
                     value={clientFilter}
+                    disabled={!!fixedClientId}
                     onChange={(event) => setClientFilter(event.target.value)}
                     className="h-[42px] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
                   >

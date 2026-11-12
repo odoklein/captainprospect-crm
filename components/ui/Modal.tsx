@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useCallback, useRef, useId } from "react";
+import { useEffect, useRef, useId, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, OctagonAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "./Button";
 import { FOCUS_RING } from "./recipes";
+import { registerDialogLayer } from "./dialogStack";
 
 // ============================================
 // MODAL COMPONENT
@@ -26,9 +28,6 @@ interface ModalProps {
     contentClassName?: string;
 }
 
-const FOCUSABLE =
-    'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
 const SIZES = {
     sm: "max-w-md",
     md: "max-w-lg",
@@ -36,6 +35,10 @@ const SIZES = {
     xl: "max-w-4xl",
     full: "max-w-[95vw] max-h-[95vh]",
 };
+
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 export function Modal({
     isOpen,
@@ -50,21 +53,34 @@ export function Modal({
     className,
     contentClassName,
 }: ModalProps) {
+    const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
+    // A nested confirmation must escape the clipped drawer panel, while
+    // workspace dialogs still inherit the workspace palette.
+    const portalTarget = isOpen && hydrated
+        ? document.querySelector(".manager-client-studio") ?? document.body
+        : null;
     const modalRef = useRef<HTMLDivElement>(null);
     const overlayPointerDownRef = useRef(false);
     const uid = useId();
     const titleId = `${uid}-title`;
     const descId = `${uid}-desc`;
 
-    // Handle ESC key
-    const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
-            if (e.key === "Escape" && closeOnEscape) {
-                onClose();
-            }
-        },
-        [closeOnEscape, onClose]
-    );
+    const closeRef = useRef({ onClose, closeOnEscape });
+    useEffect(() => {
+        closeRef.current = { onClose, closeOnEscape };
+    }, [onClose, closeOnEscape]);
+
+    useEffect(() => {
+        const panel = modalRef.current;
+        if (!portalTarget || !panel) return;
+        return registerDialogLayer({
+            panel,
+            priority: 2,
+            modal: true,
+            close: () => { if (closeRef.current.closeOnEscape) closeRef.current.onClose(); },
+            focus: "first",
+        });
+    }, [portalTarget]);
 
     // Track whether interaction started on overlay
     const handleOverlayPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -94,70 +110,9 @@ export function Modal({
         overlayPointerDownRef.current = false;
     };
 
-    // Lock body scroll when modal is open
-    useEffect(() => {
-        if (isOpen) {
-            document.body.style.overflow = "hidden";
-            document.addEventListener("keydown", handleKeyDown);
-        } else {
-            document.body.style.overflow = "";
-        }
+    if (!portalTarget) return null;
 
-        return () => {
-            document.body.style.overflow = "";
-            document.removeEventListener("keydown", handleKeyDown);
-        };
-    }, [isOpen, handleKeyDown]);
-
-    // The app shell scrolls inside .cp-main, not the body: lock it too, or its
-    // scrollbar stays live beside the dialog's own (two scrollbars). The padding
-    // stands in for the hidden scrollbar so the page behind doesn't shift.
-    useEffect(() => {
-        if (!isOpen) return;
-        const main = document.querySelector<HTMLElement>(".cp-main");
-        if (!main) return;
-        const prev = { overflowY: main.style.overflowY, paddingRight: main.style.paddingRight };
-        const scrollbar = main.offsetWidth - main.clientWidth;
-        main.style.overflowY = "hidden";
-        if (scrollbar > 0) main.style.paddingRight = `${scrollbar}px`;
-        return () => {
-            main.style.overflowY = prev.overflowY;
-            main.style.paddingRight = prev.paddingRight;
-        };
-    }, [isOpen]);
-
-    // Focus: move into the dialog on open, restore to the trigger on close
-    useEffect(() => {
-        if (!isOpen) return;
-        const previouslyFocused = document.activeElement as HTMLElement | null;
-        const node = modalRef.current;
-        // Prefer the first meaningful control, fall back to the dialog itself
-        const first = node?.querySelector<HTMLElement>(FOCUSABLE);
-        (first ?? node)?.focus();
-        return () => previouslyFocused?.focus?.();
-    }, [isOpen]);
-
-    // Keep Tab cycling inside the dialog
-    const handleTabKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
-        if (e.key !== "Tab" || !modalRef.current) return;
-        const items = Array.from(
-            modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
-        ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-        if (items.length === 0) return;
-        const first = items[0];
-        const last = items[items.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-        }
-    };
-
-    if (!isOpen) return null;
-
-    return (
+    return createPortal(
         <div
             className="fixed inset-x-0 top-0 bottom-[var(--softphone-dock-h,0px)] z-[120] flex items-center justify-center p-4 sm:p-6"
             onPointerDown={handleOverlayPointerDown}
@@ -174,7 +129,6 @@ export function Modal({
                 aria-modal="true"
                 aria-labelledby={title ? titleId : undefined}
                 aria-describedby={description ? descId : undefined}
-                onKeyDown={handleTabKey}
                 onPointerDown={handleModalPointerDown}
                 className={cn(
                     "relative w-full bg-surface border border-line shadow-overlay rounded-card overflow-hidden flex flex-col text-ink",
@@ -221,7 +175,8 @@ export function Modal({
                     {children}
                 </div>
             </div>
-        </div>
+        </div>,
+        portalTarget,
     );
 }
 

@@ -95,7 +95,7 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
 
     // Step 1: Basic info
     const [file, setFile] = useState<File | null>(null);
-    const [missionId, setMissionId] = useState("");
+    const [missionId, setMissionId] = useState(missions.length === 1 ? missions[0].id : "");
     const [listName, setListName] = useState("");
 
     // Step 2: Mapping
@@ -360,7 +360,7 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
                     `${doneData.companiesCreated} sociétés et ${doneData.contactsCreated} contacts importés`
                 );
                 onSuccess?.(doneData.listId);
-                handleClose();
+                resetAndClose();
             } else {
                 showError("Erreur d'import", "Réponse invalide");
             }
@@ -377,10 +377,11 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
     // RESET & CLOSE
     // ============================================
 
-    const handleClose = () => {
+    const handleClose = () => { if (!isImporting) resetAndClose(); };
+    const resetAndClose = () => {
         setStep(1);
         setFile(null);
-        setMissionId("");
+        setMissionId(missions.length === 1 ? missions[0].id : "");
         setListName("");
         setCsvHeaders([]);
         setMappings([]);
@@ -584,6 +585,7 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
                 {step === 2 && (
                     <Button
                         variant="ghost"
+                        disabled={isImporting}
                         onClick={() => setStep(1)}
                     >
                         Retour
@@ -592,6 +594,7 @@ export function CSVImportDialog({ isOpen, onClose, onSuccess, missions }: Import
                 <Button
                     variant="ghost"
                     onClick={handleClose}
+                    disabled={isImporting}
                 >
                     Annuler
                 </Button>

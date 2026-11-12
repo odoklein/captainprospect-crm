@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { registerDialogLayer } from "./dialogStack";
 
 // ============================================
 // DRAWER COMPONENT
@@ -19,11 +20,6 @@ import { cn } from "@/lib/utils";
 export const DRAWER_BACKDROP_CLASS = "bg-black/15 animate-fade-in";
 export const DRAWER_PANEL_SURFACE_CLASS =
     "overflow-hidden rounded-2xl sm:rounded-[20px] border border-line bg-surface shadow-overlay";
-
-/** Open drawers, oldest first; the last one owns the Escape key. */
-const openDrawers: symbol[] = [];
-const modalDrawers = new Set<symbol>();
-let bodyOverflowBeforeDrawers = "";
 
 interface DrawerProps {
     isOpen: boolean;
@@ -182,63 +178,22 @@ export function Drawer({
     bodyClassName,
 }: DrawerProps) {
     const drawerRef = useRef<HTMLDivElement>(null);
-    const stackId = useRef(Symbol("drawer")).current;
-
-    // Registered on open only (not on every render) so the stack order is the
-    // order drawers were actually opened in. Non-modal drawers (side panels such
-    // as the SDR script) never handle Esc, so they must not sit on top of the
-    // stack and swallow it from the modal drawer underneath.
-    // A docked pane blocks nothing (no backdrop, no scroll lock) but keeps Esc.
-    const blocking = modal && !docked;
-    const ownsEscape = modal || docked;
+    const closeRef = useRef({ onClose, closeOnEscape });
+    useEffect(() => {
+        closeRef.current = { onClose, closeOnEscape };
+    }, [onClose, closeOnEscape]);
 
     useEffect(() => {
-        if (!isOpen || !ownsEscape) return;
-        openDrawers.push(stackId);
-        return () => {
-            const index = openDrawers.indexOf(stackId);
-            if (index !== -1) openDrawers.splice(index, 1);
-        };
-    }, [isOpen, ownsEscape, stackId]);
-
-    // Handle ESC key — only the drawer on top reacts, so Esc in an edit form
-    // doesn't also close the detail drawer it was opened from.
-    const handleKeyDown = useCallback(
-        (e: KeyboardEvent) => {
-            // A docked pane leaves Esc to a dialog opened above it (help sheet, confirm…).
-            if (docked && document.querySelector('[aria-modal="true"]')) return;
-            if (e.key === "Escape" && !e.defaultPrevented && closeOnEscape && openDrawers[openDrawers.length - 1] === stackId) {
-                e.preventDefault();
-                onClose();
-            }
-        },
-        [closeOnEscape, onClose, stackId, docked]
-    );
-
-    // Non-modal companions also own Escape when they are on top of the stack.
-    useEffect(() => {
-        if (!isOpen || !ownsEscape) return;
-        document.addEventListener("keydown", handleKeyDown);
-        return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [isOpen, ownsEscape, handleKeyDown]);
-
-
-    // Only the last modal drawer releases the lock. Non-modal companions must
-    // never clear a sibling's lock, including when they close or rerender.
-    useEffect(() => {
-        if (!isOpen || !blocking) return;
-        if (modalDrawers.size === 0) {
-            bodyOverflowBeforeDrawers = document.body.style.overflow;
-            document.body.style.overflow = "hidden";
-        }
-        modalDrawers.add(stackId);
-        return () => {
-            modalDrawers.delete(stackId);
-            if (modalDrawers.size === 0) {
-                document.body.style.overflow = bodyOverflowBeforeDrawers;
-            }
-        };
-    }, [isOpen, blocking, stackId]);
+        const panel = drawerRef.current;
+        if (!isOpen || !panel || (!modal && !docked)) return;
+        return registerDialogLayer({
+            panel,
+            priority: docked ? 0 : 1,
+            modal: modal && !docked,
+            close: () => { if (closeRef.current.closeOnEscape) closeRef.current.onClose(); },
+            focus: "panel",
+        });
+    }, [isOpen, modal, docked]);
 
     useEffect(() => {
         if (!isOpen || !docked) return;
@@ -246,12 +201,9 @@ export function Drawer({
         return () => { delete document.documentElement.dataset.paneDocked; };
     }, [isOpen, docked]);
 
-    // Focus trap
     useEffect(() => {
-        if (isOpen && drawerRef.current) {
-            drawerRef.current.focus();
-        }
-    }, [isOpen]);
+        if (isOpen && !modal && !docked) drawerRef.current?.focus({ preventScroll: true });
+    }, [isOpen, modal, docked]);
 
     if (!isOpen) return null;
 

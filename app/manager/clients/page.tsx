@@ -4,6 +4,9 @@ import { Suspense, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Drawer } from "@/components/ui/Drawer";
+import { PlaybookImportWorkspace } from "@/components/manager/PlaybookImportWorkspace";
+import { Upload } from "lucide-react";
 import { Badge } from "@/components/ui";
 import { ArrowRight, Building2, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Clock, Folder, History, Loader2, Mic, Plus, RefreshCw, Search, Target } from "lucide-react";
 import Link from "next/link";
@@ -124,6 +127,8 @@ function ClientsPageInner() {
     const [filter, setFilter] = useState<Filter>("ALL");
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
     const [initialLeexiCallId, setInitialLeexiCallId] = useState<string>();
+    const [showPlaybookImport, setShowPlaybookImport] = useState(false);
+    const [importBusy, setImportBusy] = useState(false);
     const [showLeexiSection, setShowLeexiSection] = useState(false);
     const [expandedRecapId, setExpandedRecapId] = useState<string | null>(null);
     const [recent, setRecent] = useState<WorkspaceLocation | null>(null);
@@ -250,7 +255,7 @@ function ClientsPageInner() {
                             <header className="cw-pagehead">
                                 <div><h1>Clients</h1><p>Suivez vos clients, leurs missions et les prochains lancements.</p></div>
                                 <div className="cw-actions">
-                                    <Link className="cw-button" href="/manager/playbook/import">Importer un playbook</Link>
+                                    <button className="cw-button" onClick={() => setShowPlaybookImport(true)}><Upload /> Importer un playbook</button>
                                     <button className="cw-button cw-primary" onClick={() => setShowOnboardingModal(true)}><Plus /> Nouveau client</button>
                                 </div>
                             </header>
@@ -481,6 +486,13 @@ function ClientsPageInner() {
                 </div>
             )}
 
+            <Drawer isOpen={showPlaybookImport} onClose={() => { if (!importBusy) setShowPlaybookImport(false); }} title="Importer un playbook" description="Document → vérification → dossier client" size="xl" bodyClassName="p-0" closeOnOverlay={false} closeOnEscape={!importBusy} showCloseButton={!importBusy}>
+                {showPlaybookImport && <PlaybookImportWorkspace onBusyChange={setImportBusy} onCancel={() => setShowPlaybookImport(false)} onImported={async (clientId) => {
+                    await refetchClients();
+                    setShowPlaybookImport(false);
+                    navigate({ client: clientId, espace: "missions" });
+                }} />}
+            </Drawer>
             <ClientOnboardingModal
                 isOpen={showOnboardingModal}
                 onClose={() => { setShowOnboardingModal(false); setInitialLeexiCallId(undefined); }}
