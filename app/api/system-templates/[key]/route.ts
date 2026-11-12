@@ -7,13 +7,15 @@ import {
   withErrorHandler,
 } from "@/lib/api-utils";
 import { z } from "zod";
-import { DEFAULT_RDV_TEMPLATE_HTML, DEFAULT_RDV_TEMPLATE_SUBJECT } from "@/lib/email/templates/rdv-notification";
+import { defaultRdvTemplateHtml, DEFAULT_RDV_TEMPLATE_SUBJECT } from "@/lib/email/templates/rdv-notification";
 import {
   DEFAULT_PASSWORD_RECOVERY_HTML,
-  DEFAULT_PASSWORD_RECOVERY_SUBJECT,
+  defaultPasswordRecoverySubject,
   DEFAULT_PASSWORD_OTP_HTML,
-  DEFAULT_PASSWORD_OTP_SUBJECT,
+  defaultPasswordOtpSubject,
 } from "@/lib/email/templates/security-auth";
+import type { Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const ALLOWED_KEYS = [
   "rdv_notification",
@@ -22,23 +24,26 @@ const ALLOWED_KEYS = [
 ] as const;
 type AllowedKey = (typeof ALLOWED_KEYS)[number];
 
-const DEFAULT_TEMPLATES: Record<AllowedKey, { name: string; subject: string; bodyHtml: string }> = {
-  rdv_notification: {
-    name: "Notification nouveau RDV",
-    subject: DEFAULT_RDV_TEMPLATE_SUBJECT,
-    bodyHtml: DEFAULT_RDV_TEMPLATE_HTML,
-  },
-  password_recovery: {
-    name: "Recuperation mot de passe (lien)",
-    subject: DEFAULT_PASSWORD_RECOVERY_SUBJECT,
-    bodyHtml: DEFAULT_PASSWORD_RECOVERY_HTML,
-  },
-  password_otp: {
-    name: "Code OTP recuperation mot de passe",
-    subject: DEFAULT_PASSWORD_OTP_SUBJECT,
-    bodyHtml: DEFAULT_PASSWORD_OTP_HTML,
-  },
-};
+/** Defaults in this instance's brand. */
+function defaultTemplates(brand: Brand): Record<AllowedKey, { name: string; subject: string; bodyHtml: string }> {
+  return {
+    rdv_notification: {
+      name: "Notification nouveau RDV",
+      subject: DEFAULT_RDV_TEMPLATE_SUBJECT,
+      bodyHtml: defaultRdvTemplateHtml(brand),
+    },
+    password_recovery: {
+      name: "Recuperation mot de passe (lien)",
+      subject: defaultPasswordRecoverySubject(brand),
+      bodyHtml: DEFAULT_PASSWORD_RECOVERY_HTML,
+    },
+    password_otp: {
+      name: "Code OTP recuperation mot de passe",
+      subject: defaultPasswordOtpSubject(brand),
+      bodyHtml: DEFAULT_PASSWORD_OTP_HTML,
+    },
+  };
+}
 
 const updateTemplateSchema = z.object({
   subject: z.string().min(1, "Le sujet est requis"),
@@ -61,7 +66,7 @@ export const GET = withErrorHandler(async (
     return errorResponse("Template inconnu", 404);
   }
 
-  const defaults = DEFAULT_TEMPLATES[key as AllowedKey];
+  const defaults = defaultTemplates(await getBrand())[key as AllowedKey];
 
   const record = await (prisma as any).systemEmailTemplate.findUnique({
     where: { key },
@@ -101,7 +106,7 @@ export const PUT = withErrorHandler(async (
   }
 
   const { subject, bodyHtml } = parsed.data;
-  const defaults = DEFAULT_TEMPLATES[key as AllowedKey];
+  const defaults = defaultTemplates(await getBrand())[key as AllowedKey];
 
   const record = await (prisma as any).systemEmailTemplate.upsert({
     where: { key },

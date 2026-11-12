@@ -8,6 +8,7 @@ import {
   validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { SESSION_TASKS_INCLUDE, createSessionTasks, toSessionTaskDto, toggleSessionTask } from '@/lib/tasks/session-tasks';
 
 const updateSessionSchema = z.object({
   type: z.string().min(1).optional(),
@@ -41,34 +42,14 @@ export const PATCH = withErrorHandler(
 
     const session = await prisma.clientSession.findFirst({
       where: { id: sessionId, clientId },
-      include: { tasks: true },
     });
     if (!session) return errorResponse('Session introuvable', 404);
 
-    // Toggle task done/undone
+    // Toggle task done/undone (the id is the session to-do's Task id)
     if (body.toggleTaskId) {
-      const task = await prisma.sessionTask.findFirst({
-        where: { id: body.toggleTaskId, sessionId },
-      });
-      if (!task) return errorResponse('Tâche introuvable', 404);
-
-      const newDoneAt = task.doneAt ? null : new Date();
-      await prisma.sessionTask.update({
-        where: { id: task.id },
-        data: { doneAt: newDoneAt },
-      });
-
-      if (task.taskId) {
-        await prisma.task.update({
-          where: { id: task.taskId },
-          data: {
-            status: newDoneAt ? 'DONE' : 'TODO',
-            completedAt: newDoneAt,
-          },
-        });
-      }
-
-      return successResponse({ taskId: task.id, doneAt: newDoneAt?.toISOString() ?? null });
+      const toggled = await toggleSessionTask(sessionId, body.toggleTaskId);
+      if (!toggled) return errorResponse('Tâche introuvable', 404);
+      return successResponse({ taskId: body.toggleTaskId, doneAt: toggled.doneAt?.toISOString() ?? null });
     }
 
     // Update session fields
@@ -82,78 +63,29 @@ export const PATCH = withErrorHandler(
       },
     });
 
-    let projectId: string | null = null;
-
     // Add new tasks from edit modal
+    let projectId: string | null = null;
     if (body.tasks && body.tasks.length > 0) {
-      const userId = sessionUser.user.id;
-
-      const createdTasks = [];
-      for (const t of body.tasks) {
-        const st = await prisma.sessionTask.create({
-          data: {
-            sessionId,
-            label: t.label,
-            assignee: t.assignee,
-            assigneeRole: t.assigneeRole || 'ALWAYS',
-            priority: t.priority || 'MEDIUM',
-            dueDate: t.dueDate ? new Date(t.dueDate) : null,
-          },
-        });
-        createdTasks.push({ sessionTask: st, bodyTask: t });
-      }
-
-      // Auto-create or reuse project for mirroring
       const client = await prisma.client.findUnique({
         where: { id: clientId },
-        select: { id: true, name: true },
+        select: { name: true },
       });
-
       if (client) {
-        let project = await prisma.project.findFirst({
-          where: { clientId, name: client.name, status: 'ACTIVE' },
+        projectId = await createSessionTasks({
+          clientId,
+          clientName: client.name,
+          sessionId,
+          sessionType: null,
+          userId: sessionUser.user.id,
+          tasks: body.tasks,
         });
-
-        if (!project) {
-          project = await prisma.project.create({
-            data: {
-              name: client.name,
-              description: `Projet créé automatiquement à partir des sessions client.`,
-              clientId,
-              ownerId: userId,
-              members: { create: { userId, role: 'owner' } },
-            },
-          });
-        }
-
-        projectId = project.id;
-
-        for (const { sessionTask, bodyTask } of createdTasks) {
-          const task = await prisma.task.create({
-            data: {
-              projectId: project.id,
-              title: sessionTask.label,
-              description: `Tâche issue d'une session pour le client ${client.name}.`,
-              status: 'TODO',
-              priority: (sessionTask.priority || 'MEDIUM') as any,
-              dueDate: sessionTask.dueDate,
-              assigneeId: bodyTask.assigneeId || null,
-              createdById: userId,
-            },
-          });
-
-          await prisma.sessionTask.update({
-            where: { id: sessionTask.id },
-            data: { taskId: task.id },
-          });
-        }
       }
     }
 
     // Re-fetch with tasks
     const full = await prisma.clientSession.findUnique({
       where: { id: sessionId },
-      include: { tasks: { orderBy: { createdAt: 'asc' } } },
+      include: SESSION_TASKS_INCLUDE,
     });
 
     return successResponse({
@@ -163,16 +95,7 @@ export const PATCH = withErrorHandler(
       crMarkdown: updated.crMarkdown,
       summaryEmail: updated.summaryEmail,
       projectId,
-      tasks: full?.tasks.map((t) => ({
-        id: t.id,
-        label: t.label,
-        assignee: t.assignee,
-        assigneeRole: t.assigneeRole,
-        priority: t.priority,
-        dueDate: t.dueDate?.toISOString() ?? null,
-        doneAt: t.doneAt?.toISOString() ?? null,
-        taskId: t.taskId ?? null,
-      })) ?? [],
+      tasks: full?.workTasks.map(toSessionTaskDto) ?? [],
     });
   },
 );

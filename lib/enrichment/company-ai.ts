@@ -17,6 +17,7 @@ import {
     type RawAiAnswer,
 } from "./company-ai-core";
 import { ENRICHABLE_FIELDS, type EnrichableField, type EnrichmentSuggestion } from "./company-fields";
+import { integrationKey } from "@/lib/integrations/keys";
 
 export interface CompanyAiInput {
     name: string;
@@ -36,7 +37,7 @@ export interface CompanyAiResult {
 
 /** The model occasionally answers in prose; one cheap pass turns it back into JSON. */
 async function repairToJson(text: string, requested: EnrichableField[]): Promise<RawAiAnswer | null> {
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
+    const apiKey = integrationKey("OPENAI_API_KEY")?.trim();
     if (!apiKey) return null;
     try {
         const result = await mistralChat(apiKey, {

@@ -80,7 +80,7 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
     body: (
       <>
         <p>
-          Cette barre montre combien de dossiers sont à chaque étape, et le montant correspondant. L’objectif en fin
+          Ces onglets montrent combien de dossiers sont à chaque étape, et le montant correspondant. L’objectif en fin
           de mois : tout en vert (« Payé »).
         </p>
         <p>Cliquez sur une étape pour n’afficher que ces dossiers.</p>
@@ -172,10 +172,10 @@ export const HR_PAGE_GUIDE: HrGuideStep[] = [
   },
   {
     target: "row-status",
-    title: "« Statut » : faire avancer le dossier",
+    title: "L’étape : faire avancer le dossier",
     body: (
       <>
-        <p>Chaque mois passe par 4 étapes :</p>
+        <p>Cliquez sur l’étape d’une personne pour la changer ou ajouter un ajustement. Chaque mois passe par 4 étapes :</p>
         <p>
           <strong>Brouillon</strong> → <strong>À vérifier</strong> → <strong>Validé</strong> →{" "}
           <strong>Payé</strong>

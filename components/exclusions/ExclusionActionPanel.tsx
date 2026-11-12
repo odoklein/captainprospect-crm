@@ -62,7 +62,7 @@ export function ExclusionActionPanel({
                 />
                 <span className="min-w-0">
                     <span className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                        Ne plus contacter
+                        Blacklist
                     </span>
                     <span className="block text-xs text-slate-500 mt-0.5">
                         «&nbsp;{statusLabel}&nbsp;» est un statut définitif : retirer la fiche de la prospection, pour

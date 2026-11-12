@@ -15,7 +15,8 @@ import { decrypt } from "@/lib/encryption";
 import { sendTransactionalEmail } from "@/lib/email/transactional";
 import { recordVaultAudit } from "./service";
 import { portalLoginUrl } from "./portalAccounts";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 function escapeHtml(value: string): string {
     return value
@@ -53,7 +54,9 @@ interface TemplateInput {
     senderName: string;
 }
 
-export function buildOnboardingEmailHtml(input: TemplateInput): string {
+export function buildOnboardingEmailHtml(input: TemplateInput, brand: Brand = defaultBrand): string {
+    // Accent shade that carries white text (the raw accent seed may need dark text).
+    const accent = brand.palette.accent[600];
     const rows: Array<[string, string]> = [
         ["Adresse de connexion", input.loginUrl],
         ["Identifiant", input.login],
@@ -73,7 +76,7 @@ export function buildOnboardingEmailHtml(input: TemplateInput): string {
     const calendarBlock = input.bookingLink
         ? `<li style="margin-bottom:8px;">
              <b>Verifie ton calendrier</b> &mdash; ton lien de prise de RDV est
-             <a href="${escapeHtml(input.bookingLink)}" style="color:#C64B8B;">${escapeHtml(input.bookingLink)}</a>.
+             <a href="${escapeHtml(input.bookingLink)}" style="color:${accent};">${escapeHtml(input.bookingLink)}</a>.
              Confirme-nous que tes disponibilites y sont a jour.
            </li>`
         : `<li style="margin-bottom:8px;">
@@ -93,7 +96,7 @@ export function buildOnboardingEmailHtml(input: TemplateInput): string {
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
           <tr>
-            <td style="padding:24px 28px;background:#C64B8B;color:#ffffff;">
+            <td style="padding:24px 28px;background:${accent};color:#ffffff;">
               <h1 style="margin:0;font-size:20px;">Ton acces a la plateforme</h1>
               <p style="margin:6px 0 0;font-size:13px;opacity:.9;">${escapeHtml(input.clientName)} &times; ${escapeHtml(brand.name)}</p>
             </td>
@@ -112,7 +115,7 @@ export function buildOnboardingEmailHtml(input: TemplateInput): string {
               </table>
 
               <p style="margin:0 0 20px;text-align:center;">
-                <a href="${escapeHtml(input.loginUrl)}" style="display:inline-block;background:#C64B8B;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;">
+                <a href="${escapeHtml(input.loginUrl)}" style="display:inline-block;background:${accent};color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:600;">
                   Me connecter
                 </a>
               </p>
@@ -174,16 +177,17 @@ async function sendOne(
         return { ...base, sent: false, error: "Mot de passe illisible (clé de chiffrement changée)" };
     }
 
+    const brand = await getBrand();
     const html = buildOnboardingEmailHtml({
         recipientName: recipient.name,
         clientName: context.clientName,
         login: recipient.login,
         password,
-        loginUrl: credential.url || portalLoginUrl(),
+        loginUrl: credential.url || portalLoginUrl(brand),
         bookingLink: recipient.bookingLink,
         intro: context.intro,
         senderName: context.senderName,
-    });
+    }, brand);
 
     const sent = await sendTransactionalEmail({
         to: recipient.email,
@@ -194,7 +198,7 @@ async function sendOne(
             "",
             context.intro ?? "Voici ton acces personnel a la plateforme.",
             "",
-            `Connexion : ${credential.url || portalLoginUrl()}`,
+            `Connexion : ${credential.url || portalLoginUrl(brand)}`,
             `Identifiant : ${recipient.login}`,
             `Mot de passe : ${password}`,
             "",

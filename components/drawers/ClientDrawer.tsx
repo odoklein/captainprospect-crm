@@ -684,6 +684,7 @@ export function ClientDrawer({
     const onboardingData = (clientDetail?.onboarding?.onboardingData ?? {}) as {
         defaultMailboxId?: string;
         icp?: string;
+        portalAllowExport?: boolean;
     };
     const bookingUrl = (client.bookingUrl ?? clientDetail?.bookingUrl ?? "") as string;
     const icp = onboardingData.icp || "";
@@ -1148,6 +1149,12 @@ export function ClientDrawer({
                         description="Le client peut consulter les contacts et entreprises ciblés"
                         value={!!client.portalShowDatabase}
                         onSave={(v) => saveField({ portalShowDatabase: v })}
+                    />
+                    <InlineToggle
+                        label="Autoriser l’export de la base"
+                        description="Le client peut télécharger ses données en CSV (désactivé par défaut)"
+                        value={onboardingData.portalAllowExport === true}
+                        onSave={(v) => saveField({ portalAllowExport: v })}
                     />
                     <InlineToggle
                         label="Recevoir les notifications de RDV"

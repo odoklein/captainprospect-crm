@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import type { ActionResult } from '@prisma/client';
+import { resolveActionResult } from '@/lib/actions/action-result';
 import { parseDateFromNote } from '@/lib/utils/parseDateFromNote';
 import { createClientPortalNotification, sendNewRdvEmailNotification, createNotification } from '@/lib/notifications';
 import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
@@ -30,73 +30,6 @@ export interface CreateActionInput {
     meetingAddress?: string;
     meetingJoinUrl?: string;
     meetingPhone?: string;
-}
-
-const VALID_ACTION_RESULTS: Set<ActionResult> = new Set<ActionResult>([
-    "NO_RESPONSE",
-    "BAD_CONTACT",
-    "BARRAGE_STANDARD",
-    "NUMERO_KO",
-    "INTERESTED",
-    "CALLBACK_REQUESTED",
-    "MEETING_BOOKED",
-    "MEETING_CANCELLED",
-    "INVALIDE",
-    "DISQUALIFIED",
-    "ENVOIE_MAIL",
-    "MAIL_ENVOYE",
-    "CONNECTION_SENT",
-    "MESSAGE_SENT",
-    "REPLIED",
-    "NOT_INTERESTED",
-    "REFUS",
-    "REFUS_ARGU",
-    "REFUS_CATEGORIQUE",
-    "RELANCE",
-    "RAPPEL",
-    "GERE_PAR_SIEGE",
-    "FAUX_NUMERO",
-    "PROJET_A_SUIVRE",
-    "MAUVAIS_INTERLOCUTEUR",
-    "MAIL_UNIQUEMENT",
-    "BARRAGE_SECRETAIRE",
-    "MAIL_DOC",
-    "HORS_CIBLE",
-    "DOUBLON",
-]);
-
-const ACTION_RESULT_ALIASES: Record<string, ActionResult> = {
-    NE_REPONDS_PAS: "NO_RESPONSE",
-    NRP: "NO_RESPONSE",
-    PAS_DE_REPONSE: "NO_RESPONSE",
-    MAUVAIS_CONTACT: "BAD_CONTACT",
-    RAPEL: "RAPPEL",
-    RAPPEL_DEMANDE: "CALLBACK_REQUESTED",
-    RAPPEL_DEMANDEE: "CALLBACK_REQUESTED",
-    RAPPEL_REQUESTED: "CALLBACK_REQUESTED",
-    RELENCE: "RELANCE",
-    RELANCEE: "RELANCE",
-    CALL_BACK_REQUESTED: "CALLBACK_REQUESTED",
-    CALLBACK: "CALLBACK_REQUESTED",
-};
-
-function normalizeActionResultCode(raw: string): string {
-    return raw
-        .trim()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^A-Za-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .toUpperCase();
-}
-
-export function resolveActionResult(inputResult: string): ActionResult {
-    const normalized = normalizeActionResultCode(inputResult);
-    const mapped = ACTION_RESULT_ALIASES[normalized] ?? normalized;
-    if (VALID_ACTION_RESULTS.has(mapped as ActionResult)) {
-        return mapped as ActionResult;
-    }
-    throw new Error(`Invalid action result: ${inputResult}`);
 }
 
 export interface ActionWithRelations {
@@ -163,7 +96,7 @@ export class ActionService {
         // IMPORTANT: Action.result must always be a valid ActionResult enum code.
         // statusDef.resultCategoryCode is for reporting grouping (ResultCategory),
         // and may contain values like "OTHER" that are not ActionResult values.
-        const resolvedResult = resolveActionResult(input.result);
+        const resolvedResult = resolveActionResult(input.result, statusDef);
         const triggersCallback = statusDef?.triggersCallback ?? (resolvedResult === 'CALLBACK_REQUESTED');
  const triggersOpportunity = statusDef?.triggersOpportunity ??
  (resolvedResult === 'MEETING_BOOKED' || resolvedResult === 'INTERESTED');

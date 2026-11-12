@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CalendarPlus, ChevronLeft, ChevronRight, CircleHelp, Loader2, Redo2, RotateCcw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { FOCUS_RING } from '@/components/ui/recipes';
 import { DATE_KEY_RE, addDaysToKey, blockDayUnits, mondayOfKey, parisTodayKey, slotOf, type BoardOp } from '@/lib/planning/board-shared';
 import {
     VIEW_LABELS,
@@ -303,68 +306,78 @@ function Board({ transport }: { transport: BoardTransport }) {
     return (
         <div className="relative flex h-full min-h-0 flex-1 flex-col bg-surface-2">
             {/* ── Top bar ─────────────────────────────────────────────── */}
-            <header className="flex flex-wrap items-center gap-2.5 px-6 pb-3 pt-4 xl:px-8">
-                <h1 className="mr-2 text-[24px] font-semibold tracking-tight text-slate-900">Planning</h1>
+            <header className="flex flex-wrap items-center gap-x-3 gap-y-2.5 px-5 pb-3 pt-4 lg:px-6">
+                <h1 className="mr-1 font-display text-[22px] font-semibold leading-tight tracking-[-0.015em] text-ink sm:text-2xl">Planning</h1>
 
-                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white px-0.5">
-                    <button type="button" onClick={() => navigate(-1)} aria-label="Période précédente" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
-                        <ChevronLeft className="h-4 w-4" />
+                <div className="flex h-9 items-center rounded-[10px] border border-line bg-surface">
+                    <button
+                        type="button"
+                        onClick={() => navigate(-1)}
+                        aria-label="Période précédente"
+                        title="Période précédente (←)"
+                        className={cn('flex size-9 items-center justify-center rounded-l-[10px] text-ink-3 hover:bg-surface-2 hover:text-ink', FOCUS_RING)}
+                    >
+                        <ChevronLeft className="size-4" />
                     </button>
-                    <span className="min-w-[140px] select-none px-2 text-center text-[15px] font-medium text-slate-800">
+                    <span className="min-w-[132px] select-none px-1 text-center text-[13px] font-semibold tabular-nums text-ink" aria-live="polite">
                         {formatRangeLabel(view, range)}
                     </span>
-                    <button type="button" onClick={() => navigate(1)} aria-label="Période suivante" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">
-                        <ChevronRight className="h-4 w-4" />
+                    <button
+                        type="button"
+                        onClick={() => navigate(1)}
+                        aria-label="Période suivante"
+                        title="Période suivante (→)"
+                        className={cn('flex size-9 items-center justify-center rounded-r-[10px] text-ink-3 hover:bg-surface-2 hover:text-ink', FOCUS_RING)}
+                    >
+                        <ChevronRight className="size-4" />
                     </button>
                 </div>
 
-                <div className="flex h-10 items-center rounded-xl border border-slate-200 bg-white p-0.5">
-                    {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
-                        <button
-                            key={mode}
-                            type="button"
-                            onClick={() => mode !== view && setView(mode)}
-                            className={cn(
-                                'h-full rounded-[10px] px-4 text-[13px] transition-colors',
-                                mode === view ? 'border border-primary-100 bg-primary-50 font-medium text-primary-600' : 'text-slate-600 hover:text-slate-900',
-                            )}
-                        >
-                            {VIEW_LABELS[mode]}
-                        </button>
-                    ))}
-                </div>
+                <SegmentedControl<ViewMode>
+                    size="sm"
+                    ariaLabel="Période affichée"
+                    value={view}
+                    onChange={(mode) => mode !== view && setView(mode)}
+                    options={(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => ({ value: mode, label: VIEW_LABELS[mode] }))}
+                />
 
                 {!todayInRange && (
-                    <button type="button" onClick={goToday} className="rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-primary-600 hover:bg-primary-50">
+                    <button
+                        type="button"
+                        onClick={goToday}
+                        title="Revenir à aujourd’hui (T)"
+                        className={cn('h-9 rounded-[10px] px-3 text-[13px] font-semibold text-primary-700 hover:bg-primary-50', FOCUS_RING)}
+                    >
                         Aujourd&apos;hui
                     </button>
                 )}
-                {(board.loading || board.saving) && state && <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-label="Enregistrement" />}
+                {(board.loading || board.saving) && state && <Loader2 className="size-4 animate-spin text-ink-4" aria-label="Enregistrement" />}
 
                 <div className="ml-auto flex items-center gap-2">
                     <div className="relative">
                         <button
                             type="button"
                             onClick={() => setHelpOpen((open) => !open)}
-                            aria-label="Aide"
-                            className={cn('flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100', helpOpen && 'bg-slate-100 text-slate-700')}
+                            aria-label="Aide et raccourcis"
+                            aria-expanded={helpOpen}
+                            title="Aide et raccourcis (?)"
+                            className={cn(
+                                'flex size-9 items-center justify-center rounded-[10px] text-ink-3 transition-colors hover:bg-surface-3 hover:text-ink',
+                                FOCUS_RING,
+                                helpOpen && 'bg-surface-3 text-ink',
+                            )}
                         >
-                            <CircleHelp className="h-5 w-5" />
+                            <CircleHelp className="size-[18px]" />
                         </button>
                         {helpOpen && <HelpPanel onClose={() => setHelpOpen(false)} />}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setPlanWeekFor(planWeekDefault())}
-                        className="flex h-10 items-center gap-2 rounded-xl bg-primary-600 px-4 text-[14px] font-semibold text-white shadow-sm transition-colors hover:bg-primary-700"
-                    >
-                        <CalendarPlus className="h-[18px] w-[18px]" />
+                    <Button size="sm" onClick={() => setPlanWeekFor(planWeekDefault())} leftIcon={<CalendarPlus className="size-4" />}>
                         Planifier la semaine
-                    </button>
+                    </Button>
                 </div>
             </header>
 
-            <div className="relative min-h-[50px] border-t border-slate-200/70 px-6 py-2 xl:px-8">
+            <div className="relative min-h-[50px] border-t border-line px-5 py-2 lg:px-6">
                 {alerts && (
                     <AlertsBar
                         alerts={alerts}
@@ -382,7 +395,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                     />
                 )}
                 {brush && !feedback && (
-                    <div className="pointer-events-none absolute right-6 top-1/2 max-w-[48%] -translate-y-1/2 xl:right-8">
+                    <div className="pointer-events-none absolute right-5 top-1/2 max-w-[48%] -translate-y-1/2 lg:right-6">
                         <BrushHint
                             brush={brush}
                             mission={brush.kind === 'mission' ? dockMissions.find((m) => m.id === brush.missionId) ?? null : null}
@@ -395,14 +408,14 @@ function Board({ transport }: { transport: BoardTransport }) {
                     <div
                         key={feedback.id}
                         className={cn(
-                            'absolute right-6 top-1/2 z-40 flex max-w-[420px] -translate-y-1/2 items-start gap-3 rounded-2xl border bg-white px-4 py-2.5 shadow-[0_10px_32px_rgba(15,23,42,0.12)] animate-in fade-in slide-in-from-right-2 duration-150 xl:right-8',
-                            feedback.tone === 'error' ? 'border-rose-200' : feedback.tone === 'warn' ? 'border-amber-200' : 'border-slate-200',
+                            'absolute right-5 top-1/2 z-40 flex max-w-[420px] -translate-y-1/2 items-start gap-3 rounded-2xl border bg-surface px-4 py-2.5 shadow-overlay animate-in fade-in slide-in-from-right-2 duration-150 lg:right-6',
+                            feedback.tone === 'error' ? 'border-danger-line' : feedback.tone === 'warn' ? 'border-warning-line' : 'border-line',
                         )}
                         role="status"
                     >
                         <div className="min-w-0 flex-1">
-                            <p className={cn('text-[13px] font-semibold', feedback.tone === 'error' ? 'text-rose-700' : 'text-slate-800')}>{feedback.label}</p>
-                            {feedback.detail && <p className="mt-0.5 text-[12px] text-slate-500">{feedback.detail}</p>}
+                            <p className={cn('text-[13px] font-semibold', feedback.tone === 'error' ? 'text-danger-ink' : 'text-ink')}>{feedback.label}</p>
+                            {feedback.detail && <p className="mt-0.5 text-[12px] text-ink-3">{feedback.detail}</p>}
                         </div>
                         {feedback.canUndo && board.canUndo && (
                             <button
@@ -428,7 +441,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                                 <Redo2 className="h-3.5 w-3.5" /> Rétablir
                             </button>
                         )}
-                        <button type="button" onClick={dismissFeedback} aria-label="Fermer" className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100">
+                        <button type="button" onClick={dismissFeedback} aria-label="Fermer" className="shrink-0 rounded-lg p-1 text-ink-4 hover:bg-surface-3">
                             <X className="h-3.5 w-3.5" />
                         </button>
                     </div>
@@ -436,12 +449,12 @@ function Board({ transport }: { transport: BoardTransport }) {
             </div>
 
             {/* ── Board ───────────────────────────────────────────────── */}
-            <div className={cn('relative min-h-0 flex-1 border-t border-slate-200/70 px-4 pt-1 transition-opacity xl:px-6', board.loading && state && 'opacity-60')}>
+            <div className={cn('relative min-h-0 flex-1 border-t border-line px-4 pt-1 transition-opacity xl:px-6', board.loading && state && 'opacity-60')}>
                 {!state || !index ? (
                     board.error ? (
                         <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-                            <p className="text-[14px] text-slate-600">Le planning n’a pas pu être chargé : {board.error}</p>
-                            <button type="button" onClick={() => void board.reload()} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13px] font-medium hover:bg-slate-50">
+                            <p className="text-[14px] text-ink-2">Le planning n’a pas pu être chargé : {board.error}</p>
+                            <button type="button" onClick={() => void board.reload()} className="rounded-xl border border-line bg-surface px-4 py-2 text-[13px] font-medium hover:bg-surface-2">
                                 Réessayer
                             </button>
                         </div>
@@ -449,7 +462,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                         <GridSkeleton />
                     )
                 ) : visibleSdrs.length === 0 ? (
-                    <div className="flex h-full items-center justify-center text-[14px] text-slate-500">Aucun SDR actif à planifier.</div>
+                    <div className="flex h-full items-center justify-center text-[14px] text-ink-3">Aucun SDR actif à planifier.</div>
                 ) : (
                     <BoardGrid
                         state={state}
@@ -466,7 +479,7 @@ function Board({ transport }: { transport: BoardTransport }) {
                         onMove={onMove}
                         footer={
                             hiddenTests > 0 || showTests ? (
-                                <button type="button" onClick={() => setShowTests(!showTests)} className="pl-2 text-[12px] text-slate-400 hover:text-slate-600">
+                                <button type="button" onClick={() => setShowTests(!showTests)} className="pl-2 text-[12px] text-ink-4 hover:text-ink-2">
                                     {showTests ? 'Masquer les comptes de test' : `${hiddenTests} compte${hiddenTests > 1 ? 's' : ''} de test masqué${hiddenTests > 1 ? 's' : ''} · Afficher`}
                                 </button>
                             ) : null
@@ -545,24 +558,24 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
         return () => document.removeEventListener('mousedown', onDown);
     }, [onClose]);
     return (
-        <div ref={ref} className="absolute right-0 top-12 z-50 w-[400px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_16px_48px_rgba(15,23,42,0.16)] animate-in fade-in zoom-in-95 duration-100">
-            <p className="text-[15px] font-semibold text-slate-900">Comment ça marche</p>
+        <div ref={ref} className="absolute right-0 top-12 z-50 w-[400px] rounded-2xl border border-line bg-surface p-5 shadow-overlay animate-in fade-in zoom-in-95 duration-100">
+            <p className="text-[15px] font-semibold text-ink">Comment ça marche</p>
             <ul className="mt-3 space-y-2">
                 {HOW_TO.map((item) => (
-                    <li key={item.title} className="text-[13px] leading-relaxed text-slate-600">
-                        <span className="font-semibold text-slate-800">{item.title} · </span>
+                    <li key={item.title} className="text-[13px] leading-relaxed text-ink-2">
+                        <span className="font-semibold text-ink">{item.title} · </span>
                         {item.text}
                     </li>
                 ))}
             </ul>
-            <p className="mt-4 text-[12px] font-semibold text-slate-500">Raccourcis</p>
+            <p className="mt-4 text-[12px] font-semibold text-ink-3">Raccourcis</p>
             <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
                 {SHORTCUTS.map(([key, label]) => (
                     <div key={key} className="contents">
                         <dt>
-                            <kbd className="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-sans text-[11px] font-medium text-slate-600">{key}</kbd>
+                            <kbd className="rounded-md border border-line bg-surface-2 px-1.5 py-0.5 font-sans text-[11px] font-medium text-ink-2">{key}</kbd>
                         </dt>
-                        <dd className="text-[12px] text-slate-600">{label}</dd>
+                        <dd className="text-[12px] text-ink-2">{label}</dd>
                     </div>
                 ))}
             </dl>
@@ -572,9 +585,9 @@ function HelpPanel({ onClose }: { onClose: () => void }) {
 
 function WelcomeCard({ onClose }: { onClose: () => void }) {
     return (
-        <div className="absolute right-6 top-4 z-30 w-[340px] rounded-2xl border border-primary-100 bg-white p-5 shadow-[0_16px_48px_rgba(15,23,42,0.14)] animate-in fade-in slide-in-from-top-1 duration-200">
-            <p className="text-[15px] font-semibold text-slate-900">Le planning se peint</p>
-            <ol className="mt-3 space-y-2 text-[13px] leading-relaxed text-slate-600">
+        <div className="absolute right-6 top-4 z-30 w-[340px] rounded-2xl border border-primary-100 bg-surface p-5 shadow-overlay animate-in fade-in slide-in-from-top-1 duration-200">
+            <p className="text-[15px] font-semibold text-ink">Le planning se peint</p>
+            <ol className="mt-3 space-y-2 text-[13px] leading-relaxed text-ink-2">
                 <li><span className="font-semibold text-primary-600">1.</span> Choisissez une mission dans la barre du bas.</li>
                 <li><span className="font-semibold text-primary-600">2.</span> Glissez un rectangle sur les jours et les SDR à planifier.</li>
                 <li><span className="font-semibold text-primary-600">3.</span> Une erreur ? Ctrl+Z. Tout le reste est dans le <span className="font-semibold">?</span> en haut.</li>
@@ -591,11 +604,11 @@ function GridSkeleton() {
         <div className="space-y-5 px-2 pt-10">
             {Array.from({ length: 7 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4">
-                    <div className="h-10 w-10 animate-pulse rounded-full bg-slate-200/70" />
-                    <div className="h-4 w-28 animate-pulse rounded bg-slate-200/70" />
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-surface-3" />
+                    <div className="h-4 w-28 animate-pulse rounded bg-surface-3" />
                     <div className="ml-6 grid flex-1 grid-cols-5 gap-4">
                         {Array.from({ length: 5 }).map((__, j) => (
-                            <div key={j} className="h-8 animate-pulse rounded-full bg-slate-200/50" />
+                            <div key={j} className="h-8 animate-pulse rounded-full bg-surface-3" />
                         ))}
                     </div>
                 </div>
@@ -608,9 +621,9 @@ function BoardSkeleton() {
     return (
         <div className="flex h-full min-h-0 flex-1 flex-col bg-surface-2">
             <div className="flex items-center gap-3 px-6 pb-3 pt-4">
-                <div className="h-7 w-32 animate-pulse rounded-lg bg-slate-200/70" />
-                <div className="h-10 w-52 animate-pulse rounded-xl bg-slate-200/50" />
-                <div className="h-10 w-64 animate-pulse rounded-xl bg-slate-200/50" />
+                <div className="h-7 w-32 animate-pulse rounded-lg bg-surface-3" />
+                <div className="h-10 w-52 animate-pulse rounded-xl bg-surface-3" />
+                <div className="h-10 w-64 animate-pulse rounded-xl bg-surface-3" />
             </div>
             <GridSkeleton />
         </div>

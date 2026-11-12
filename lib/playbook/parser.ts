@@ -5,13 +5,14 @@
 // ============================================
 
 import type { ParsedPlaybook } from './types';
+import { integrationKey } from "@/lib/integrations/keys";
 
 const MISTRAL_API_URL = 'https://api.openai.com/v1/chat/completions';
 const MISTRAL_MODEL = 'gpt-4.1-mini';
 const MAX_INPUT_CHARS = 120000; // ~30k tokens safety
 
 function getMistralKey(): string | undefined {
-  return process.env.OPENAI_API_KEY;
+  return integrationKey("OPENAI_API_KEY");
 }
 
 /**

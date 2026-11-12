@@ -2,6 +2,8 @@
  * Shared formatting utilities for messaging renderers.
  */
 
+import { runtimeAppUrl } from "@/lib/runtime-config/env";
+
 /**
  * Escapes text for Slack mrkdwn by replacing &, <, and >.
  */
@@ -73,10 +75,11 @@ export function fmtDateParis(date: Date | string | null | undefined): string | n
 }
 
 /**
- * Builds an absolute URL from NEXT_PUBLIC_APP_URL.
+ * Builds an absolute URL from the app URL in the container env
+ * (APP_URL → NEXT_PUBLIC_APP_URL → NEXTAUTH_URL, read at runtime).
  */
 export function deepLink(path: string): string | null {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const baseUrl = runtimeAppUrl();
   if (!baseUrl) return null;
   // Ensure we don't double up slashes
   const cleanBase = baseUrl.replace(/\/+$/, "");

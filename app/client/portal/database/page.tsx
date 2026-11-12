@@ -902,11 +902,13 @@ export default function ClientPortalDatabasePage() {
                             ? <button type="button" className={s.clearBtn} onClick={() => setSearch("")} aria-label="Effacer"><X size={14} /></button>
                             : <kbd className={s.kbd}>/</kbd>}
                     </div>
-                    <button type="button" className={s.btnPrimary} onClick={() => exportCsv(filtered)} disabled={filtered.length === 0}
-                        title="Exporter la vue filtrée (une ligne par contact)">
-                        <Download size={15} />
-                        Exporter{filtered.length > 0 ? <span className={s.num}>&nbsp;{filtered.length.toLocaleString("fr-FR")}</span> : null}
-                    </button>
+                    {data?.canExport && (
+                        <button type="button" className={s.btnPrimary} onClick={() => exportCsv(filtered)} disabled={filtered.length === 0}
+                            title="Exporter la vue filtrée (une ligne par contact)">
+                            <Download size={15} />
+                            Exporter{filtered.length > 0 ? <span className={s.num}>&nbsp;{filtered.length.toLocaleString("fr-FR")}</span> : null}
+                        </button>
+                    )}
                 </div>
             </header>
 

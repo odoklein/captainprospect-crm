@@ -38,6 +38,8 @@ test("toOpenAITools generates valid OpenAI function specs", () => {
         isActive: true,
         project: null,
         resolvedAt: new Date(),
+        autoWriteBudget: 3,
+        conversationId: null,
     };
 
     const tools = toOpenAITools(fakeCtx);

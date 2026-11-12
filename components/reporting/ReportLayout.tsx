@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import type { ReportData } from "@/lib/reporting/types";
 import { cn } from "@/lib/utils";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 function formatDelta(d: number): string {
     const sign = d >= 0 ? "+" : "";
@@ -27,6 +27,7 @@ interface ReportLayoutProps {
 }
 
 export function ReportLayout({ data: d, printMode, className }: ReportLayoutProps) {
+    const brand = useBrand();
     const chartData = useMemo(
         () =>
             d.meetingsByPeriod.slice(0, 12).map((p) => ({

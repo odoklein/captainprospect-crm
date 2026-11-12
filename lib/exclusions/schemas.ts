@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EXCLUSION_DURATIONS, MAX_EXCLUSION_REASON_LENGTH } from "./constants";
+import { MAX_IMPORT_ROWS } from "./import";
 
 const durationValues = EXCLUSION_DURATIONS.map((d) => d.value) as [string, ...string[]];
 
@@ -73,6 +74,39 @@ export const clientExclusionSchema = z.object({
 });
 
 export type ClientExclusionInput = z.infer<typeof clientExclusionSchema>;
+
+const importRow = z.object({
+    companyName: z.string().max(200).optional().nullable(),
+    website: z.string().max(300).optional().nullable(),
+    phone: z.string().max(50).optional().nullable(),
+});
+
+const importBody = {
+    fileName: z.string().trim().max(200).optional().nullable(),
+    reason,
+    duration: z.enum(durationValues).default("permanent"),
+    rows: z
+        .array(importRow)
+        .min(1, "Le fichier ne contient aucune ligne")
+        .max(MAX_IMPORT_ROWS, `Trop de lignes : ${MAX_IMPORT_ROWS} maximum par import`),
+};
+
+/** Bulk upload by a manager, who picks the scope. */
+export const importExclusionsSchema = z
+    .object({
+        scope: z.enum(["GLOBAL", "CLIENT", "MISSION"]),
+        scopeId: z.string().min(1).optional().nullable(),
+        ...importBody,
+    })
+    .refine((data) => data.scope === "GLOBAL" || !!data.scopeId, {
+        message: "Portée incomplète : client ou mission requis",
+        path: ["scopeId"],
+    });
+
+export type ImportExclusionsBody = z.infer<typeof importExclusionsSchema>;
+
+/** Bulk upload from the client portal: scope is forced to their own client. */
+export const clientImportExclusionsSchema = z.object(importBody);
 
 export const liftExclusionSchema = z.object({
     liftReason: z

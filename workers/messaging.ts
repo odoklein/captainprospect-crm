@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { prisma } from '@/lib/prisma';
 import { claimBatch, complete, fail, skip } from '@/lib/integrations/messaging/outbox';
+import { isSuspendedInstance } from '@/lib/license/server';
 import type { RenderedMessage } from '@/lib/integrations/messaging/types';
 
 // Dummy imports for adapters and renderers since they may not exist yet
@@ -23,6 +24,11 @@ async function runWorker() {
 
   while (true) {
     try {
+      // Suspended by the Console: nothing is sent, the outbox waits until it is reactivated.
+      if (await isSuspendedInstance()) {
+        await new Promise(resolve => setTimeout(resolve, 30_000));
+        continue;
+      }
       const batch = await claimBatch(10);
       
       if (batch.length > 0) {

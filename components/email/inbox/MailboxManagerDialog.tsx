@@ -15,7 +15,7 @@ import {
     Server,
     X,
 } from "lucide-react";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 // ============================================
 // TYPES
@@ -53,6 +53,7 @@ interface AddMailboxViewProps {
 }
 
 function AddMailboxView({ onCancel, onSuccess, onMailboxAdded }: AddMailboxViewProps) {
+    const brand = useBrand();
     const [step, setStep] = useState<'select' | 'imap' | 'reachinbox'>('select');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

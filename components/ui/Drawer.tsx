@@ -20,6 +20,11 @@ export const DRAWER_BACKDROP_CLASS = "bg-black/15 animate-fade-in";
 export const DRAWER_PANEL_SURFACE_CLASS =
     "overflow-hidden rounded-2xl sm:rounded-[20px] border border-line bg-surface shadow-overlay";
 
+/** Open drawers, oldest first; the last one owns the Escape key. */
+const openDrawers: symbol[] = [];
+const modalDrawers = new Set<symbol>();
+let bodyOverflowBeforeDrawers = "";
+
 interface DrawerProps {
     isOpen: boolean;
     onClose: () => void;
@@ -45,6 +50,14 @@ interface DrawerProps {
     headerActions?: React.ReactNode;
     /** If false, drawer behaves as non-modal side panel (no full-screen blocking layer). */
     modal?: boolean;
+    /**
+     * A pane docked to the right edge, full height, no backdrop: the page stays
+     * usable beside it and, on wide screens, makes room for it (`--cp-pane-w`).
+     * Esc still closes it when it is the top drawer.
+     */
+    docked?: boolean;
+    /** Padding of the scroll area (default `p-6`). */
+    bodyClassName?: string;
 }
 
 const SIZES = {
@@ -69,6 +82,8 @@ interface DrawerHeaderProps {
     onClose?: () => void;
     showCloseButton?: boolean;
     className?: string;
+    /** `start`: title left-aligned and compact (docked panes). */
+    align?: "center" | "start";
 }
 
 /**
@@ -83,7 +98,33 @@ export function DrawerHeader({
     onClose,
     showCloseButton = true,
     className,
+    align = "center",
 }: DrawerHeaderProps) {
+    if (align === "start") {
+        return (
+            <div className={cn("flex h-14 shrink-0 items-center gap-2 border-b border-line-subtle bg-surface pl-5 pr-2", className)}>
+                {left && <div className="flex shrink-0 items-center gap-1">{left}</div>}
+                <div className="min-w-0 flex-1">
+                    {title && <h2 className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-ink">{title}</h2>}
+                    {subtitle && <p className="truncate text-[12px] text-ink-3">{subtitle}</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-0.5">
+                    {right}
+                    {showCloseButton && onClose && (
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            aria-label="Fermer le panneau (Échap)"
+                            title="Fermer (Échap)"
+                            className="flex h-8 w-8 items-center justify-center rounded-control text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
     return (
         <div
             className={cn(
@@ -137,33 +178,73 @@ export function Drawer({
     headerLeft,
     headerActions,
     modal = true,
+    docked = false,
+    bodyClassName,
 }: DrawerProps) {
     const drawerRef = useRef<HTMLDivElement>(null);
+    const stackId = useRef(Symbol("drawer")).current;
 
-    // Handle ESC key
+    // Registered on open only (not on every render) so the stack order is the
+    // order drawers were actually opened in. Non-modal drawers (side panels such
+    // as the SDR script) never handle Esc, so they must not sit on top of the
+    // stack and swallow it from the modal drawer underneath.
+    // A docked pane blocks nothing (no backdrop, no scroll lock) but keeps Esc.
+    const blocking = modal && !docked;
+    const ownsEscape = modal || docked;
+
+    useEffect(() => {
+        if (!isOpen || !ownsEscape) return;
+        openDrawers.push(stackId);
+        return () => {
+            const index = openDrawers.indexOf(stackId);
+            if (index !== -1) openDrawers.splice(index, 1);
+        };
+    }, [isOpen, ownsEscape, stackId]);
+
+    // Handle ESC key — only the drawer on top reacts, so Esc in an edit form
+    // doesn't also close the detail drawer it was opened from.
     const handleKeyDown = useCallback(
         (e: KeyboardEvent) => {
-            if (e.key === "Escape" && closeOnEscape) {
+            // A docked pane leaves Esc to a dialog opened above it (help sheet, confirm…).
+            if (docked && document.querySelector('[aria-modal="true"]')) return;
+            if (e.key === "Escape" && !e.defaultPrevented && closeOnEscape && openDrawers[openDrawers.length - 1] === stackId) {
+                e.preventDefault();
                 onClose();
             }
         },
-        [closeOnEscape, onClose]
+        [closeOnEscape, onClose, stackId, docked]
     );
 
-    // Lock body scroll when drawer is open
+    // Non-modal companions also own Escape when they are on top of the stack.
     useEffect(() => {
-        if (isOpen && modal) {
-            document.body.style.overflow = "hidden";
-            document.addEventListener("keydown", handleKeyDown);
-        } else {
-            document.body.style.overflow = "";
-        }
+        if (!isOpen || !ownsEscape) return;
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [isOpen, ownsEscape, handleKeyDown]);
 
+
+    // Only the last modal drawer releases the lock. Non-modal companions must
+    // never clear a sibling's lock, including when they close or rerender.
+    useEffect(() => {
+        if (!isOpen || !blocking) return;
+        if (modalDrawers.size === 0) {
+            bodyOverflowBeforeDrawers = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+        }
+        modalDrawers.add(stackId);
         return () => {
-            document.body.style.overflow = "";
-            document.removeEventListener("keydown", handleKeyDown);
+            modalDrawers.delete(stackId);
+            if (modalDrawers.size === 0) {
+                document.body.style.overflow = bodyOverflowBeforeDrawers;
+            }
         };
-    }, [isOpen, handleKeyDown]);
+    }, [isOpen, blocking, stackId]);
+
+    useEffect(() => {
+        if (!isOpen || !docked) return;
+        document.documentElement.dataset.paneDocked = "";
+        return () => { delete document.documentElement.dataset.paneDocked; };
+    }, [isOpen, docked]);
 
     // Focus trap
     useEffect(() => {
@@ -178,8 +259,41 @@ export function Drawer({
         if (closeOnOverlay) onClose();
     };
 
+    if (docked) {
+        return (
+            <div
+                ref={drawerRef}
+                tabIndex={-1}
+                role="dialog"
+                aria-label={typeof title === "string" ? title : "Panneau latéral"}
+                className={cn(
+                    "cp-docked-pane cp-pane-in fixed bottom-0 right-0 top-0 z-[81] flex flex-col border-l border-line bg-surface outline-none",
+                    "shadow-overlay xl:shadow-[-1px_0_0_var(--ds-line-subtle)]",
+                    className
+                )}
+            >
+                {(title || description || headerLeft || headerActions || showCloseButton) && (
+                    <DrawerHeader
+                        align="start"
+                        title={title}
+                        subtitle={description}
+                        left={headerLeft}
+                        right={headerActions}
+                        onClose={onClose}
+                        showCloseButton={showCloseButton}
+                    />
+                )}
+                <div className={cn("min-h-0 flex-1 overflow-y-auto drawer-scrollbar", bodyClassName ?? "p-6")}>{children}</div>
+                {footer && <div className="shrink-0 border-t border-line-subtle bg-surface px-5 py-3">{footer}</div>}
+            </div>
+        );
+    }
+
     return (
-        <div className={cn("fixed inset-0 z-[80] flex", modal ? "pointer-events-auto" : "pointer-events-none")}>
+        <div
+            className={cn("fixed inset-x-0 top-0 z-[80] flex", modal ? "pointer-events-auto" : "pointer-events-none")}
+            style={{ bottom: "var(--softphone-dock-h, 0px)" }}
+        >
             {/* Overlay */}
             {modal && (
                 <div
@@ -201,7 +315,7 @@ export function Drawer({
                 aria-modal={modal ? "true" : undefined}
                 aria-label={typeof title === "string" ? title : "Panneau latéral"}
                 className={cn(
-                    "fixed top-2 bottom-2 z-[81] flex w-[calc(100%-1rem)] flex-col outline-none sm:top-3 sm:bottom-3 sm:w-[calc(100%-1.5rem)]",
+                    "fixed top-2 bottom-[calc(0.5rem+var(--softphone-dock-h,0px))] z-[81] flex w-[calc(100%-1rem)] flex-col outline-none sm:top-3 sm:bottom-[calc(0.75rem+var(--softphone-dock-h,0px))] sm:w-[calc(100%-1.5rem)]",
                     DRAWER_PANEL_SURFACE_CLASS,
                     side === "right"
                         ? "right-2 sm:right-3 animate-drawer-in-right"
@@ -224,7 +338,7 @@ export function Drawer({
                 )}
 
                 {/* Content */}
-                <div className="min-h-0 flex-1 overflow-y-auto p-6 drawer-scrollbar">
+                <div className={cn("min-h-0 flex-1 overflow-y-auto drawer-scrollbar", bodyClassName ?? "p-6")}>
                     {children}
                 </div>
 

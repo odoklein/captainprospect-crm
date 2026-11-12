@@ -35,6 +35,16 @@ export function checkToolAccess(
         return { allowed: false, code: "inactive_account", reason: "Compte désactivé." };
     }
 
+    // A background playbook names the few tools it may use; everything else is
+    // invisible to the model and refused if it names one anyway.
+    if (ctx.toolAllowlist && !ctx.toolAllowlist.has(tool.name)) {
+        return {
+            allowed: false,
+            code: "tool_not_allowed",
+            reason: "Cet outil n'est pas disponible pour cette tâche.",
+        };
+    }
+
     if (!tool.allowedRoles.includes(ctx.role)) {
         return {
             allowed: false,
@@ -59,6 +69,14 @@ export function checkToolAccess(
             allowed: false,
             code: "no_project",
             reason: "Aucun projet sélectionné. Demande à l'utilisateur de choisir un client et une mission.",
+        };
+    }
+
+    if (tool.agencyOnly && ctx.project) {
+        return {
+            allowed: false,
+            code: "agency_only",
+            reason: "Cet outil voit tous les clients : il n'est disponible qu'en vue agence.",
         };
     }
 

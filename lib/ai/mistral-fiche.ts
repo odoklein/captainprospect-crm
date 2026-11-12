@@ -4,7 +4,8 @@
 // manual audio-upload flow (app/api/actions/[id]/upload-audio).
 // ============================================
 
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
+import { integrationKey } from "@/lib/integrations/keys";
 export interface FicheData {
   contexte: string;
   besoinsProblemes: string;
@@ -55,11 +56,12 @@ function extractFieldText(val: unknown): string {
 export async function generateFicheFromTranscription(
   transcription: string,
 ): Promise<GenerateFicheResult> {
-  const mistralApiKey = process.env.OPENAI_API_KEY;
+  const mistralApiKey = integrationKey("OPENAI_API_KEY");
   if (!mistralApiKey) {
     return { ok: false, message: "Clé API OpenAI non configurée (OPENAI_API_KEY)", status: 503 };
   }
 
+  const brand = await getBrand();
   const systemPrompt = `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).
 
 Ta tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".

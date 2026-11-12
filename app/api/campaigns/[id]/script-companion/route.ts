@@ -9,6 +9,7 @@ import {
     ValidationError,
 } from "@/lib/api-utils";
 import { z } from "zod";
+import { integrationKey } from "@/lib/integrations/keys";
 
 type ScriptCompanionRules = {
     scriptCompanion?: {
@@ -70,7 +71,7 @@ async function buildImprovedAiScript(params: {
     currentScript: string;
     notes: string[];
 }): Promise<string | null> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) return null;
     if (params.notes.length === 0) return null;
 

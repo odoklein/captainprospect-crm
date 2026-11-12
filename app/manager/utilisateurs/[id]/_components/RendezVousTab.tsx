@@ -1,21 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-    Ban,
-    CalendarCheck2,
-    CheckCircle2,
-    Clock,
-    Download,
-    Hourglass,
-    Search,
-    ThumbsDown,
-    UserX,
-    Wallet,
-} from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/Button";
+import { CONTROL_HEIGHT, FIELD_BASE } from "@/components/ui/recipes";
+import {
+    FilterSelect,
+    Metric,
+    MetricPlaceholder,
+    MetricStrip,
+    Panel,
+    PanelHeader,
+    PanelMessage,
+    PanelToolbar,
+    SearchField,
+    SkeletonRows,
+    TextButton,
+    useSlashFocus,
+} from "@/components/hr/HubUI";
 import { currentMonthPeriod, useSdrMeetingsQuery } from "@/app/sdr/meetings/_hooks/useSdrMeetingsQuery";
-import { SdrMonthPicker } from "@/app/sdr/meetings/_components/SdrMonthPicker";
 import { getRdvStatus } from "@/app/sdr/meetings/_lib/formatters";
 import type { Meeting } from "@/app/sdr/meetings/_types";
 
@@ -27,13 +31,14 @@ import type { Meeting } from "@/app/sdr/meetings/_types";
 
 type BonusStatus = "upcoming" | "awaiting" | "valid" | "absent" | "negative" | "cancelled";
 
-const STATUS_META: Record<BonusStatus, { label: string; badge: string; dot: string }> = {
-    valid: { label: "Valide", badge: "bg-emerald-50 text-emerald-700 ring-emerald-200", dot: "bg-emerald-500" },
-    awaiting: { label: "En attente de retour", badge: "bg-amber-50 text-amber-700 ring-amber-200", dot: "bg-amber-500" },
-    upcoming: { label: "À venir", badge: "bg-sky-50 text-sky-700 ring-sky-200", dot: "bg-sky-500" },
-    absent: { label: "Absent", badge: "bg-red-50 text-red-700 ring-red-200", dot: "bg-red-500" },
-    negative: { label: "Négatif", badge: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-500" },
-    cancelled: { label: "Annulé", badge: "bg-slate-50 text-slate-500 ring-slate-200", dot: "bg-slate-300" },
+// One dot per RDV: its bonus status is the row's only colour.
+const STATUS_META: Record<BonusStatus, { label: string; dot: string; ink: string }> = {
+    valid: { label: "Valide", dot: "bg-success", ink: "text-success-ink" },
+    awaiting: { label: "En attente de retour", dot: "bg-warning", ink: "text-warning-ink" },
+    upcoming: { label: "À venir", dot: "bg-info", ink: "text-ink-2" },
+    absent: { label: "Absent", dot: "bg-danger", ink: "text-danger-ink" },
+    negative: { label: "Négatif", dot: "bg-ink-4", ink: "text-ink-2" },
+    cancelled: { label: "Annulé", dot: "bg-line-strong", ink: "text-ink-3" },
 };
 
 function bonusStatus(m: Meeting): BonusStatus {
@@ -56,6 +61,19 @@ const fmtDateTime = (iso?: string | null) =>
 const contactName = (m: Meeting) =>
     [m.contact.firstName, m.contact.lastName].filter(Boolean).join(" ") || "Contact sans nom";
 const euros = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+
+/** Current month + the 11 before it, then the full history (same choices as the SDR's own page). */
+function monthOptions(now = new Date()): Array<{ value: string; label: string }> {
+    const fmt = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
+    return Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const label = fmt.format(d);
+        return {
+            value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+            label: `${label.charAt(0).toUpperCase()}${label.slice(1)}${i === 0 ? " (ce mois-ci)" : ""}`,
+        };
+    });
+}
 
 function periodLabel(period: string) {
     const m = /^(\d{4})-(\d{2})$/.exec(period);
@@ -89,11 +107,33 @@ function exportCsv(rows: Array<{ m: Meeting; s: BonusStatus }>, userName: string
     URL.revokeObjectURL(url);
 }
 
+function StatusMark({ s, standBy }: { s: BonusStatus; standBy?: boolean }) {
+    const meta = STATUS_META[s];
+    return (
+        <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] font-medium", meta.ink)}>
+            <span className={cn("size-1.5 shrink-0 rounded-full", meta.dot)} aria-hidden />
+            {meta.label}
+            {standBy ? " (stand-by)" : ""}
+        </span>
+    );
+}
+
+/** A count in the mission table: grey when zero, the status ink otherwise. */
+function Cell({ n, ink, strong }: { n: number; ink?: string; strong?: boolean }) {
+    return (
+        <td className={cn("px-3 py-3 text-right tabular-nums", n === 0 ? "text-ink-4" : cn(ink ?? "text-ink-2", strong && "font-semibold"))}>
+            {n}
+        </td>
+    );
+}
+
 export function RendezVousTab({ userId, userName }: { userId: string; userName: string }) {
     const [period, setPeriod] = useState(currentMonthPeriod);
     const [filter, setFilter] = useState<BonusStatus | "all">("all");
     const [query, setQuery] = useState("");
-    const { data, isLoading } = useSdrMeetingsQuery(period, userId);
+    const { data, isLoading, isError, refetch } = useSdrMeetingsQuery(period, userId);
+    const searchRef = useRef<HTMLInputElement>(null);
+    useSlashFocus(searchRef);
 
     // Rates differ per SDR (freelance vs. in-house vs. offshore): a local estimate
     // per SDR, remembered in this browser only — billing stays Morgane's call.
@@ -154,247 +194,297 @@ export function RendezVousTab({ userId, userName }: { userId: string; userName: 
         });
     }, [rows, filter, query]);
 
-    const tiles: Array<{ key: BonusStatus | "all"; label: string; value: number; icon: typeof Clock; tone: string; hint?: string }> = [
-        { key: "all", label: "RDV pris", value: booked, icon: CalendarCheck2, tone: "text-primary-600 bg-primary-50", hint: counts.cancelled ? `+ ${counts.cancelled} annulé${counts.cancelled > 1 ? "s" : ""}` : undefined },
-        { key: "valid", label: "Valides", value: counts.valid, icon: CheckCircle2, tone: "text-emerald-600 bg-emerald-50", hint: validRate !== null ? `${validRate} % des RDV avec retour` : "Primables" },
-        { key: "awaiting", label: "En attente de retour", value: counts.awaiting, icon: Hourglass, tone: "text-amber-600 bg-amber-50", hint: "Passés, sans retour client" },
-        { key: "upcoming", label: "À venir", value: counts.upcoming, icon: Clock, tone: "text-sky-600 bg-sky-50" },
-        { key: "absent", label: "Absents", value: counts.absent, icon: UserX, tone: "text-red-600 bg-red-50", hint: "Non primés" },
-        { key: "negative", label: "Négatifs", value: counts.negative, icon: ThumbsDown, tone: "text-slate-600 bg-slate-100" },
+    const tiles: Array<{ key: BonusStatus | "all"; label: string; value: number; hint?: string }> = [
+        { key: "all", label: "RDV pris", value: booked, hint: counts.cancelled ? `+ ${counts.cancelled} annulé${counts.cancelled > 1 ? "s" : ""}` : undefined },
+        { key: "valid", label: "Valides", value: counts.valid, hint: validRate !== null ? `${validRate} % des RDV avec retour` : "Primables" },
+        { key: "awaiting", label: "En attente de retour", value: counts.awaiting, hint: "Passés, sans retour client" },
+        { key: "upcoming", label: "À venir", value: counts.upcoming },
+        { key: "absent", label: "Absents", value: counts.absent, hint: "Non primés" },
+        { key: "negative", label: "Négatifs", value: counts.negative },
     ];
 
+    const searching = query.trim() !== "";
+    const loadFailed = isError && !data;
+
     return (
-        <div className="space-y-5">
-            {/* Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h2 className="text-base font-semibold text-slate-900">Rendez-vous de {userName}</h2>
-                    <p className="text-xs text-slate-500">Comptés sur le mois de prise du RDV — base du calcul des primes.</p>
+        <div className="space-y-4">
+            {/* Title + period */}
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div className="min-w-0">
+                    <h2 className="text-[15px] font-semibold text-ink">Rendez-vous de {userName}</h2>
+                    <p className="mt-0.5 text-[13px] text-ink-3">Comptés sur le mois de prise du RDV — base du calcul des primes.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <SdrMonthPicker value={period} onChange={(p) => { setPeriod(p); setFilter("all"); }} />
-                    <button
-                        type="button"
+                    <span className="text-[13px] text-ink-3" aria-hidden>RDV pris en</span>
+                    <FilterSelect
+                        label="Mois de prise de RDV"
+                        value={period}
+                        onChange={(p) => { setPeriod(p); setFilter("all"); }}
+                        active={period !== currentMonthPeriod()}
+                    >
+                        {monthOptions().map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                        <option value="all">Tout l&apos;historique</option>
+                    </FilterSelect>
+                    <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => exportCsv(visible, userName, period)}
                         disabled={visible.length === 0}
-                        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                         title="Exporter la liste affichée (Excel)"
+                        leftIcon={<Download className="size-4" />}
                     >
-                        <Download className="w-4 h-4" />
                         Exporter
-                    </button>
+                    </Button>
                 </div>
             </div>
 
-            {/* KPI tiles — click to filter the table */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+            {/* Counts — each one filters the list below */}
+            <MetricStrip>
                 {tiles.map((t) => {
                     const active = filter === t.key;
                     return (
-                        <button
+                        <Metric
                             key={t.key}
-                            type="button"
+                            label={
+                                <>
+                                    {t.key !== "all" && <span className={cn("size-1.5 rounded-full", STATUS_META[t.key].dot)} aria-hidden />}
+                                    {t.label}
+                                </>
+                            }
+                            value={isLoading ? <MetricPlaceholder /> : loadFailed ? <span className="text-ink-4">—</span> : t.value}
+                            hint={t.hint}
                             onClick={() => setFilter(active && t.key !== "all" ? "all" : t.key)}
-                            aria-pressed={active}
-                            className={cn(
-                                "text-left rounded-2xl border bg-white p-3.5 transition shadow-sm hover:shadow",
-                                active ? "border-primary-300 ring-2 ring-primary-100" : "border-slate-200 hover:border-slate-300"
-                            )}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-medium text-slate-500">{t.label}</span>
-                                <span className={cn("flex h-7 w-7 items-center justify-center rounded-lg", t.tone)}>
-                                    <t.icon className="w-3.5 h-3.5" />
-                                </span>
-                            </div>
-                            <div className="mt-1.5 text-2xl font-semibold tabular-nums text-slate-900">
-                                {isLoading ? <span className="inline-block h-7 w-8 animate-pulse rounded bg-slate-100" /> : t.value}
-                            </div>
-                            {t.hint && <div className="mt-0.5 text-[11px] text-slate-400 truncate">{t.hint}</div>}
-                        </button>
+                            pressed={active}
+                        />
                     );
                 })}
-            </div>
+            </MetricStrip>
 
-            <div className="grid gap-5 lg:grid-cols-3">
+            <div className="grid items-start gap-4 lg:grid-cols-3">
                 {/* Bonus estimate */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex items-center gap-2">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
-                            <Wallet className="w-4 h-4" />
-                        </span>
+                <Panel>
+                    <PanelHeader title="Estimation de la prime" description="RDV valides × tarif de ce SDR" />
+                    <div className="space-y-4 px-5 py-4">
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-900">Estimation de la prime</h3>
-                            <p className="text-[11px] text-slate-500">RDV valides × tarif de ce SDR</p>
-                        </div>
-                    </div>
-                    <label className="mt-4 block text-xs font-medium text-slate-600" htmlFor={`rate-${userId}`}>
-                        Tarif par RDV valide
-                    </label>
-                    <div className="mt-1 flex items-center rounded-xl border border-slate-200 bg-white focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-100">
-                        <input
-                            id={`rate-${userId}`}
-                            inputMode="decimal"
-                            value={rate}
-                            onChange={(e) => updateRate(e.target.value.replace(/[^0-9.,]/g, ""))}
-                            placeholder="ex. 150"
-                            className="w-full bg-transparent px-3 py-2 text-sm text-slate-900 focus:outline-none"
-                        />
-                        <span className="pr-3 text-sm text-slate-400">€</span>
-                    </div>
-                    <div className="mt-4 rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-xs text-slate-500">
-                            {counts.valid} RDV valide{counts.valid > 1 ? "s" : ""}
-                            {estimate !== null && <> × {euros(rateNumber)}</>}
-                        </div>
-                        <div className="mt-0.5 text-xl font-semibold tabular-nums text-slate-900">
-                            {estimate !== null ? euros(estimate) : "—"}
-                        </div>
-                        {counts.awaiting > 0 && (
-                            <div className="mt-1 text-[11px] text-amber-700">
-                                {counts.awaiting} RDV encore sans retour client — à relancer avant de clôturer le mois.
+                            <label className="mb-1.5 block text-[13px] font-medium text-ink-2" htmlFor={`rate-${userId}`}>
+                                Tarif par RDV valide
+                            </label>
+                            <div className="relative">
+                                <input
+                                    id={`rate-${userId}`}
+                                    inputMode="decimal"
+                                    value={rate}
+                                    onChange={(e) => updateRate(e.target.value.replace(/[^0-9.,]/g, ""))}
+                                    placeholder="ex. 150"
+                                    className={cn(FIELD_BASE, CONTROL_HEIGHT.md, "pl-3 pr-8 tabular-nums")}
+                                />
+                                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-ink-3">€</span>
                             </div>
-                        )}
+                        </div>
+                        <div className="rounded-xl bg-surface-2 px-4 py-3">
+                            <p className="text-xs tabular-nums text-ink-3">
+                                {counts.valid} RDV valide{counts.valid > 1 ? "s" : ""}
+                                {estimate !== null && <> × {euros(rateNumber)}</>}
+                            </p>
+                            <p className="mt-1 font-display text-[22px] font-semibold leading-7 tracking-[-0.01em] tabular-nums text-ink">
+                                {estimate !== null ? euros(estimate) : "—"}
+                            </p>
+                            {counts.awaiting > 0 && (
+                                <p className="mt-1 text-xs text-warning-ink">
+                                    {counts.awaiting} RDV encore sans retour client — à relancer avant de clôturer le mois.
+                                </p>
+                            )}
+                        </div>
+                        <p className="text-xs text-ink-3">Estimation mémorisée sur ce navigateur uniquement, non enregistrée.</p>
                     </div>
-                    <p className="mt-2 text-[11px] text-slate-400">Estimation mémorisée sur ce navigateur uniquement, non enregistrée.</p>
-                </div>
+                </Panel>
 
                 {/* Per-mission breakdown */}
-                <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-100">
-                        <h3 className="text-sm font-semibold text-slate-900">Par mission</h3>
-                    </div>
-                    {byMission.length === 0 ? (
-                        <p className="px-4 py-6 text-sm text-slate-500">{isLoading ? "Chargement…" : "Aucun RDV sur cette période."}</p>
+                <Panel className="lg:col-span-2">
+                    <PanelHeader title="Par mission" meta={byMission.length ? `${byMission.length} mission${byMission.length > 1 ? "s" : ""}` : undefined} />
+                    {isLoading ? (
+                        <SkeletonRows rows={3} columns={[30, 6, 6, 6, 6, 6]} pitch="py-3" />
+                    ) : loadFailed ? (
+                        <PanelMessage className="py-10" tone="error" action={<TextButton onClick={() => refetch()}>Réessayer</TextButton>}>
+                            Les rendez-vous n’ont pas pu être chargés.
+                        </PanelMessage>
+                    ) : byMission.length === 0 ? (
+                        <PanelMessage className="py-10">Aucun RDV sur cette période.</PanelMessage>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400">
-                                        <th className="px-4 py-2 font-medium">Mission</th>
-                                        <th className="px-3 py-2 font-medium text-right">Pris</th>
-                                        <th className="px-3 py-2 font-medium text-right">Valides</th>
-                                        <th className="px-3 py-2 font-medium text-right">En attente</th>
-                                        <th className="px-3 py-2 font-medium text-right">Absents</th>
-                                        <th className="px-3 py-2 font-medium text-right">Négatifs</th>
+                        <>
+                            {/* Phones: one line per mission */}
+                            <ul className="divide-y divide-line-subtle md:hidden">
+                                {byMission.map((row) => (
+                                    <li key={`${row.name}-${row.client}`} className="px-4 py-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-[13px] font-medium text-ink">{row.name}</p>
+                                                {row.client && <p className="truncate text-xs text-ink-3">{row.client}</p>}
+                                            </div>
+                                            <p className="shrink-0 text-[13px] tabular-nums text-ink-3">
+                                                <span className="font-semibold text-ink">{row.total - row.c.cancelled}</span> pris
+                                            </p>
+                                        </div>
+                                        <p className="mt-1 flex flex-wrap gap-x-3 text-xs tabular-nums text-ink-3">
+                                            <span className={row.c.valid ? "font-medium text-success-ink" : undefined}>{row.c.valid} valide{row.c.valid > 1 ? "s" : ""}</span>
+                                            <span className={row.c.awaiting ? "text-warning-ink" : undefined}>{row.c.awaiting} en attente</span>
+                                            <span className={row.c.absent ? "text-danger-ink" : undefined}>{row.c.absent} absent{row.c.absent > 1 ? "s" : ""}</span>
+                                            <span>{row.c.negative} négatif{row.c.negative > 1 ? "s" : ""}</span>
+                                        </p>
+                                    </li>
+                                ))}
+                            </ul>
+                            <div className="hidden overflow-x-auto md:block">
+                                <table className="w-full min-w-[560px] border-collapse text-left text-[13px]">
+                                    <thead className="border-b border-line text-xs text-ink-3">
+                                        <tr>
+                                            <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">Mission</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Pris</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Valides</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">En attente</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Absents</th>
+                                            <th scope="col" className="py-2.5 pl-3 pr-5 text-right font-medium">Négatifs</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {byMission.map((row) => (
+                                            <tr key={`${row.name}-${row.client}`} className="border-b border-line-subtle transition-colors duration-100 last:border-b-0 hover:bg-surface-2/70">
+                                                <td className="py-3 pl-5 pr-3">
+                                                    <div className="font-medium text-ink">{row.name}</div>
+                                                    {row.client && <div className="text-xs text-ink-3">{row.client}</div>}
+                                                </td>
+                                                <td className="px-3 py-3 text-right font-medium tabular-nums text-ink">{row.total - row.c.cancelled}</td>
+                                                <Cell n={row.c.valid} ink="text-success-ink" strong />
+                                                <Cell n={row.c.awaiting} ink="text-warning-ink" />
+                                                <Cell n={row.c.absent} ink="text-danger-ink" />
+                                                <td className={cn("py-3 pl-3 pr-5 text-right tabular-nums", row.c.negative ? "text-ink-2" : "text-ink-4")}>{row.c.negative}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </Panel>
+            </div>
+
+            {/* RDV list */}
+            <Panel>
+                <PanelToolbar>
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                        Détail des rendez-vous
+                        <span className="text-xs font-normal tabular-nums text-ink-3">{visible.length}</span>
+                    </h3>
+                    {filter !== "all" && (
+                        <button
+                            type="button"
+                            onClick={() => setFilter("all")}
+                            className="inline-flex h-6 items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2 text-xs font-medium text-ink-2 hover:border-line-strong hover:text-ink"
+                        >
+                            <span className={cn("size-1.5 rounded-full", STATUS_META[filter].dot)} aria-hidden />
+                            {STATUS_META[filter].label}
+                            <span aria-hidden="true">×</span>
+                            <span className="sr-only">Retirer le filtre</span>
+                        </button>
+                    )}
+                    <SearchField
+                        ref={searchRef}
+                        value={query}
+                        onChange={setQuery}
+                        placeholder="Contact, société, mission…"
+                        label="Rechercher un rendez-vous"
+                        className="w-full sm:ml-auto sm:max-w-xs sm:flex-none"
+                    />
+                </PanelToolbar>
+
+                {isLoading ? (
+                    <SkeletonRows rows={5} columns={[10, 12, 28, 22, 12]} pitch="py-3.5" />
+                ) : loadFailed ? (
+                    <PanelMessage tone="error" action={<TextButton onClick={() => refetch()}>Réessayer</TextButton>}>
+                        Les rendez-vous n’ont pas pu être chargés.
+                    </PanelMessage>
+                ) : visible.length === 0 ? (
+                    <PanelMessage
+                        action={
+                            searching || filter !== "all" ? (
+                                <TextButton onClick={() => { setQuery(""); setFilter("all"); }}>Réinitialiser les filtres</TextButton>
+                            ) : undefined
+                        }
+                    >
+                        {searching || filter !== "all" ? "Aucun rendez-vous ne correspond à la recherche ou au filtre." : "Aucun RDV pris sur cette période."}
+                    </PanelMessage>
+                ) : (
+                    <>
+                        {/* Phones: one card per RDV */}
+                        <ul className="divide-y divide-line-subtle md:hidden">
+                            {visible.map(({ m, s }) => (
+                                <li key={m.id} className="space-y-1.5 px-4 py-3.5">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-semibold text-ink">{m.contact.company.name}</p>
+                                            <p className="truncate text-xs text-ink-3">
+                                                {contactName(m)}
+                                                {m.contact.title ? ` · ${m.contact.title}` : ""}
+                                            </p>
+                                        </div>
+                                        <StatusMark s={s} standBy={s === "absent" && Boolean(m.meetingFeedback?.standByAt)} />
+                                    </div>
+                                    <p className="text-xs tabular-nums text-ink-3">
+                                        RDV {fmtDateTime(m.callbackDate)} · pris le {fmtDate(m.createdAt)}
+                                    </p>
+                                    {m.mission?.name && (
+                                        <p className="truncate text-xs text-ink-3">
+                                            {[m.mission.name, m.mission.client.name, m.list?.name].filter(Boolean).join(" · ")}
+                                        </p>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+
+                        <div className="hidden overflow-x-auto md:block">
+                            <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
+                                <thead className="border-b border-line text-xs text-ink-3">
+                                    <tr>
+                                        <th scope="col" className="whitespace-nowrap py-2.5 pl-5 pr-3 font-medium">Pris le</th>
+                                        <th scope="col" className="whitespace-nowrap px-3 py-2.5 font-medium">Date du RDV</th>
+                                        <th scope="col" className="px-3 py-2.5 font-medium">Prospect</th>
+                                        <th scope="col" className="px-3 py-2.5 font-medium">Mission</th>
+                                        <th scope="col" className="py-2.5 pl-3 pr-5 font-medium">Statut</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {byMission.map((row) => (
-                                        <tr key={`${row.name}-${row.client}`} className="hover:bg-slate-50/60">
-                                            <td className="px-4 py-2.5">
-                                                <div className="font-medium text-slate-900">{row.name}</div>
-                                                {row.client && <div className="text-[11px] text-slate-500">{row.client}</div>}
+                                <tbody>
+                                    {visible.map(({ m, s }) => (
+                                        <tr key={m.id} className="border-b border-line-subtle align-top transition-colors duration-100 last:border-b-0 hover:bg-surface-2/70">
+                                            <td className="whitespace-nowrap py-3 pl-5 pr-3 tabular-nums text-ink-3">{fmtDate(m.createdAt)}</td>
+                                            <td className="whitespace-nowrap px-3 py-3 tabular-nums text-ink">{fmtDateTime(m.callbackDate)}</td>
+                                            <td className="min-w-[180px] px-3 py-3">
+                                                <div className="font-medium text-ink">{m.contact.company.name}</div>
+                                                <div className="text-xs text-ink-3">
+                                                    {contactName(m)}
+                                                    {m.contact.title ? ` · ${m.contact.title}` : ""}
+                                                </div>
                                             </td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-700">{row.total - row.c.cancelled}</td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-emerald-700">{row.c.valid}</td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-amber-700">{row.c.awaiting}</td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-red-600">{row.c.absent}</td>
-                                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-600">{row.c.negative}</td>
+                                            <td className="min-w-[160px] px-3 py-3">
+                                                <div className="text-ink-2">{m.mission?.name ?? "—"}</div>
+                                                {(m.list?.name || m.mission?.client.name) && (
+                                                    <div className="text-xs text-ink-3">
+                                                        {[m.mission?.client.name, m.list?.name].filter(Boolean).join(" · ")}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="whitespace-nowrap py-3 pl-3 pr-5">
+                                                <StatusMark s={s} standBy={s === "absent" && Boolean(m.meetingFeedback?.standByAt)} />
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
-                    )}
-                </div>
-            </div>
-
-            {/* RDV table */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-slate-900">Détail des rendez-vous</h3>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 tabular-nums">{visible.length}</span>
-                        {filter !== "all" && (
-                            <button
-                                type="button"
-                                onClick={() => setFilter("all")}
-                                className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1", STATUS_META[filter].badge)}
-                            >
-                                {STATUS_META[filter].label}
-                                <span aria-hidden="true">×</span>
-                                <span className="sr-only">Retirer le filtre</span>
-                            </button>
-                        )}
-                    </div>
-                    <div className="relative w-full sm:w-64">
-                        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="search"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Contact, société, mission…"
-                            aria-label="Rechercher un rendez-vous"
-                            className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-100 focus:border-primary-400"
-                        />
-                    </div>
-                </div>
-
-                {isLoading ? (
-                    <div className="divide-y divide-slate-100">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                            <div key={i} className="flex items-center gap-4 px-4 py-3">
-                                <div className="h-4 w-20 animate-pulse rounded bg-slate-100" />
-                                <div className="h-4 flex-1 animate-pulse rounded bg-slate-100" />
-                                <div className="h-5 w-24 animate-pulse rounded-full bg-slate-100" />
-                            </div>
-                        ))}
-                    </div>
-                ) : visible.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-2 px-4 py-12 text-center">
-                        <Ban className="h-6 w-6 text-slate-300" />
-                        <p className="text-sm font-medium text-slate-600">Aucun rendez-vous</p>
-                        <p className="text-xs text-slate-400">
-                            {query || filter !== "all" ? "Modifiez la recherche ou le filtre." : "Aucun RDV pris sur cette période."}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-50/60">
-                                <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400">
-                                    <th className="px-4 py-2 font-medium whitespace-nowrap">Pris le</th>
-                                    <th className="px-3 py-2 font-medium whitespace-nowrap">Date du RDV</th>
-                                    <th className="px-3 py-2 font-medium">Prospect</th>
-                                    <th className="px-3 py-2 font-medium">Mission</th>
-                                    <th className="px-3 py-2 font-medium">Statut</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {visible.map(({ m, s }) => (
-                                    <tr key={m.id} className="hover:bg-slate-50/60">
-                                        <td className="px-4 py-2.5 whitespace-nowrap tabular-nums text-slate-600">{fmtDate(m.createdAt)}</td>
-                                        <td className="px-3 py-2.5 whitespace-nowrap tabular-nums text-slate-900">{fmtDateTime(m.callbackDate)}</td>
-                                        <td className="px-3 py-2.5 min-w-[180px]">
-                                            <div className="font-medium text-slate-900">{m.contact.company.name}</div>
-                                            <div className="text-[12px] text-slate-500">
-                                                {contactName(m)}
-                                                {m.contact.title ? ` · ${m.contact.title}` : ""}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-2.5 min-w-[160px]">
-                                            <div className="text-slate-800">{m.mission?.name ?? "—"}</div>
-                                            {(m.list?.name || m.mission?.client.name) && (
-                                                <div className="text-[12px] text-slate-500">
-                                                    {[m.mission?.client.name, m.list?.name].filter(Boolean).join(" · ")}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="px-3 py-2.5 whitespace-nowrap">
-                                            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] font-medium ring-1", STATUS_META[s].badge)}>
-                                                <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_META[s].dot)} />
-                                                {STATUS_META[s].label}
-                                                {s === "absent" && m.meetingFeedback?.standByAt ? " (stand-by)" : ""}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                    </>
                 )}
-            </div>
+            </Panel>
         </div>
     );
 }

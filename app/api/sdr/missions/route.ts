@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SDR_VISIBLE_MISSION_STATUSES } from "@/lib/constants/missionStatus";
-import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
+import { getSdrMissionScope } from "@/lib/sdr-today-missions";
 
 // ============================================
 // GET /api/sdr/missions
@@ -43,11 +43,11 @@ export async function GET() {
             defaultMailbox: { select: { id: true, email: true, displayName: true } },
         } as const;
 
-        // SDRs are strictly limited to missions in today's planning (ScheduleBlock) —
-        // never other missions they happen to be assigned to but aren't working today.
+        // SDRs are limited to missions in today's planning (ScheduleBlock), unless they
+        // hold the « changer de mission sans planning » permission (getSdrMissionScope).
         let todayMissionIds: string[] | null = null;
         if (role === "SDR") {
-            todayMissionIds = await getTodaySdrMissionIds(session.user.id);
+            todayMissionIds = await getSdrMissionScope(session.user.id);
             if (todayMissionIds.length === 0) {
                 return NextResponse.json({ success: true, data: [] });
             }

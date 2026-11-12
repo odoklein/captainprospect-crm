@@ -24,7 +24,7 @@ import {
     proposeEmailAddresses,
 } from "@/lib/vault/portalAccounts";
 import { sendCredentialsEmail } from "@/lib/vault/credentialsEmail";
-import { VAULT_TYPE_LABELS } from "@/lib/vault/types";
+import { vaultTypeLabels } from "@/lib/vault/types";
 import { requireProject } from "../context";
 import {
     defineConfirmTool,
@@ -33,7 +33,7 @@ import {
     NO_PARAMS,
     params,
 } from "../helpers";
-import { brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 const credentialType = z.enum([
     "PORTAL",
@@ -108,11 +108,12 @@ export const listProjectCredentials = defineReadTool({
             limit: 100,
         });
 
+        const typeLabels = vaultTypeLabels(await getBrand());
         return {
             acces: credentials.map((c) => ({
                 credentialId: c.id,
                 type: c.type,
-                typeLisible: VAULT_TYPE_LABELS[c.type],
+                typeLisible: typeLabels[c.type],
                 libelle: c.label,
                 identifiant: c.login,
                 hasPassword: c.hasPassword,
@@ -279,7 +280,8 @@ export const createPortalAccount = defineConfirmTool({
     name: "create_portal_account",
     label: "Création d'un compte portail",
     description:
-        `Crée le compte portail ${brand.name} d'un commercial du client et enregistre ses identifiants dans le coffre. Le mot de passe est généré automatiquement.`,
+        // Static text sent to the model: brand-neutral (the system prompt names the instance).
+        "Crée le compte portail (accès à la plateforme) d'un commercial du client et enregistre ses identifiants dans le coffre. Le mot de passe est généré automatiquement.",
     parameters: params(
         {
             interlocuteurId: { type: "string", description: "Id obtenu via get_project_overview" },
@@ -337,7 +339,7 @@ export const createPortalAccount = defineConfirmTool({
             secret:
                 result.created && result.password
                     ? {
-                        label: result.credential?.label ?? `Portail ${brand.name}`,
+                        label: result.credential?.label ?? `Portail ${(await getBrand()).name}`,
                         login: result.user.email,
                         password: result.password,
                     }
@@ -382,7 +384,7 @@ export const saveCredential = defineConfirmTool({
             details: [
                 { label: "Client", value: project.clientName },
                 ...(project.missionName ? [{ label: "Mission", value: project.missionName }] : []),
-                { label: "Type", value: VAULT_TYPE_LABELS[args.type as VaultCredentialType] },
+                { label: "Type", value: vaultTypeLabels(await getBrand())[args.type as VaultCredentialType] },
                 { label: "Identifiant", value: args.login },
                 {
                     label: "Mot de passe",
@@ -467,7 +469,7 @@ export const rotatePassword = defineConfirmTool({
     name: "rotate_password",
     label: "Régénération d'un mot de passe",
     description:
-        `Génère un nouveau mot de passe pour un accès du projet. Si c'est un compte portail ${brand.name}, le compte est mis à jour dans la foulée.`,
+        "Génère un nouveau mot de passe pour un accès du projet. Si c'est un compte du portail de la plateforme, le compte est mis à jour dans la foulée.",
     parameters: params({ credentialId: { type: "string" } }, ["credentialId"]),
     schema: z.object({ credentialId: z.string().min(1) }),
     describe: async (args, ctx) => {

@@ -1,4 +1,4 @@
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
 export const PASSWORD_RECOVERY_TEMPLATE_VARIABLES = [
   { name: "{{userName}}", description: "Nom de l'utilisateur" },
   { name: "{{resetUrl}}", description: "Lien de reinitialisation" },
@@ -11,8 +11,13 @@ export const PASSWORD_OTP_TEMPLATE_VARIABLES = [
   { name: "{{expiryMinutes}}", description: "Duree de validite en minutes" },
 ] as const;
 
-export const DEFAULT_PASSWORD_RECOVERY_SUBJECT =
-  `Réinitialisation de votre mot de passe - ${brand.name}`;
+/** Default subject in the given brand (instance brand: getBrand()). */
+export function defaultPasswordRecoverySubject(brand: Brand = defaultBrand): string {
+  return `Réinitialisation de votre mot de passe - ${brand.name}`;
+}
+
+/** Default-brand snapshot; prefer defaultPasswordRecoverySubject(await getBrand()). */
+export const DEFAULT_PASSWORD_RECOVERY_SUBJECT = defaultPasswordRecoverySubject();
 
 export const DEFAULT_PASSWORD_RECOVERY_HTML = `<!DOCTYPE html>
 <html lang="fr">
@@ -58,8 +63,13 @@ export const DEFAULT_PASSWORD_RECOVERY_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
-export const DEFAULT_PASSWORD_OTP_SUBJECT =
-  `Votre code OTP de récupération - ${brand.name}`;
+/** Default subject in the given brand (instance brand: getBrand()). */
+export function defaultPasswordOtpSubject(brand: Brand = defaultBrand): string {
+  return `Votre code OTP de récupération - ${brand.name}`;
+}
+
+/** Default-brand snapshot; prefer defaultPasswordOtpSubject(await getBrand()). */
+export const DEFAULT_PASSWORD_OTP_SUBJECT = defaultPasswordOtpSubject();
 
 export const DEFAULT_PASSWORD_OTP_HTML = `<!DOCTYPE html>
 <html lang="fr">

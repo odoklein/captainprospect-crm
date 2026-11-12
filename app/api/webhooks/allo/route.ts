@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseAlloEvent, verifyAlloSignature } from "@/lib/incoming-calls/allo-webhook";
 import { handleAlloCallEvent } from "@/lib/incoming-calls/service";
+import { integrationKey } from "@/lib/integrations/keys";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
  * ALLO_WEBHOOK_SECRET refuses everything rather than trusting anyone.
  */
 export async function POST(req: NextRequest) {
-    const secret = process.env.ALLO_WEBHOOK_SECRET;
+    const secret = integrationKey("ALLO_WEBHOOK_SECRET");
     if (!secret) {
         console.error("[webhooks/allo] ALLO_WEBHOOK_SECRET not set — refusing delivery");
         return NextResponse.json({ error: "webhook not configured" }, { status: 503 });

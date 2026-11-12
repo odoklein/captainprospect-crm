@@ -47,6 +47,8 @@ interface AbsentsToTreatButtonProps {
     className?: string;
     /** Light variant for the dark card-view header. */
     tone?: "light" | "dark";
+    /** Nothing to treat → no button (the table toolbar keeps only what needs a look). */
+    hideWhenEmpty?: boolean;
 }
 
 /**
@@ -54,7 +56,7 @@ interface AbsentsToTreatButtonProps {
  * selected, that gathers the absent RDVs booked by this SDR. Missions that have
  * been stopped are left out by the API, same as in the call queue.
  */
-export function AbsentsToTreatButton({ onOpen, className, tone = "light" }: AbsentsToTreatButtonProps) {
+export function AbsentsToTreatButton({ onOpen, className, tone = "light", hideWhenEmpty = false }: AbsentsToTreatButtonProps) {
     const [open, setOpen] = useState(false);
     const { data: items = [], isLoading } = useQuery({
         queryKey: ABSENTS_TO_TREAT_QUERY_KEY,
@@ -70,6 +72,7 @@ export function AbsentsToTreatButton({ onOpen, className, tone = "light" }: Abse
 
     const count = items.length;
     const hot = count > 0;
+    if (hideWhenEmpty && !hot && !open) return null;
 
     return (
         <>
@@ -80,7 +83,7 @@ export function AbsentsToTreatButton({ onOpen, className, tone = "light" }: Abse
                 className={cn(
                     "inline-flex h-9 items-center gap-1.5 rounded-control border px-3 text-[13px] font-semibold shadow-2xs transition-colors",
                     hot
-                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                        ? "border-danger-line bg-danger-soft text-danger-ink hover:border-danger"
                         : tone === "dark"
                             ? "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
                             : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
@@ -92,7 +95,7 @@ export function AbsentsToTreatButton({ onOpen, className, tone = "light" }: Abse
                 <span
                     className={cn(
                         "rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
-                        hot ? "bg-red-600 text-white" : "bg-slate-200 text-slate-600",
+                        hot ? "bg-danger text-white" : "bg-slate-200 text-slate-600",
                     )}
                 >
                     {isLoading ? "…" : count}

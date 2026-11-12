@@ -23,8 +23,7 @@ import {
   Code2,
   LayoutTemplate,
 } from "lucide-react";
-import { brand } from "@/lib/brand";
-import { brandUrl } from "@/lib/brand";
+import { useBrandHelpers } from "@/lib/brand/client";
 
 interface VisualEmailEditorProps {
   subject: string;
@@ -49,6 +48,7 @@ export function VisualEmailEditor({
   accentColor = "#4f46e5",
   onAccentColorChange,
 }: VisualEmailEditorProps) {
+  const { brand, url: brandUrl } = useBrandHelpers();
   const [editorMode, setEditorMode] = useState<"visual" | "html">("visual");
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 

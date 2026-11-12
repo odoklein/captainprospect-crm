@@ -14,6 +14,7 @@ import type {
 } from "@/lib/support/types";
 
 import { supportApi } from "@/lib/support/api";
+import { OPEN_CLIENT_SUPPORT_EVENT } from "@/lib/support/events";
 
 const POLL_INTERVAL_MS = 15_000;
 const T = SUP_LIGHT;
@@ -338,6 +339,15 @@ export default function ClientSupportRoot() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [isOpen, view, conversations.length, handleClose]);
+
+    // Other portal screens open the widget with openClientSupport() (lib/support/events).
+    useEffect(() => {
+        const onOpenRequest = () => {
+            if (!isOpen) void handleOpen();
+        };
+        window.addEventListener(OPEN_CLIENT_SUPPORT_EVENT, onOpenRequest);
+        return () => window.removeEventListener(OPEN_CLIENT_SUPPORT_EVENT, onOpenRequest);
+    }, [isOpen, handleOpen]);
 
     const handleConversationUpdate = useCallback((next: SupportConversationDetailDTO) => {
         // A late send/reopen on a thread the user already left updates its list

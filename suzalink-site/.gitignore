@@ -1,0 +1,14 @@
+/node_modules
+/.next/
+/out/
+/coverage
+.env
+.env*.local
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+npm-debug.log*
+.vercel
+
+# Craftwork wizard: local install record (absolute paths of the machine)
+.agents/skills/.craftwork-wizard-installations.json

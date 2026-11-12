@@ -1,4 +1,7 @@
 @import "tailwindcss";
+/* shadcn/ui enter/exit utilities (animate-in, fade-in-0, zoom-in-95, slide-in-from-*,
+   animate-accordion-*). Tokens + reduced-motion rule: see "SHADCN/UI LAYER" below. */
+@import "tw-animate-css";
 
 /* ============================================================================
    DESIGN SYSTEM — TOKENS
@@ -365,6 +368,55 @@
     from { background-position: 200% 0; }
     to { background-position: -200% 0; }
 }
+/* The ds-* motion is decoration: people who ask the OS for less motion get none. */
+@media (prefers-reduced-motion: reduce) {
+    .animate-ds-enter,
+    .animate-ds-pop,
+    .animate-ds-slide-in,
+    .animate-ds-shimmer {
+        animation: none !important;
+    }
+}
+
+/* ============================================================================
+   SHADCN/UI LAYER — components/ui/shadcn/** (docs/ui/SHADCN.md)
+   ----------------------------------------------------------------------------
+   The shadcn components are written with OUR utilities (bg-surface, text-ink-3,
+   border-line, rounded-panel, shadow-overlay…). shadcn's own semantic names
+   (background, popover, muted-foreground, ring…) are deliberately NOT defined:
+   several already mean something else here. Only the few concepts we lacked
+   get a token, always namespaced --sh-*.
+   ============================================================================ */
+:root {
+    /* Scrim behind Dialog / AlertDialog / Sheet / Drawer (same as Modal.tsx). */
+    --sh-scrim: color-mix(in oklab, var(--ds-ink) 45%, transparent);
+    /* Skeleton shimmer: a light sweep over bg-surface-3, moved by animate-ds-shimmer. */
+    --sh-shimmer: linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--ds-surface) 65%, transparent) 50%, transparent 100%);
+    /* Stacking: the shell tops out at 100, Modal.tsx is 120, Toast.tsx 130.
+       Modal surfaces sit with Modal; floating layers (menus, popovers, tooltips,
+       select) sit above any modal so they work inside one, below toasts. */
+    --sh-z-modal: 120;
+    --sh-z-popover: 125;
+}
+
+@theme inline {
+    --color-sh-scrim: var(--sh-scrim);
+}
+
+/* tw-animate-css ignores the OS setting: people who ask for less motion get the
+   overlays, menus, sheets and accordions without enter/exit animation. Radix
+   Presence sees `animation-name: none` and unmounts immediately. */
+@media (prefers-reduced-motion: reduce) {
+    [class*="animate-in"],
+    [class*="animate-out"],
+    [class*="animate-accordion-"],
+    [class*="animate-collapsible-"],
+    [data-vaul-drawer],
+    [data-vaul-overlay] {
+        animation: none !important;
+    }
+}
+/* ======================== END SHADCN/UI LAYER =============================== */
 
 @layer base {
     html {
@@ -1843,20 +1895,29 @@ textarea::placeholder {
    ============================================ */
 
 /* --- Layout Shell --- */
+/* Height of the softphone dock (components/telephony/CallBar) while a call is
+   on screen, 0 otherwise. The shell and every floating surface end above it,
+   so the call never covers the page the SDR is working in. */
+:root {
+    --softphone-dock-h: 0px;
+}
+
 .cp-layout {
-    height: 100vh;
+    /* Width of the fixed sidebar, read by floating elements (FloatingDock). */
+    --cp-sidebar-w: 224px;
+    height: calc(100vh - var(--softphone-dock-h));
     overflow: hidden;
     background: var(--ds-canvas);
 }
 
 .cp-main {
-    height: 100vh;
+    height: calc(100vh - var(--softphone-dock-h));
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     /* Same duration and curve as .cp-sidebar's width, so page and sidebar
        move as one instead of opening a gap or overlapping mid-animation. */
-    transition: margin-left 160ms cubic-bezier(0.2, 0, 0, 1);
+    transition: margin-left 160ms cubic-bezier(0.2, 0, 0, 1), padding-right 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* Margins equal the sidebar widths (.cp-sidebar-expanded / -collapsed): */
@@ -1873,6 +1934,16 @@ textarea::placeholder {
     .cp-main-expanded,
     .cp-main-collapsed {
         margin-left: 0;
+    }
+}
+
+.cp-layout:has(.cp-main-collapsed) {
+    --cp-sidebar-w: 56px;
+}
+
+@media (max-width: 1023px) {
+    .cp-layout {
+        --cp-sidebar-w: 0px;
     }
 }
 
@@ -1936,7 +2007,7 @@ textarea::placeholder {
     position: fixed;
     top: 0;
     left: 0;
-    height: 100vh;
+    height: calc(100vh - var(--softphone-dock-h));
     z-index: 50;
     display: flex;
     flex-direction: column;
@@ -2162,7 +2233,7 @@ textarea::placeholder {
     color: #fff;
 }
 
-/* --- Captain AI entry: the one loud button in the sidebar --- */
+/* --- Captain AI entry: flat brand selection, no glow --- */
 .cp-ai-trigger,
 .cp-ai-trigger-mini {
     position: relative;
@@ -2170,22 +2241,17 @@ textarea::placeholder {
     align-items: center;
     flex-shrink: 0;
     color: #fff;
-    background: linear-gradient(120deg, var(--brand-accent-600), var(--brand-accent-500) 45%, var(--brand-primary-500));
-    background-size: 200% 100%;
-    border: 1px solid color-mix(in oklab, var(--brand-accent-300) 55%, transparent);
-    box-shadow: 0 6px 18px -6px color-mix(in oklab, var(--brand-accent-500) 75%, transparent);
-    transition: background-position 400ms ease, box-shadow 160ms ease, transform 120ms ease;
-    animation: cp-ai-glow 3.2s ease-in-out infinite;
+    background: var(--brand-accent-600);
+    transition: background-color 150ms ease;
 }
 
 .cp-ai-trigger {
     gap: 9px;
     margin: 0 10px 8px;
     padding: 8px 10px;
-    border-radius: 9px;
+    border-radius: 8px;
     font-size: 12.5px;
-    font-weight: 700;
-    letter-spacing: 0.01em;
+    font-weight: 600;
 }
 
 .cp-ai-trigger-mini {
@@ -2193,94 +2259,34 @@ textarea::placeholder {
     width: 34px;
     height: 34px;
     margin: 0 auto 8px;
-    border-radius: 9px;
+    border-radius: 8px;
 }
 
 .cp-ai-trigger:hover,
 .cp-ai-trigger-mini:hover {
-    background-position: 100% 0;
-    transform: translateY(-1px);
-}
-
-.cp-ai-trigger[data-active="true"],
-.cp-ai-trigger-mini[data-active="true"] {
-    border-color: #fff;
-    animation: none;
+    background: var(--brand-accent-700);
 }
 
 .cp-ai-trigger-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.18);
-}
-
-.cp-ai-trigger-tag {
-    margin-left: auto;
-    padding: 1.5px 6px;
-    border-radius: 999px;
-    font-size: 9.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: rgba(255, 255, 255, 0.2);
+    width: 20px;
+    height: 20px;
 }
 
 .cp-ai-trigger-dot {
     position: absolute;
     top: -3px;
     right: -3px;
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 999px;
     background: var(--brand-accent-300);
     box-shadow: 0 0 0 2px var(--ds-inverse);
 }
 
-/* --- Captain AI chat: avatar orb + shimmering "thinking" text --- */
-.cp-ai-orb {
-    /* Anchors the busy ring below. Without it the ring sizes itself on the
-       nearest positioned ancestor — the whole chat — and sweeps the page. */
-    position: relative;
-    background: linear-gradient(135deg, var(--brand-accent-500), var(--brand-primary-600));
-}
-
-/* Spinning ring, only while Captain AI is working. */
-.cp-ai-orb-busy::after {
-    content: "";
-    position: absolute;
-    inset: -3px;
-    border-radius: 999px;
-    border: 2px solid transparent;
-    border-top-color: var(--brand-accent-400);
-    border-right-color: color-mix(in oklab, var(--brand-accent-400) 40%, transparent);
-    animation: cp-ai-spin 1.1s linear infinite;
-}
-
-.cp-ai-shimmer {
-    background: linear-gradient(
-        90deg,
-        var(--brand-primary-600) 0%,
-        var(--brand-accent-500) 40%,
-        var(--brand-primary-600) 80%
-    );
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: cp-ai-shimmer 2.2s linear infinite;
-}
-
-/* Soft brand wash behind the conversation, so the empty canvas isn't flat white. */
-.cp-ai-canvas {
-    background:
-        radial-gradient(55% 38% at 50% 0%, color-mix(in oklab, var(--brand-accent-500) 7%, transparent), transparent 72%),
-        radial-gradient(38% 30% at 100% 100%, color-mix(in oklab, var(--brand-primary-500) 6%, transparent), transparent 72%),
-        var(--ds-surface);
-}
+/* --- Captain AI chat --- */
 
 /* Captain AI answers. The .ap-md-* rules only get their colours inside the
    old .ap-root panel, so the full-page chat sets its own scope here. */
@@ -2290,98 +2296,114 @@ textarea::placeholder {
     --ap-accent: var(--brand-accent-600);
     --ap-accent-deep: var(--brand-accent-700);
     font-size: 14px;
-    line-height: 1.7;
+    line-height: 1.65;
     color: var(--ds-ink);
     overflow-wrap: anywhere;
 }
 
 .cp-ai-answer .ap-md-p { margin: 0 0 10px; }
-.cp-ai-answer strong { color: var(--brand-primary-800); font-weight: 650; }
+.cp-ai-answer strong { font-weight: 600; }
 
 .cp-ai-answer .ap-md-h {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 18px 0 8px;
+    margin: 18px 0 6px;
     font-size: 15px;
-    color: var(--brand-primary-800);
-}
-
-.cp-ai-answer .ap-md-h::before {
-    content: "";
-    flex-shrink: 0;
-    width: 4px;
-    height: 15px;
-    border-radius: 2px;
-    background: linear-gradient(var(--brand-accent-500), var(--brand-primary-500));
+    color: var(--ds-ink);
 }
 
 .cp-ai-answer .ap-md-ul { padding-left: 20px; gap: 4px; }
-.cp-ai-answer .ap-md-ul li::marker { color: var(--brand-accent-500); }
-
-/* Numbered steps as rose badges; the list's own start keeps the count going. */
-.cp-ai-answer .ap-md-ol {
-    list-style: none;
-    padding-left: 0;
-    gap: 8px;
-}
-
-.cp-ai-answer .ap-md-ol > li {
-    position: relative;
-    min-height: 24px;
-    padding-left: 34px;
-    counter-increment: ap-step;
-}
-
-.cp-ai-answer .ap-md-ol > li::before {
-    content: counter(ap-step);
-    position: absolute;
-    left: 0;
-    top: 1px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    border-radius: 999px;
-    font-size: 11.5px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--brand-accent-700);
-    background: color-mix(in oklab, var(--brand-accent-500) 12%, var(--ds-surface));
-    border: 1px solid color-mix(in oklab, var(--brand-accent-500) 28%, transparent);
-}
+.cp-ai-answer .ap-md-ol { padding-left: 22px; gap: 4px; }
+.cp-ai-answer .ap-md-ol > li::marker { color: var(--ds-ink-3); }
 
 /* Sub-points the model writes under a step sit under that step, not at the margin. */
-.cp-ai-answer .ap-md-ol + .ap-md-ul { margin-left: 34px; }
+.cp-ai-answer .ap-md-ol + .ap-md-ul { margin-left: 22px; }
 
 .cp-ai-answer .ap-md-code {
-    background: color-mix(in oklab, var(--brand-accent-500) 8%, var(--ds-surface));
-    color: var(--brand-accent-700);
+    background: var(--ds-surface-3);
+    color: var(--ds-ink);
 }
 
-@keyframes cp-ai-spin {
-    to { transform: rotate(360deg); }
+/* react-markdown nests sub-lists inside their <li>, and wraps loose items in <p>. */
+.cp-ai-answer li > .ap-md-ul,
+.cp-ai-answer li > .ap-md-ol { margin: 4px 0 2px; }
+.cp-ai-answer li > .ap-md-p { margin: 0; }
+.cp-ai-answer .ap-md-pre {
+    margin: 4px 0 12px;
+    padding: 10px 12px;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: var(--ds-surface-3);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
 }
+.cp-ai-answer .ap-md-pre code { background: none; padding: 0; }
 
-@keyframes cp-ai-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
+/* The draft being streamed ends on a caret, after its last line of text. */
+.cp-ai-caret .ap-md > :is(p, h3, h4):last-child::after,
+.cp-ai-caret .ap-md > :is(ul, ol):last-child > li:last-child::after {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 14px;
+    margin-left: 2px;
+    vertical-align: -2px;
+    border-radius: 1px;
+    background: var(--ds-ink-3);
+    animation: cpAiCaret 1s steps(2, start) infinite;
 }
+@keyframes cpAiCaret { to { visibility: hidden; } }
 
-@keyframes cp-ai-glow {
-    0%, 100% { box-shadow: 0 6px 18px -6px color-mix(in oklab, var(--brand-accent-500) 70%, transparent); }
-    50% { box-shadow: 0 6px 24px -4px color-mix(in oklab, var(--brand-accent-400) 95%, transparent); }
+/* --- Captain AI visuals (charts, key figures). Categorical slots in a fixed
+   order, never cycled; light and dark are separately stepped sets, validated
+   as a palette (adjacent CVD ΔE ≥ 8, normal-vision ≥ 15). --- */
+.cp-viz {
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-4: #eda100;
+    --viz-5: #e87ba4;
+    --viz-6: #008300;
+    --viz-7: #6250d6;
+    --viz-8: #e34948;
+    /* one-hue magnitude ramp, light → dark (heatmap, funnel stages) */
+    --viz-seq-lo: #cde2fb;
+    --viz-seq-hi: #104281;
+    --viz-ord-1: #86b6ef;
+    --viz-ord-2: #5598e7;
+    --viz-ord-3: #2a78d6;
+    --viz-ord-4: #1c5cab;
+    --viz-ord-5: #184f95;
 }
-
-@media (prefers-reduced-motion: reduce) {
-    .cp-ai-trigger,
-    .cp-ai-trigger-mini,
-    .cp-ai-orb-busy::after,
-    .cp-ai-shimmer {
-        animation: none;
+@media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .cp-viz {
+        --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500;
+        --viz-5: #d55181; --viz-6: #008300; --viz-7: #9085e9; --viz-8: #e66767;
+        --viz-seq-lo: #0d366b; --viz-seq-hi: #9ec5f4;
+        --viz-ord-1: #184f95; --viz-ord-2: #1c5cab; --viz-ord-3: #2a78d6; --viz-ord-4: #5598e7; --viz-ord-5: #86b6ef;
     }
 }
+:root[data-theme="dark"] .cp-viz {
+    --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70; --viz-4: #c98500;
+    --viz-5: #d55181; --viz-6: #008300; --viz-7: #9085e9; --viz-8: #e66767;
+    --viz-seq-lo: #0d366b; --viz-seq-hi: #9ec5f4;
+    --viz-ord-1: #184f95; --viz-ord-2: #1c5cab; --viz-ord-3: #2a78d6; --viz-ord-4: #5598e7; --viz-ord-5: #86b6ef;
+}
+.cp-viz-tip {
+    min-width: 140px;
+    padding: 8px 10px;
+    border: 1px solid var(--ds-line);
+    border-radius: 8px;
+    background: var(--ds-surface);
+    box-shadow: 0 6px 18px color-mix(in oklab, var(--ds-shadow-color) 14%, transparent);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--ds-ink);
+}
+.cp-viz .recharts-surface { overflow: visible; }
+@media print {
+    .cp-viz-actions { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) { .cp-ai-caret .ap-md *::after { animation: none; } }
 
 /* --- Navigation --- */
 .cp-nav {
@@ -3008,6 +3030,46 @@ textarea::placeholder {
     .cp-main-expanded,
     .cp-main-collapsed {
         margin-left: 0 !important;
+    }
+}
+
+/* ============================================
+   SDR SCRIPT + ACTION DRAWERS SIDE BY SIDE
+   Script companion on the left, UnifiedActionDrawer on the right
+   (/sdr/action table view). From 900px they share the width instead
+   of overlapping: 0.75rem at each edge and between them (2.25rem).
+   Below 900px there is no room for two: the script opens on top and
+   each closes on its own.
+   ============================================ */
+
+@media (min-width: 900px) {
+    .sdr-drawer-pair-right,
+    .sdr-drawer-pair-left,
+    .sdr-drawer-solo-left {
+        --sdr-pair-right: min(56vw, 42rem);
+        --sdr-pair-left-max: 36rem;
+    }
+
+    .sdr-drawer-pair-right {
+        max-width: var(--sdr-pair-right);
+    }
+
+    .sdr-drawer-pair-left {
+        max-width: min(calc(100vw - var(--sdr-pair-right) - 2.25rem), var(--sdr-pair-left-max));
+    }
+
+    /* Alone, the script leaves most of the queue table readable. */
+    .sdr-drawer-solo-left {
+        max-width: min(46vw, var(--sdr-pair-left-max));
+    }
+}
+
+@media (min-width: 1536px) {
+    .sdr-drawer-pair-right,
+    .sdr-drawer-pair-left,
+    .sdr-drawer-solo-left {
+        --sdr-pair-right: 46rem;
+        --sdr-pair-left-max: 40rem;
     }
 }
 
@@ -5847,6 +5909,22 @@ textarea::placeholder {
 .ap-md-ul { list-style: disc; }
 .ap-md-ol { list-style: decimal; }
 .ap-md-ul li::marker, .ap-md-ol li::marker { color: var(--ap-faint); }
+/* Tables: hairline rows, no card; figures right-aligned and tabular. */
+.ap-md-table-wrap { margin: 4px 0 12px; overflow-x: auto; }
+.ap-md-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; }
+.ap-md-table th, .ap-md-table td { padding: 7px 12px 7px 0; text-align: left; vertical-align: baseline; border-bottom: 1px solid var(--ap-line-soft, #eef0f3); }
+.ap-md-table thead th { font-size: 12px; font-weight: 500; color: var(--ap-faint, #94a3b8); border-bottom-color: var(--ds-line, #e2e8f0); }
+.ap-md-table tbody th { font-weight: 500; }
+.ap-md-table tbody tr:last-child > * { border-bottom: 0; }
+.ap-md-table [data-num] { text-align: right; padding-right: 0; padding-left: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ap-md-table td[data-num] { font-weight: 600; }
+/* A "label : value" list stays compact, so each figure sits next to its label. */
+.ap-md-kv { width: auto; min-width: min(100%, 300px); }
+/* min-width keeps the bars of consecutive lists starting on one line. */
+.ap-md-kv tbody th { min-width: 128px; padding-right: 32px; }
+.ap-md-bar { width: 180px; padding-left: 14px !important; }
+@media (max-width: 480px) { .ap-md-kv { width: 100%; } .ap-md-bar { width: 35%; } }
+.ap-md-bar > span { display: block; height: 6px; min-width: 2px; border-radius: 3px; background: var(--brand-primary, #263460); }
 .ap-md-link { color: var(--ap-accent); font-weight: 500; text-underline-offset: 2px; }
 .ap-md-link:hover { text-decoration: underline; }
 .ap-md-code {
@@ -5868,4 +5946,317 @@ textarea::placeholder {
 @keyframes dashFadeUp {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================================
+   MOTION & GLASS — calling surfaces (dock, Mode Focus, journal, insights).
+   One easing for everything that enters; glass only on small surfaces that
+   float over content. Every animation stops under prefers-reduced-motion.
+   ============================================================================ */
+:root {
+    --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cp-rise {
+    from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+    to   { opacity: 1; transform: none; filter: none; }
+}
+@keyframes cp-pop {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes cp-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+@keyframes cp-halo {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--halo, #34d399) 60%, transparent); }
+    100% { box-shadow: 0 0 0 7px transparent; }
+}
+@keyframes cp-grow-x {
+    from { transform: scaleX(0); }
+    to   { transform: none; }
+}
+@keyframes cp-grow-y {
+    from { transform: scaleY(0.1); opacity: 0.2; }
+    to   { transform: none; opacity: 1; }
+}
+@keyframes cp-flash {
+    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ds-primary) 40%, transparent); }
+    100% { box-shadow: 0 0 0 7px transparent; }
+}
+@keyframes cp-ring {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: var(--ring-length, 100); }
+}
+
+/* Entrances. --i staggers siblings (capped, so long lists never crawl). */
+.cp-rise { animation: cp-rise 340ms var(--ease-out-soft) both; animation-delay: calc(min(var(--i, 0), 12) * 32ms); }
+.cp-pop { animation: cp-pop 240ms var(--ease-out-soft) both; }
+.cp-grow-x { transform-origin: left center; animation: cp-grow-x 700ms var(--ease-out-soft) both; }
+.cp-grow-y { animation: cp-grow-y 520ms var(--ease-out-soft) both; animation-delay: calc(var(--i, 0) * 5ms); }
+.cp-flash { animation: cp-flash 450ms ease-out; }
+.cp-halo { animation: cp-halo 1.6s var(--ease-out-soft) infinite; }
+
+/* Children rise one after another (drawers, panels). */
+.cp-stagger > * { animation: cp-rise 360ms var(--ease-out-soft) both; }
+.cp-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.cp-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.cp-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.cp-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.cp-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.cp-stagger > *:nth-child(n + 7) { animation-delay: 240ms; }
+
+/* Skeleton: a soft sweep instead of a blink. */
+.cp-shimmer {
+    background: linear-gradient(90deg, var(--ds-surface-3) 0%, color-mix(in oklab, var(--ds-surface-3) 45%, var(--ds-surface)) 50%, var(--ds-surface-3) 100%);
+    background-size: 200% 100%;
+    animation: cp-shimmer 1.6s linear infinite;
+}
+
+/* Tactile controls. */
+.cp-press { transition: transform 140ms var(--ease-out-soft), background-color 150ms, box-shadow 150ms, filter 150ms; }
+.cp-press:active:not(:disabled) { transform: scale(0.97); }
+.cp-lift { transition: transform 180ms var(--ease-out-soft), box-shadow 180ms var(--ease-out-soft), border-color 150ms; }
+.cp-lift:hover { transform: translateY(-1px); box-shadow: 0 4px 12px -6px color-mix(in oklab, var(--ds-shadow-color) 25%, transparent); }
+
+/* Glass — small floating surfaces only. Falls back to solid where unsupported. */
+.cp-glass {
+    background: color-mix(in oklab, var(--ds-surface) 74%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid color-mix(in oklab, var(--ds-line) 75%, transparent);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.6),
+        0 10px 28px -14px color-mix(in oklab, var(--ds-shadow-color) 35%, transparent);
+}
+.cp-glass-dark {
+    background: color-mix(in oklab, var(--ds-inverse) 80%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(170%);
+    backdrop-filter: blur(16px) saturate(170%);
+    border: 1px solid var(--ds-inverse-line);
+    box-shadow:
+        inset 0 1px 0 rgb(255 255 255 / 0.08),
+        0 12px 32px -14px rgb(0 0 0 / 0.5);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .cp-glass { background: var(--ds-surface); }
+    .cp-glass-dark { background: var(--ds-inverse); }
+}
+
+/* Call island: iOS-like spring on its shape, content revealed with it. */
+.cp-island {
+    transition: width 480ms cubic-bezier(0.32, 0.72, 0, 1), border-radius 480ms cubic-bezier(0.32, 0.72, 0, 1);
+    animation: cp-island-in 420ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+.cp-island-reveal {
+    transition: max-height 480ms cubic-bezier(0.32, 0.72, 0, 1), opacity 260ms ease, padding 480ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@keyframes cp-island-in {
+    from { opacity: 0; transform: translateY(-8px) scale(0.92); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* Docked action pane (Drawer docked): full height on the right. From xl up the
+   page makes room for it instead of being covered; below, it overlays. */
+.cp-docked-pane { width: 100%; }
+@media (min-width: 640px) { .cp-docked-pane { width: 460px; } }
+@media (min-width: 1536px) { .cp-docked-pane { width: 520px; } }
+@media (min-width: 1280px) {
+    :root[data-pane-docked] { --cp-pane-w: 460px; }
+    .cp-main { padding-right: var(--cp-pane-w, 0px); }
+}
+@media (min-width: 1536px) {
+    :root[data-pane-docked] { --cp-pane-w: 520px; }
+}
+
+/* Inside the docked pane the activity feed and the account map are sections of
+   the pane, not cards inside it: no frame, quieter header, a flat timeline. */
+.cp-docked-pane :is(.sdr-activity, .sdr-account-map) { border: 0; border-radius: 0; padding: 0; background: transparent; }
+.cp-docked-pane .sdr-eyebrow { display: none; }
+.cp-docked-pane .sdr-component-header { margin-bottom: 10px; }
+.cp-docked-pane .sdr-component-header h3 { font-size: 13px; font-weight: 600; letter-spacing: 0; margin-top: 0; }
+.cp-docked-pane .sdr-count { height: 20px; min-width: 20px; padding: 0 6px; border-radius: 999px; background: var(--ds-surface-3); color: var(--ds-ink-3); font-weight: 600; justify-content: center; }
+.cp-docked-pane .sdr-filter-pills { margin-bottom: 14px; }
+.cp-docked-pane .sdr-timeline-event { gap: 12px; padding-bottom: 16px; }
+.cp-docked-pane .sdr-timeline-event:not(:last-child):before { top: 30px; left: 13px; background: var(--ds-line-subtle); }
+.cp-docked-pane .sdr-event-icon { width: 26px; height: 26px; border-radius: 999px; }
+.cp-docked-pane .sdr-event-card { border: 0; background: transparent; padding: 3px 0 0; border-radius: 0; }
+.cp-docked-pane .sdr-event-top { font-size: 11px; }
+.cp-docked-pane .sdr-event-title { margin-top: 2px; }
+.cp-docked-pane .sdr-event-meta { font-size: 11px; }
+.cp-docked-pane .sdr-event-note { font-size: 12.5px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: var(--ds-surface-2); }
+.cp-docked-pane .sdr-more { background: transparent; border: 1px solid var(--ds-line); font-size: 12px; }
+/* Fiche fields in the pane: sentence-case labels, one quiet icon tone. */
+.cp-docked-pane .uad-label { text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 500; color: var(--ds-ink-3); }
+.cp-docked-pane .uad-row-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--ds-surface-2) !important; }
+.cp-docked-pane .uad-row-icon svg { color: var(--ds-ink-3) !important; }
+
+/* Incoming call: soft waves around the caller, the handset nudging. */
+.cp-ring-wave { animation: cp-ring-wave 1.6s cubic-bezier(0.2, 0.6, 0.3, 1) infinite; }
+@keyframes cp-ring-wave {
+    from { transform: scale(1); opacity: 0.7; }
+    to   { transform: scale(1.9); opacity: 0; }
+}
+.cp-ring-wiggle { animation: cp-ring-wiggle 1.2s ease-in-out infinite; transform-origin: 50% 60%; }
+@keyframes cp-ring-wiggle {
+    0%, 60%, 100% { transform: rotate(0); }
+    10%, 30%, 50% { transform: rotate(-14deg); }
+    20%, 40%      { transform: rotate(14deg); }
+}
+@media (prefers-reduced-motion: reduce) { .cp-ring-wave, .cp-ring-wiggle { animation: none; } }
+
+/* Docked panes (call detail, action pane) slide in from the edge they live on. */
+.cp-pane-in { animation: cp-pane-in 320ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes cp-pane-in {
+    from { opacity: 0; transform: translateX(16px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* A hairline of accent on top of AI surfaces — the only « AI » decoration. */
+.cp-ai-edge { position: relative; }
+.cp-ai-edge::before {
+    content: "";
+    position: absolute;
+    inset: 0 16px auto;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--ds-accent) 55%, transparent), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cp-rise, .cp-pop, .cp-grow-x, .cp-grow-y, .cp-flash, .cp-halo, .cp-shimmer, .cp-stagger > *, .cp-island, .cp-pane-in { animation: none !important; }
+    .cp-island, .cp-island-reveal { transition: none; }
+    .cp-press:active:not(:disabled), .cp-lift:hover { transform: none; }
+}
+
+/* Floating dock: wells follow the magnification with a spring-like ease. */
+.cp-dock-well { transition: width 180ms cubic-bezier(0.2, 0.8, 0.2, 1), height 180ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 150ms, color 150ms; }
+@media (prefers-reduced-motion: reduce) { .cp-dock-well { transition: none; } }
+
+/* Calling surfaces share one quiet rhythm and keep controls clear of the notch. */
+.cp-call-space { height: 0; transition: height 220ms ease; }
+:root[data-call-island] .cp-call-space { height: 56px; }
+.cp-call-island-position { left: 0; }
+@media (min-width: 1024px) {
+    :root:has(.cp-main-expanded) .cp-call-island-position { left: 224px; }
+    :root:has(.cp-main-collapsed) .cp-call-island-position { left: 56px; }
+}
+.cp-layout, .cp-main { height: calc(100dvh - var(--softphone-dock-h, 0px)); }
+.cp-island { max-width: 100%; }
+.cp-island button:focus-visible { outline: 2px solid #34d399; outline-offset: -3px; }
+.cp-calling-workspace { isolation: isolate; }
+.cp-calling-workspace :is(button, a):focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
+.cp-journal-row { animation: none; }
+@media (max-width: 639px) {
+    .cp-call-island-position { left: 0; right: 0 !important; }
+    .cp-island [role="status"] { min-width: 0; }
+    .cp-calling-workspace header { padding-left: 16px; padding-right: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .cp-call-space { transition: none; }
+    .cp-island * { animation: none !important; transition: none !important; }
+}
+
+@keyframes cp-call-reveal {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: none; }
+}
+.cp-calling-workspace .cp-rise,
+.cp-calling-workspace .cp-stagger > * {
+    animation-name: cp-call-reveal;
+    animation-duration: 180ms;
+    animation-delay: 0ms;
+}
+
+/* SDR Studio — a calm, readable workspace inspired by editorial SaaS interfaces.
+   Every colour is a brand role (--ds-*, --brand-*): the studio follows the brand. */
+body:has(.sdr-studio) {
+    /* Colours come from the brand (brand/brand.config.ts); only the type differs. */
+    --font-body: var(--font-preset-inter), Arial, sans-serif;
+    --font-display: var(--font-preset-manrope), var(--font-preset-inter), sans-serif;
+    font-family: var(--font-preset-inter), Arial, sans-serif;
+    font-optical-sizing: auto;
+    font-feature-settings: "cv11", "ss01";
+}
+.sdr-studio :is(h1,h2,h3), .sdr-identity-name, .sdr-component-header h3 { font-family: var(--font-preset-manrope), var(--font-preset-inter), sans-serif; }
+.sdr-studio h1 { letter-spacing: -.035em; font-weight: 650; }
+.sdr-studio h2 { letter-spacing: -.02em; }
+.sdr-studio .cp-topbar { background: var(--ds-surface); border-color: var(--ds-line); }
+.sdr-studio .cp-calling-workspace { background: var(--ds-canvas); }
+.sdr-studio .cp-calling-workspace > aside { background: var(--ds-surface); }
+.sdr-studio .cp-calling-workspace [aria-label="Résultat de l'appel"] { background: var(--ds-surface); }
+.sdr-studio .cp-calling-workspace [aria-label="Prospect"] { background: var(--ds-canvas); }
+.sdr-studio .cp-calling-workspace [aria-label="Prospect"] > div > header { background: var(--ds-surface); }
+.sdr-studio .cp-calling-workspace [role="radiogroup"][aria-label="Résultat"] { gap: 6px; }
+.sdr-studio .cp-calling-workspace [role="radio"] { border-radius: 12px; }
+.sdr-studio .cp-calling-workspace [role="radio"][aria-checked="true"] { background: var(--ds-primary-soft); box-shadow: inset 0 0 0 1px var(--brand-primary-300); }
+.sdr-studio .cp-journal-row { border-color: var(--ds-line-subtle); }
+.sdr-studio .cp-journal-row:hover { background: var(--ds-surface-2); }
+.sdr-studio .cp-journal-row > td { padding-top: 14px; padding-bottom: 14px; }
+.sdr-studio .cp-calling-workspace textarea { border-color: var(--ds-line); border-radius: 14px; background: var(--ds-surface-2); line-height: 1.65; }
+.sdr-studio :is(input,select,textarea):focus-visible { outline-color: var(--ds-accent); }
+.sdr-studio .cp-calling-workspace > div > header h1 { font-size: 22px; line-height: 1.3; }
+.sdr-identity { display:flex; align-items:center; gap:15px; min-width:0; }
+.sdr-identity-avatar { position:relative; display:flex; align-items:center; justify-content:center; flex-shrink:0; width:56px; height:56px; border-radius:18px; color:var(--ds-primary-soft-ink); background:linear-gradient(135deg,var(--brand-primary-50),var(--brand-accent-50)); font-size:18px; font-weight:650; letter-spacing:-.05em; box-shadow:inset 0 0 0 1px #ffffff99; }
+.sdr-company-mark { position:absolute; right:-4px; bottom:-3px; width:23px; height:23px; display:flex; align-items:center; justify-content:center; background:white; border:2px solid white; border-radius:8px; box-shadow:0 2px 5px color-mix(in oklab, var(--ds-ink) 8%, transparent); color:var(--ds-ink-3); }
+.sdr-company-mark img { width:15px; height:15px; object-fit:contain; border-radius:3px; }
+.sdr-identity-name { color:var(--ds-ink); font-size:25px; font-weight:650; line-height:1.25; letter-spacing:-.035em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sdr-identity-meta { color:var(--ds-ink-3); font-size:12px; line-height:1.5; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:400; }
+.sdr-domain { display:inline-flex; align-items:center; gap:3px; color:var(--ds-link); font-size:11px; margin-top:3px; }
+.sdr-identity-compact { gap:11px; }
+.sdr-identity-compact .sdr-identity-avatar { width:36px; height:36px; border-radius:12px; font-size:12px; }
+.sdr-identity-compact .sdr-company-mark { width:17px; height:17px; border-radius:6px; right:-3px; bottom:-3px; }
+.sdr-identity-compact .sdr-company-mark img { width:11px; height:11px; }
+.sdr-identity-compact .sdr-identity-name { font-size:13px; letter-spacing:-.015em; font-weight:650; }
+.sdr-identity-compact .sdr-identity-meta { font-size:11px; margin-top:2px; }
+.sdr-activity,.sdr-account-map { border:1px solid var(--ds-line); border-radius:18px; background:var(--ds-surface); padding:18px; color:var(--ds-ink); font-family:var(--font-preset-inter),sans-serif; }
+.sdr-component-header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.sdr-component-header h3 { font-size:15px; letter-spacing:-.025em; font-weight:650; margin-top:3px; }
+.sdr-eyebrow { font-size:10px; letter-spacing:.11em; text-transform:uppercase; font-weight:600; color:var(--ds-ink-3); }
+.sdr-count { display:inline-flex; align-items:center; gap:5px; min-width:25px; height:25px; padding:0 8px; background:var(--ds-primary-soft); border-radius:8px; font-size:11px; color:var(--ds-primary-soft-ink); font-variant-numeric:tabular-nums; }
+.sdr-filter-pills { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:19px; }
+.sdr-filter-pills button { padding:5px 9px; font-size:11px; border-radius:7px; color:var(--ds-ink-3); border:1px solid transparent; transition:background 140ms; }
+.sdr-filter-pills button:hover { background:var(--ds-surface-2); }
+.sdr-filter-pills button[aria-pressed="true"] { color:var(--ds-primary-soft-ink); background:var(--ds-primary-soft); border-color:var(--brand-primary-100); font-weight:600; }
+.sdr-timeline { list-style:none; padding:0; margin:0; }
+.sdr-timeline-event { position:relative; display:flex; gap:11px; padding-bottom:15px; }
+.sdr-timeline-event:not(:last-child):before { content:""; position:absolute; top:31px; bottom:0; left:14px; width:1px; background:var(--ds-line); }
+.sdr-event-icon { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; flex-shrink:0; width:29px; height:29px; border-radius:10px; }
+.sdr-tone-teal { background:var(--ds-primary-soft); color:var(--ds-primary-soft-ink); }.sdr-tone-blue { background:var(--ds-info-soft); color:var(--ds-info-ink); }.sdr-tone-violet { background:var(--ds-accent-soft); color:var(--ds-accent-soft-ink); }.sdr-tone-amber { background:var(--ds-warning-soft); color:var(--ds-warning-ink); }
+.sdr-event-card { flex:1; min-width:0; border:1px solid var(--ds-line-subtle); background:var(--ds-surface-2); border-radius:12px; padding:11px 13px; }
+.sdr-event-top { display:flex; justify-content:space-between; gap:7px; font-size:10px; color:var(--ds-ink-3); }
+.sdr-event-top>span { color:var(--ds-ink-2); font-weight:600; }
+.sdr-event-top time { font-variant-numeric:tabular-nums; }
+.sdr-event-title { display:block; font-size:13px; font-weight:600; letter-spacing:-.01em; margin-top:5px; text-align:left; color:var(--ds-ink); }
+button.sdr-event-title:hover { text-decoration:underline; }
+.sdr-event-meta { display:flex; flex-wrap:wrap; align-items:center; gap:7px; color:var(--ds-ink-3); font-size:10px; margin-top:4px; }
+.sdr-event-meta>span { display:inline-flex; align-items:center; gap:3px; }
+.sdr-event-note { font-size:12px; color:var(--ds-ink-2); line-height:1.65; margin-top:8px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.sdr-event-summary { border-top:1px solid var(--ds-line-subtle); margin-top:9px; padding-top:8px; font-size:10px; color:var(--ds-ink-2); }
+.sdr-event-summary summary { cursor:pointer; display:flex; align-items:center; gap:5px; }
+.sdr-event-summary p { color:var(--ds-ink-2); line-height:1.7; margin-top:7px; white-space:pre-wrap; }
+.sdr-more { display:flex; align-items:center; justify-content:center; gap:5px; width:100%; padding:8px; font-size:11px; color:var(--ds-ink-2); border-radius:8px; background:var(--ds-surface-2); }
+.sdr-empty { padding:20px 0; color:var(--ds-ink-3); font-size:12px; }
+.sdr-history-management { margin:12px 0 0; color:var(--ds-ink-3); font-size:10px; }.sdr-history-management>summary { padding:6px 3px; cursor:pointer; }
+.sdr-account-map { margin-bottom:16px; }
+.sdr-account-root { border:1px solid var(--ds-line); background:var(--ds-surface-2); border-radius:12px; padding:13px; }
+.sdr-account-branches { margin:0 0 0 18px; padding:15px 0 0 18px; border-left:1px solid var(--ds-line); list-style:none; }
+.sdr-account-branches li { position:relative; margin-bottom:8px; }
+.sdr-account-branches li:before { content:""; position:absolute; width:18px; height:1px; left:-18px; top:30px; background:var(--ds-line); }
+.sdr-contact-node { width:100%; display:flex; align-items:center; gap:10px; text-align:left; padding:12px 10px; border:1px solid var(--ds-line); border-radius:12px; color:var(--ds-ink-3); background:var(--ds-surface); transition:background 140ms,border-color 140ms; }
+.sdr-contact-node:not(:disabled):hover { border-color:var(--brand-primary-200); background:var(--ds-surface-2); }
+.sdr-contact-node.is-current { background:var(--ds-primary-soft); border-color:var(--brand-primary-200); }
+.sdr-contact-node.is-wrong { border-color:var(--ds-warning-line); background:var(--ds-warning-soft); }
+.sdr-contact-node-avatar { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:31px; height:31px; background:var(--ds-surface-3); border-radius:10px; font-size:10px; font-weight:600; color:var(--ds-ink-2); }
+.sdr-contact-node strong { display:block; color:var(--ds-ink); font-size:11px; font-weight:600; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.sdr-node-role { display:block; color:var(--ds-ink-3); font-size:11px; margin-top:2px; }
+.sdr-node-touch { display:block; color:var(--ds-ink-3); font-size:10px; margin-top:5px; }
+.sdr-account-guidance { display:flex; align-items:flex-start; gap:8px; margin-top:12px; padding:10px; color:var(--ds-warning-ink); background:var(--ds-warning-soft); border-radius:10px; font-size:11px; line-height:1.6; }
+.sdr-account-guidance svg { flex-shrink:0; margin-top:2px; }
+:is(.sdr-activity,.sdr-account-map) button:focus-visible { outline:2px solid var(--ds-focus); outline-offset:3px; }
+@media(max-width:639px) {
+ .sdr-activity,.sdr-account-map { padding:14px; border-radius:14px; }
+ .sdr-identity-name { font-size:21px; }.sdr-identity-avatar { width:46px; height:46px; border-radius:15px; }
+ .sdr-studio .cp-journal-row .sdr-identity-avatar { display:none; }
+ .sdr-event-top { flex-wrap:wrap; }.sdr-contact-node { padding:10px 8px; }
 }

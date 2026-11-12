@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { outlookProvider } from '@/lib/email/providers';
+import { stateForProvider } from '@/lib/oauth-relay/config';
 
 export async function GET(req: NextRequest) {
     try {
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
         })).toString('base64url');
 
         // Get OAuth URL
-        const authUrl = outlookProvider.getAuthUrl(state);
+        const authUrl = outlookProvider.getAuthUrl(stateForProvider('outlook', state));
 
         return NextResponse.redirect(authUrl);
     } catch (error) {

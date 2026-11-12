@@ -1,4 +1,5 @@
 import type { ExclusionScope, ExclusionSource, ExclusionTarget } from "@prisma/client";
+import type { ImportRowStatus } from "./import";
 
 export const EXCLUSION_TARGET_LABELS: Record<ExclusionTarget, string> = {
     COMPANY: "Toute la société",
@@ -23,6 +24,14 @@ export const EXCLUSION_SOURCE_LABELS: Record<ExclusionSource, string> = {
     MANAGER: "Manager",
     CLIENT_PORTAL: "Demande client",
     IMPORT: "Import",
+};
+
+/** What became of each line of an uploaded blacklist. */
+export const IMPORT_ROW_STATUS_LABELS: Record<ImportRowStatus, string> = {
+    CREATED: "Ajoutée",
+    DUPLICATE_IN_FILE: "Doublon dans le fichier",
+    ALREADY_EXCLUDED: "Déjà dans la blacklist",
+    UNUSABLE: "Inexploitable",
 };
 
 /** Durations offered in the UI. null = permanent. */

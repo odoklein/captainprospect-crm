@@ -1,10 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Calculator, CheckCircle2, ChevronLeft, ChevronRight, Lock, RefreshCw, Save } from "lucide-react";
+import { Calculator, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp, Lock, RefreshCw, Save } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Callout } from "@/components/ui/Callout";
+import { FOCUS_RING } from "@/components/ui/recipes";
 import { CalculationBreakdown, DayActivityDetail, HrDayDecision, HrMonthStatus } from "@/lib/hr/hr-types";
 import { REMUNERATION_LABELS, STATUS_LABELS, formatDayKey, formatEuros, formatMonthLabel, isLockedStatus } from "@/lib/hr/hr-rules";
+import { Metric, MetricPlaceholder, MetricStrip, Panel, PanelMessage, SkeletonRows, TextButton } from "./HubUI";
 import { HrDayDecisionModal } from "./HrDayDecisionModal";
 import { HrHelpTip } from "./HrHelpTip";
 import { HrGuide, useHrGuide } from "./HrGuide";
@@ -25,6 +30,8 @@ interface HrCalculationDetailModalProps {
   };
   onNavigate?: (userId: string) => void;
 }
+
+const CHIP = "inline-flex h-5 items-center whitespace-nowrap rounded-md border px-1.5 text-[11px] font-medium";
 
 export function HrCalculationDetailModal({
   isOpen,
@@ -100,28 +107,29 @@ export function HrCalculationDetailModal({
   const filterDays = onlyToHandle && (data?.daysUnderQuotaCount ?? 0) > 0;
   const visibleDays = data ? (filterDays ? data.days.filter((d) => d.isUnderQuota) : data.days) : [];
 
+  const navButton = "inline-flex h-8 min-w-0 items-center gap-1 rounded-lg px-2 font-medium text-ink-2 transition-colors hover:bg-surface hover:text-ink disabled:pointer-events-none disabled:opacity-35";
   const navBar = navigation && onNavigate && navigation.total > 1 && (
-    <div className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-2 py-1.5 text-xs">
+    <div className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface-2 p-1 text-[13px]">
       <button
         type="button"
         onClick={() => navigation.prev && onNavigate(navigation.prev.id)}
         disabled={!navigation.prev || isLoading}
-        className="inline-flex min-w-0 items-center gap-1 rounded-lg px-2 py-1 font-medium text-slate-700 hover:bg-white disabled:opacity-30"
+        className={cn(navButton, FOCUS_RING)}
       >
-        <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
+        <ChevronLeft className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{navigation.prev?.name ?? "Précédent"}</span>
       </button>
-      <span className="shrink-0 tabular-nums text-slate-500">
+      <span className="shrink-0 text-xs tabular-nums text-ink-3">
         {navigation.position} / {navigation.total}
       </span>
       <button
         type="button"
         onClick={() => navigation.next && onNavigate(navigation.next.id)}
         disabled={!navigation.next || isLoading}
-        className="inline-flex min-w-0 items-center gap-1 rounded-lg px-2 py-1 font-medium text-slate-700 hover:bg-white disabled:opacity-30"
+        className={cn(navButton, FOCUS_RING)}
       >
         <span className="truncate">{navigation.next?.name ?? "Suivant"}</span>
-        <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+        <ChevronRight className="size-4 shrink-0" aria-hidden />
       </button>
     </div>
   );
@@ -136,134 +144,117 @@ export function HrCalculationDetailModal({
         size="xl"
       >
         {isLoading && !data ? (
-          <div className="flex flex-col items-center justify-center gap-3 py-12">
-            <RefreshCw className="h-6 w-6 animate-spin text-primary-600" />
-            <p className="text-xs text-slate-500">Calcul en cours…</p>
+          <div className="space-y-5" aria-busy="true" aria-label="Calcul en cours">
+            <MetricStrip>
+              {["Salaire fixe", "Primes RDV", "Ajustement", "Total à payer"].map((label) => (
+                <Metric key={label} label={label} value={<MetricPlaceholder />} />
+              ))}
+            </MetricStrip>
+            <Panel className="rounded-xl">
+              <SkeletonRows rows={5} columns={[14, 24, 8, 8, 6, 12]} pitch="py-3" />
+            </Panel>
           </div>
         ) : !data ? (
-          <div className="space-y-3">
-            <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">
+          <Panel className="rounded-xl">
+            <PanelMessage tone="error" action={<TextButton onClick={fetchDetail}>Réessayer</TextButton>}>
               {error}
-            </div>
-            <button type="button" onClick={fetchDetail} className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200">
-              Réessayer
-            </button>
-          </div>
+            </PanelMessage>
+          </Panel>
         ) : (
-          <div className={`space-y-5 transition-opacity ${isLoading ? "opacity-60" : ""}`}>
+          <div className={cn("space-y-5 transition-opacity duration-150", isLoading && "opacity-60")}>
             {navBar}
             {error && (
-              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+              <div role="alert" className="rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] text-danger-ink">
                 {error}
               </div>
             )}
 
             {/* State banners: exactly one tells the manager what they can do. */}
             {!data.hasProfile ? (
-              <Banner
-                tone="rose"
-                icon={<AlertTriangle className="h-4 w-4" />}
+              <Callout
+                tone="danger"
                 action={
                   onOpenRules && (
-                    <button type="button" onClick={onOpenRules} className="shrink-0 rounded-lg bg-white px-3 py-1.5 font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100">
+                    <Button variant="secondary" size="xs" onClick={onOpenRules}>
                       Configurer les règles
-                    </button>
+                    </Button>
                   )
                 }
               >
                 Les règles de paie de {data.userName} ne sont pas encore renseignées : les montants ci-dessous sont à 0.
-              </Banner>
+              </Callout>
             ) : locked ? (
-              <Banner tone="indigo" icon={<Lock className="h-4 w-4" />}>
+              <Callout tone="primary" icon={Lock}>
                 Dossier {data.status === HrMonthStatus.PAID ? "payé" : "validé"} : consultation uniquement.
                 {data.savedTotalAmountCents !== undefined && data.savedTotalAmountCents !== data.totalAmountCents && (
                   <>
-                    {" "}Montant verrouillé : <strong>{formatEuros(data.savedTotalAmountCents)}</strong> (l’activité a changé depuis).
+                    {" "}Montant verrouillé : <strong className="tabular-nums">{formatEuros(data.savedTotalAmountCents)}</strong> (l’activité a changé depuis).
                   </>
                 )}
-              </Banner>
+              </Callout>
             ) : !data.monthRecordId ? (
-              <Banner
-                tone="sky"
-                icon={<Save className="h-4 w-4" />}
+              <Callout
+                tone="info"
+                icon={Save}
                 action={
-                  <button
-                    type="button"
-                    onClick={handleSaveCalculation}
-                    disabled={isSaving}
-                    className="shrink-0 rounded-lg bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
-                  >
+                  <Button size="xs" onClick={handleSaveCalculation} isLoading={isSaving}>
                     {isSaving ? "Enregistrement…" : "Enregistrer ce calcul"}
-                  </button>
+                  </Button>
                 }
               >
                 Ce calcul n’est pas encore enregistré. Enregistrez-le pour pouvoir statuer sur les journées et le faire valider.
-              </Banner>
+              </Callout>
             ) : data.pendingDecisionCount > 0 ? (
-              <Banner tone="amber" icon={<AlertTriangle className="h-4 w-4" />}>
+              <Callout tone="warning">
                 <strong>{data.pendingDecisionCount} journée(s)</strong> sous l’objectif de {data.dailyQuota} appels attendent votre
                 décision. Tant que rien n’est décidé, elles restent payées.
-              </Banner>
+              </Callout>
             ) : data.savedTotalAmountCents !== undefined && data.savedTotalAmountCents !== data.totalAmountCents ? (
-              <Banner
-                tone="sky"
-                icon={<RefreshCw className="h-4 w-4" />}
+              <Callout
+                tone="info"
+                icon={RefreshCw}
                 action={
-                  <button
-                    type="button"
-                    onClick={handleSaveCalculation}
-                    disabled={isSaving}
-                    className="shrink-0 rounded-lg bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
-                  >
+                  <Button size="xs" onClick={handleSaveCalculation} isLoading={isSaving}>
                     {isSaving ? "Mise à jour…" : "Mettre à jour"}
-                  </button>
+                  </Button>
                 }
               >
-                De nouvelles activités sont arrivées : montant enregistré {formatEuros(data.savedTotalAmountCents)}, montant à
-                jour {formatEuros(data.totalAmountCents)}.
-              </Banner>
+                De nouvelles activités sont arrivées : montant enregistré <span className="tabular-nums">{formatEuros(data.savedTotalAmountCents)}</span>,
+                montant à jour <span className="tabular-nums">{formatEuros(data.totalAmountCents)}</span>.
+              </Callout>
             ) : (
-              <Banner tone="emerald" icon={<CheckCircle2 className="h-4 w-4" />}>
+              <Callout tone="success" icon={CheckCircle2}>
                 Tout est à jour, aucune journée à traiter.
-              </Banner>
+              </Callout>
             )}
 
             {/* Money breakdown */}
-            <div data-hr-tour="detail-cards" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <MoneyCard
-                label="Salaire fixe"
-                tip="Le salaire mensuel, réduit au prorata des absences et des journées non payées."
+            <MetricStrip data-hr-tour="detail-cards">
+              <Metric
+                label={<MoneyLabel label="Salaire fixe" tip="Le salaire mensuel, réduit au prorata des absences et des journées non payées." />}
                 value={formatEuros(data.proratedFixedCents)}
                 hint={`Base : ${formatEuros(data.baseFixedSalaryCents)}`}
               />
-              <MoneyCard
-                label="Primes RDV"
-                tip="Un montant fixe pour chaque rendez-vous pris dans le mois. Les rendez-vous annulés ne comptent pas."
+              <Metric
+                label={<MoneyLabel label="Primes RDV" tip="Un montant fixe pour chaque rendez-vous pris dans le mois. Les rendez-vous annulés ne comptent pas." />}
                 value={formatEuros(data.variableAmountCents)}
-                valueClass="text-emerald-700"
                 hint={`${data.totalRdv} RDV × ${formatEuros(data.variablePerRdvCents)}`}
               />
-              <MoneyCard
-                label="Ajustement"
-                tip="Une prime ou une retenue ajoutée à la main depuis « Statut », avec sa justification."
+              <Metric
+                label={<MoneyLabel label="Ajustement" tip="Une prime ou une retenue ajoutée à la main depuis « Statut », avec sa justification." />}
                 value={formatEuros(data.adjustmentCents)}
-                valueClass="text-primary-700"
-                hint={data.adjustmentNote || "Aucun ajustement"}
+                hint={<span title={data.adjustmentNote || undefined}>{data.adjustmentNote || "Aucun ajustement"}</span>}
               />
-              <div className="rounded-xl border border-primary-200 bg-primary-50 p-3.5">
-                <span className="mb-1 block text-[11px] font-medium text-primary-700">Total à payer</span>
-                <p className="text-xl font-black tabular-nums text-primary-900">{formatEuros(data.totalAmountCents)}</p>
-                <span className="mt-0.5 block text-[10px] text-primary-600">{REMUNERATION_LABELS[data.remunerationMode]}</span>
-              </div>
-            </div>
+              <Metric lead label="Total à payer" value={formatEuros(data.totalAmountCents)} hint={REMUNERATION_LABELS[data.remunerationMode]} />
+            </MetricStrip>
 
             {/* Formulas */}
-            <div data-hr-tour="detail-formulas" className="space-y-3 rounded-xl bg-slate-900 p-4 text-xs text-slate-100">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-primary-300">
-                <Calculator className="h-4 w-4" />
+            <div data-hr-tour="detail-formulas" className="overflow-hidden rounded-xl border border-line">
+              <p className="flex items-center gap-2 border-b border-line-subtle bg-surface-2 px-4 py-2.5 text-[13px] font-semibold text-ink">
+                <Calculator className="size-4 text-ink-3" aria-hidden />
                 Le calcul, étape par étape
-              </div>
-              <dl className="space-y-1.5 font-mono">
+              </p>
+              <dl className="divide-y divide-line-subtle px-4">
                 <FormulaLine label="Jours payés" value={data.formulas.workingDaysFormula} />
                 <FormulaLine label="Fixe" value={data.formulas.fixedFormula} />
                 <FormulaLine label="Primes" value={data.formulas.variableFormula} />
@@ -272,91 +263,113 @@ export function HrCalculationDetailModal({
             </div>
 
             {/* Day by day */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                  Le mois jour par jour
-                </h4>
+                <h3 className="text-[13px] font-semibold text-ink">Le mois jour par jour</h3>
                 {data.daysUnderQuotaCount > 0 && (
-                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-600">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-ink-2">
                     <input
                       type="checkbox"
                       checked={filterDays}
                       onChange={(e) => setOnlyToHandle(e.target.checked)}
-                      className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
                     />
-                    Seulement les jours sous l’objectif ({data.daysUnderQuotaCount})
+                    Seulement les jours sous l’objectif
+                    <span className="tabular-nums text-ink-3">{data.daysUnderQuotaCount}</span>
                   </label>
                 )}
               </div>
-              <div data-hr-tour="detail-days" className="max-h-80 overflow-y-auto rounded-xl border border-slate-200">
-                <table className="w-full text-left text-xs">
-                  <thead className="sticky top-0 border-b border-slate-200 bg-slate-50 font-medium text-slate-600">
+              <div data-hr-tour="detail-days" className="max-h-80 overflow-auto rounded-xl border border-line">
+                <table className="w-full min-w-[680px] border-collapse text-left text-[13px]">
+                  <thead className="sticky top-0 z-[1] border-b border-line bg-surface-2 text-xs text-ink-3">
                     <tr>
-                      <th scope="col" className="px-3 py-2.5">Date</th>
-                      <th scope="col" className="px-3 py-2.5">Mission(s)</th>
-                      <th scope="col" className="px-3 py-2.5">Appels</th>
-                      <th scope="col" className="px-3 py-2.5">RDV</th>
-                      <th scope="col" className="px-3 py-2.5">Objectif</th>
-                      <th scope="col" className="px-3 py-2.5 text-right">Décision</th>
+                      <th scope="col" className="py-2.5 pl-4 pr-3 font-medium">Date</th>
+                      <th scope="col" className="px-3 py-2.5 font-medium">Mission(s)</th>
+                      <th
+                        scope="col"
+                        className="px-3 py-2.5 text-right font-medium"
+                        title="Appels passés sur la ligne Allo. Si Allo n’en compte aucun ce jour-là, ce sont les actions CRM qui comptent."
+                      >
+                        Appels
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 text-right font-medium" title="Appels enregistrés dans le CRM avec un résultat">
+                        Actions CRM
+                      </th>
+                      <th scope="col" className="px-3 py-2.5 text-right font-medium">RDV</th>
+                      <th scope="col" className="px-3 py-2.5 font-medium">Objectif</th>
+                      <th scope="col" className="py-2.5 pl-3 pr-4 text-right font-medium">Décision</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody>
                     {visibleDays.map((d, i) => {
                       const firstDecidable = canDecide && d.isUnderQuota && visibleDays.findIndex((x) => x.isUnderQuota) === i;
                       return (
-                        <tr key={d.date} className={d.isUnderQuota ? (d.decision ? "bg-slate-50/50" : "bg-amber-50/50") : ""}>
-                          <td className="whitespace-nowrap px-3 py-2 font-medium capitalize text-slate-900">
+                        <tr
+                          key={d.date}
+                          className={cn(
+                            "border-b border-line-subtle last:border-b-0",
+                            d.isUnderQuota && (d.decision ? "bg-surface-2/60" : "bg-warning-soft/60")
+                          )}
+                        >
+                          <td className="whitespace-nowrap py-2.5 pl-4 pr-3 font-medium capitalize text-ink">
                             {formatDayKey(d.date, { weekday: "short", day: "2-digit", month: "short" })}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-2.5">
                             <DayType d={d} />
                           </td>
-                          <td
-                            className="px-3 py-2 font-semibold tabular-nums text-slate-800"
-                            title={
-                              d.alloCallCount !== undefined
-                                ? `WithAllo : ${d.alloCallCount} appel(s) | Actions CRM : ${d.crmActionCount ?? 0}`
-                                : undefined
-                            }
-                          >
-                            {d.callCount}
-                            {d.isWorkingDay && !d.isAbsence && data.dailyQuota > 0 && (
-                              <span className="font-normal text-slate-400"> / {data.dailyQuota}</span>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                            {!d.alloCallCount && d.callCount > 0 && (
+                              <span title="Aucun appel Allo ce jour-là : le compte reprend les actions CRM" className={cn(CHIP, "mr-1.5 border-line bg-surface-2 text-ink-3")}>
+                                CRM
+                              </span>
                             )}
+                            <span className="font-semibold text-ink">{d.callCount}</span>
+                            {d.isWorkingDay && !d.isAbsence && data.dailyQuota > 0 && <span className="text-ink-4"> / {data.dailyQuota}</span>}
                           </td>
-                          <td className="px-3 py-2 font-semibold tabular-nums text-emerald-700">{d.rdvCount > 0 ? d.rdvCount : "—"}</td>
-                          <td className="px-3 py-2">
+                          <td className={cn("px-3 py-2.5 text-right tabular-nums", d.crmActionCount ? "text-ink-2" : "text-ink-4")}>
+                            {d.crmActionCount ? d.crmActionCount : "—"}
+                          </td>
+                          <td className={cn("px-3 py-2.5 text-right tabular-nums", d.rdvCount > 0 ? "font-semibold text-success-ink" : "text-ink-4")}>
+                            {d.rdvCount > 0 ? d.rdvCount : "—"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5">
                             <QuotaState d={d} hasQuota={data.dailyQuota > 0} />
                           </td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="py-2 pl-3 pr-4 text-right">
                             {d.isUnderQuota ? (
-                              <div className="flex items-center justify-end gap-2">
+                              <div className="flex items-center justify-end gap-1.5">
                                 {d.decision ? (
                                   <span
                                     title={d.decisionReason}
-                                    className={`rounded px-2 py-0.5 text-[10px] font-semibold ${
-                                      d.decision === HrDayDecision.PAID ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
-                                    }`}
+                                    className={cn(
+                                      CHIP,
+                                      "rounded-full px-2",
+                                      d.decision === HrDayDecision.PAID
+                                        ? "border-success-line bg-success-soft text-success-ink"
+                                        : "border-danger-line bg-danger-soft text-danger-ink"
+                                    )}
                                   >
                                     {d.decision === HrDayDecision.PAID ? "Payée" : "Non payée"}
                                   </span>
                                 ) : (
-                                  <span className="text-[10px] font-medium text-amber-700">À statuer</span>
+                                  <span className="whitespace-nowrap text-xs font-medium text-warning-ink">À statuer</span>
                                 )}
                                 {canDecide && (
                                   <button
                                     type="button"
                                     onClick={() => setSelectedDay(d)}
                                     {...(firstDecidable ? { "data-hr-tour": "detail-decide" } : {})}
-                                    className="rounded-md bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700 hover:bg-primary-100"
+                                    className={cn(
+                                      "h-7 rounded-lg px-2 text-[13px] font-medium text-primary-700 transition-colors hover:bg-primary-50",
+                                      FOCUS_RING
+                                    )}
                                   >
                                     {d.decision ? "Modifier" : "Statuer"}
                                   </button>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-[10px] text-slate-300">—</span>
+                              <span className="text-ink-4">—</span>
                             )}
                           </td>
                         </tr>
@@ -367,17 +380,14 @@ export function HrCalculationDetailModal({
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-              <button type="button" onClick={guide.start} className="text-xs font-medium text-primary-700 hover:underline">
+            <div className="flex items-center justify-between gap-3 border-t border-line-subtle pt-4">
+              <TextButton onClick={guide.start} className="-ml-1.5">
+                <CircleHelp className="size-4" aria-hidden />
                 Comment lire ce calcul ?
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200"
-              >
+              </TextButton>
+              <Button variant="secondary" size="sm" onClick={onClose}>
                 Fermer
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -401,110 +411,55 @@ export function HrCalculationDetailModal({
   );
 }
 
-function Banner({
-  tone,
-  icon,
-  action,
-  children,
-}: {
-  tone: "rose" | "amber" | "sky" | "indigo" | "emerald";
-  icon: React.ReactNode;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const styles = {
-    rose: "border-rose-200 bg-rose-50 text-rose-800",
-    amber: "border-amber-200 bg-amber-50 text-amber-900",
-    sky: "border-sky-200 bg-sky-50 text-sky-900",
-    indigo: "border-primary-200 bg-primary-50 text-primary-900",
-    emerald: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  }[tone];
+function MoneyLabel({ label, tip }: { label: string; tip: string }) {
   return (
-    <div className={`flex flex-col gap-2 rounded-xl border p-3 text-xs sm:flex-row sm:items-center sm:justify-between ${styles}`}>
-      <div className="flex items-start gap-2">
-        <span className="mt-px shrink-0">{icon}</span>
-        <span>{children}</span>
-      </div>
-      {action}
-    </div>
-  );
-}
-
-function MoneyCard({
-  label,
-  tip,
-  value,
-  hint,
-  valueClass = "text-slate-900",
-}: {
-  label: string;
-  tip: string;
-  value: string;
-  hint: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-      <span className="mb-1 flex items-center gap-1 text-[11px] font-medium text-slate-500">
-        {label}
-        <HrHelpTip title={label}>
-          <p>{tip}</p>
-        </HrHelpTip>
-      </span>
-      <p className={`text-lg font-bold tabular-nums ${valueClass}`}>{value}</p>
-      <span className="mt-0.5 block truncate text-[10px] text-slate-400" title={hint}>
-        {hint}
-      </span>
-    </div>
+    <>
+      {label}
+      <HrHelpTip title={label}>
+        <p>{tip}</p>
+      </HrHelpTip>
+    </>
   );
 }
 
 function FormulaLine({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
-    <div className={`flex flex-col gap-0.5 border-b border-slate-800 py-1 last:border-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4 ${highlight ? "font-bold text-emerald-300" : ""}`}>
-      <dt className={highlight ? "" : "text-slate-400"}>{label}</dt>
-      <dd className={`sm:text-right ${highlight ? "" : "text-white"}`}>{value}</dd>
+    <div className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+      <dt className={cn("shrink-0 text-xs", highlight ? "font-semibold text-ink" : "text-ink-3")}>{label}</dt>
+      <dd className={cn("font-mono text-xs tabular-nums sm:text-right", highlight ? "font-semibold text-ink" : "text-ink-2")}>{value}</dd>
     </div>
   );
 }
 
 function DayType({ d }: { d: DayActivityDetail }) {
   if (d.isHoliday) {
-    return <span className="rounded bg-accent-50 px-1.5 py-0.5 text-[10px] font-medium text-accent-700">{d.holidayLabel || "Férié"}</span>;
+    return <span className={cn(CHIP, "border-line bg-surface-3 text-ink-2")}>{d.holidayLabel || "Férié"}</span>;
   }
-  if (!d.isWorkingDay) return <span className="text-[10px] text-slate-400">Week-end</span>;
+  if (!d.isWorkingDay) return <span className="text-xs text-ink-4">Week-end</span>;
   if (d.isAbsence) {
-    return <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">Absence{d.absenceType ? ` (${d.absenceType.toLowerCase()})` : ""}</span>;
+    return (
+      <span className={cn(CHIP, "border-warning-line bg-warning-soft text-warning-ink")}>
+        Absence{d.absenceType ? ` (${d.absenceType.toLowerCase()})` : ""}
+      </span>
+    );
   }
   if (d.missions.length > 0) {
     return (
       <span className="flex flex-wrap gap-1">
         {d.missions.map((m) => (
-          <span key={m.missionId} className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700">
+          <span key={m.missionId} className={cn(CHIP, "border-line bg-surface-2 text-ink-2")}>
             {m.missionName}
           </span>
         ))}
       </span>
     );
   }
-  return <span className="text-[10px] text-slate-700">Travaillée</span>;
+  return <span className="text-xs text-ink-2">Travaillée</span>;
 }
 
 function QuotaState({ d, hasQuota }: { d: DayActivityDetail; hasQuota: boolean }) {
-  if (!d.isWorkingDay || d.isAbsence || !hasQuota) return <span className="text-[10px] text-slate-300">—</span>;
-  if (d.isFuture) return <span className="text-[10px] text-slate-400">À venir</span>;
-  if (d.isUnderQuota) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
-        <AlertTriangle className="h-3 w-3" />
-        Non atteint
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-      <CheckCircle2 className="h-3 w-3" />
-      Atteint
-    </span>
-  );
+  if (!d.isWorkingDay || d.isAbsence || !hasQuota) return <span className="text-ink-4">—</span>;
+  if (d.isFuture) return <span className="text-xs text-ink-3">À venir</span>;
+  if (d.isUnderQuota) return <span className="text-xs font-medium text-warning-ink">Non atteint</span>;
+  return <span className="text-xs font-medium text-success-ink">Atteint</span>;
 }

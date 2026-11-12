@@ -1,9 +1,11 @@
-import { brand } from "@/lib/brand";
-// Brand colours for inline email styles (brand/brand.config.ts).
-const EMAIL_BRAND = {
-  primary: brand.palette.primarySeed,
-  onPrimaryMuted: brand.palette.primary[200],
-};
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+// Brand colours for inline email styles (instance brand: getBrand()).
+function emailBrandColors(b: Brand) {
+  return {
+    primary: b.palette.primarySeed,
+    onPrimaryMuted: b.palette.primary[200],
+  };
+}
 
 export interface RdvNotificationData {
   contactFirstName?: string | null;
@@ -146,10 +148,11 @@ function connectionBlock(data: RdvNotificationData): string {
 /**
  * Builds the HTML body for a new RDV notification email.
  */
-export function buildRdvNotificationEmail(data: RdvNotificationData): {
+export function buildRdvNotificationEmail(data: RdvNotificationData, brand: Brand = defaultBrand): {
   subject: string;
   html: string;
 } {
+  const EMAIL_BRAND = emailBrandColors(brand);
   const appUrl = data.appUrl || brand.appUrl;
   const portalPath = data.portalPath || "/client/portal/meetings";
 
@@ -411,7 +414,8 @@ export const RDV_TEMPLATE_VARIABLES: { name: string; description: string }[] = [
 /** Substitute {{variables}} in a template string with actual values */
 export function substituteTemplateVariables(
   template: string,
-  data: RdvNotificationData
+  data: RdvNotificationData,
+  brand: Brand = defaultBrand
 ): string {
   const appUrl = data.appUrl || brand.appUrl;
   const portalPath = data.portalPath || "/client/portal/meetings";
@@ -452,11 +456,12 @@ export function substituteTemplateVariables(
 export function buildRdvEmailFromCustomTemplate(
   customSubject: string,
   customBodyHtml: string,
-  data: RdvNotificationData
+  data: RdvNotificationData,
+  brand: Brand = defaultBrand
 ): { subject: string; html: string } {
   return {
-    subject: substituteTemplateVariables(customSubject, data),
-    html: substituteTemplateVariables(customBodyHtml, data),
+    subject: substituteTemplateVariables(customSubject, data, brand),
+    html: substituteTemplateVariables(customBodyHtml, data, brand),
   };
 }
 
@@ -467,7 +472,10 @@ export function buildRdvEmailFromCustomTemplate(
 export const DEFAULT_RDV_TEMPLATE_SUBJECT =
   "Nouveau RDV confirmé — {{contactName}} ({{companyName}})";
 
-export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
+/** Starting HTML for the manager's RDV template editor, in the given brand. */
+export function defaultRdvTemplateHtml(brand: Brand = defaultBrand): string {
+  const EMAIL_BRAND = emailBrandColors(brand);
+  return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
@@ -548,3 +556,7 @@ export const DEFAULT_RDV_TEMPLATE_HTML = `<!DOCTYPE html>
   </table>
 </body>
 </html>`;
+}
+
+/** Default-brand snapshot; prefer defaultRdvTemplateHtml(await getBrand()). */
+export const DEFAULT_RDV_TEMPLATE_HTML = defaultRdvTemplateHtml();

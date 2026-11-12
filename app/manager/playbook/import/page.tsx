@@ -270,13 +270,13 @@ export default function PlaybookImportPage() {
   ];
 
   const currentStepId = step === "upload" ? 1 : step === "parsing" ? 2 : 3;
-  const pageBg = "min-h-screen bg-surface-2";
+  const pageBg = "bg-surface-2";
 
   return (
     <div className={pageBg}>
-      <div className="px-8 py-10 max-w-7xl mx-auto">
+      <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-10 max-w-7xl mx-auto">
         {/* Stepper */}
-        <div className="flex items-center justify-center gap-2 mb-10">
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-6 lg:mb-10">
           {STEPS.map((s, i) => (
             <div key={s.id} className="flex items-center">
               <div
@@ -394,9 +394,9 @@ export default function PlaybookImportPage() {
         {step === "preview" && edited && (
           <>
             {/* Sticky top summary bar */}
-            <div className="sticky top-0 z-20 -mx-8 px-8 py-4 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm mb-6">
+            <div className="sticky top-12 z-20 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3 lg:py-4 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm mb-6">
               <div className="max-w-7xl mx-auto flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                   <div className="flex items-center gap-2">
                     <Brain className="w-5 h-5 text-accent-600" />
                     <span className="text-lg font-semibold text-slate-900">Résultat de l'import IA</span>
@@ -429,7 +429,7 @@ export default function PlaybookImportPage() {
               </div>
             </div>
 
-            <div className="flex gap-8">
+            <div className="flex flex-col gap-6 lg:flex-row xl:gap-8">
               {/* Left: entity cards (70%) */}
               <div className="flex-1 min-w-0 space-y-6">
                 {/* 1. Client */}
@@ -447,7 +447,7 @@ export default function PlaybookImportPage() {
                     </div>
                     <span className="rounded-full bg-emerald-50 text-emerald-600 px-3 py-1 text-xs font-medium">Détecté</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Nom</label>
                       <InlineField value={edited.client?.name ?? ""} onChange={(v) => updateClient({ name: v })} placeholder="Nom du client" />
@@ -464,7 +464,7 @@ export default function PlaybookImportPage() {
                         placeholder="SIRH / SaaS / IA"
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs uppercase tracking-wider text-slate-500 mb-1">Description</label>
                       <InlineField
                         value={edited.client?.description ?? ""}
@@ -713,8 +713,8 @@ export default function PlaybookImportPage() {
               </div>
 
               {/* Right: sticky sidebar (30%) */}
-              <div className="w-80 shrink-0">
-                <div className="sticky top-24 space-y-4">
+              <div className="w-full shrink-0 lg:w-64 xl:w-80">
+                <div className="space-y-4 lg:sticky lg:top-36">
                   <div className="bg-white rounded-2xl shadow-md border border-slate-200/80 p-6">
                     <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">Résumé de l'import</h4>
                     <ul className="space-y-2">

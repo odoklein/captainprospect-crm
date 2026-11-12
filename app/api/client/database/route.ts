@@ -8,6 +8,7 @@ import { buildRows, indexActions } from "@/lib/prospection-export/rows";
 import { buildStageResolver, buildWeeklyActivity, companyRollup, toPortalTreatment } from "@/lib/prospection-export/portal";
 import { EMPTY_FILTERS, type ExportAction, type ExportCompany } from "@/lib/prospection-export/types";
 import type { PortalCompany, PortalContact, PortalDatabaseResponse, PortalTreatment } from "@/lib/prospection-export/portal-types";
+import { clientMayExport } from "@/lib/client-portal-export";
 
 // ============================================
 // GET /api/client/database
@@ -218,12 +219,13 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         commercials: [],
         exclusions: [],
         activity: buildWeeklyActivity([], now),
+        canExport: false,
         generatedAt: now.toISOString(),
     };
 
     if (!clientId) return successResponse(empty);
 
-    const [missions, interlocuteurs] = await Promise.all([
+    const [missions, interlocuteurs, canExport] = await Promise.all([
         prisma.mission.findMany({
             where: { clientId, AND: [portalVisibleMissionWhere()] },
             select: {
@@ -248,8 +250,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             select: { id: true, firstName: true, lastName: true },
             orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
         }),
+        clientMayExport(clientId),
     ]);
-    if (missions.length === 0) return successResponse(empty);
+    if (missions.length === 0) return successResponse({ ...empty, canExport });
 
     const activeCommercialIds = new Set(interlocuteurs.map((i) => i.id));
     const loaded = await Promise.all(missions.map((m) => loadMission(m, activeCommercialIds)));
@@ -301,6 +304,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             expiresAt: e.expiresAt?.toISOString() ?? null,
         })),
         activity: buildWeeklyActivity(loaded.flatMap((m) => m.actions), now),
+        canExport,
         generatedAt: now.toISOString(),
     };
     return successResponse(body);

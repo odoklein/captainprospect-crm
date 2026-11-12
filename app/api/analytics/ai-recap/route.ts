@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireRole, withErrorHandler, errorResponse, successResponse } from "@/lib/api-utils";
 import { z } from "zod";
+import { integrationKey } from "@/lib/integrations/keys";
 
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const OPENAI_MODEL = "gpt-4o";
@@ -112,7 +113,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const { from, to, missionIds, sdrIds, clientIds, listIds, followUp, previousRecap } =
         parsed.data;
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = integrationKey("OPENAI_API_KEY");
     if (!apiKey) {
         return errorResponse("OPENAI_API_KEY non configurée. L'analyse IA est indisponible.", 503);
     }

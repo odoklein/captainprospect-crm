@@ -18,10 +18,11 @@ import {
     getCredential,
     recordVaultAudit,
 } from "./service";
-import { brand } from "@/lib/brand";
+import { brand as defaultBrand, type Brand } from "@/lib/brand";
+import { getBrand } from "@/lib/brand/server";
 
 /** Where a portal user signs in. Used as the credential's `url`. */
-export function portalLoginUrl(): string {
+export function portalLoginUrl(brand: Brand = defaultBrand): string {
     const base =
         brand.appUrl;
     return `${base.replace(/\/$/, "")}/login`;
@@ -133,6 +134,7 @@ export async function createPortalAccountForInterlocuteur(
         select: { id: true, email: true, name: true, role: true },
     });
 
+    const brand = await getBrand();
     const credential = await createCredential(
         {
             clientId: interlocuteur.clientId,
@@ -141,7 +143,7 @@ export async function createPortalAccountForInterlocuteur(
             label: `Portail ${brand.name} — ${fullName}`,
             login: email,
             password,
-            url: portalLoginUrl(),
+            url: portalLoginUrl(brand),
             interlocuteurId: interlocuteur.id,
             userId: user.id,
         },

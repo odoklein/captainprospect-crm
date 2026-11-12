@@ -1,0 +1,23 @@
+✔ no period means today in Paris, not in UTC (22.2597ms)
+✔ invalid or oversized periods are refused (1.0105ms)
+✔ lists accept repeated and comma-separated values, drop junk and duplicates (2.3968ms)
+✔ page and limit are clamped (3.846ms)
+✔ a filter set round-trips through its query string (3.459ms)
+✔ status label and colour follow the CRM's configuration, with fallbacks (0.6283ms)
+✔ call source is only claimed when there is evidence (0.2349ms)
+✔ callback presets on a weekday morning (27.9848ms)
+✔ late afternoon drops the same-day presets (2.4148ms)
+✔ on Friday and on weekends the next working day is Monday (1.9978ms)
+✔ a custom callback must be a valid future Paris time (1.8023ms)
+✔ dispositions are ordered and the first nine get keys 1–9 (0.3638ms)
+✔ connect rate is null before the first dial (0.1904ms)
+✔ cancelled setup stays invalid after a new call clears cancellation history (0.8632ms)
+✔ two contacts at the same company never share a call summary (0.2076ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 753.824

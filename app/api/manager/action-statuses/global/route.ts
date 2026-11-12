@@ -7,6 +7,7 @@ import {
     withErrorHandler,
 } from "@/lib/api-utils";
 import { z } from "zod";
+import { ActionValidationError, resolveActionResult } from "@/lib/actions/action-result";
 
 const PRIORITY_LABELS = ["CALLBACK", "FOLLOW_UP", "NEW", "RETRY", "SKIP"] as const;
 
@@ -96,9 +97,24 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     }
     const data = parsed.data;
 
+    // Status codes are free-form in the UI, but Action.result is an enum.
+    // Store the canonical enum value so a newly created status can always be saved.
+    let statusCode: string;
+    try {
+        statusCode = resolveActionResult(data.code, { code: data.code, label: data.label });
+    } catch (error) {
+        if (error instanceof ActionValidationError) {
+            return errorResponse(
+                `Code de statut invalide : "${data.code}". Choisissez un libellé de résultat reconnu.`,
+                400
+            );
+        }
+        throw error;
+    }
+
     // Check for duplicate code
     const existing = await prisma.actionStatusDefinition.findFirst({
-        where: { scopeType: "GLOBAL", scopeId: "", code: data.code },
+        where: { scopeType: "GLOBAL", scopeId: "", code: statusCode },
     });
     if (existing) {
         // Reactivate if deactivated
@@ -120,7 +136,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             });
             return successResponse(mapRow(reactivated), 200);
         }
-        return errorResponse(`Le code "${data.code}" existe déjà`, 409);
+        return errorResponse(`Le code "${statusCode}" existe déjà`, 409);
     }
 
     // Determine next sortOrder if not provided
@@ -133,7 +149,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         data: {
             scopeType: "GLOBAL",
             scopeId: "",
-            code: data.code,
+            code: statusCode,
             label: data.label,
             color: data.color ?? null,
             sortOrder: data.sortOrder ?? (maxSort._max.sortOrder ?? 0) + 1,

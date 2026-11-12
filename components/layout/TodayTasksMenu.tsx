@@ -43,7 +43,7 @@ function toItem(task: TodayTask, completed: boolean): TodoListItem {
         id: task.id,
         text: task.title,
         completed,
-        meta: [task.client?.name ?? task.project.name, task.isOnboarding && "Onboarding", task.section]
+        meta: [task.client?.name ?? task.project?.name, task.isOnboarding && "Onboarding", task.section]
             .filter(Boolean)
             .join(" · "),
         tag:
@@ -195,11 +195,11 @@ export function TodayTasksMenu() {
                             <>
                                 {data.moreTasks > 0 && (
                                     <Link
-                                        href="/manager/projects"
+                                        href="/manager/tasks"
                                         onClick={close}
                                         className="block text-xs font-semibold text-indigo-600 hover:underline"
                                     >
-                                        + {data.moreTasks} autres tâches dans les projets
+                                        + {data.moreTasks} autres tâches à voir
                                     </Link>
                                 )}
 
@@ -257,11 +257,11 @@ export function TodayTasksMenu() {
                         }
                         footerAction={
                             <Link
-                                href="/manager/dashboard"
+                                href="/manager/tasks"
                                 onClick={close}
                                 className="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:underline"
                             >
-                                Accueil
+                                Toutes les tâches
                                 <ArrowRight className="h-3 w-3" aria-hidden />
                             </Link>
                         }

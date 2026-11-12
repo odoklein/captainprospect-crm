@@ -16,6 +16,8 @@ export const querySchema = z.object({
     perSearch: z.number().int().min(5).max(200).default(50),
     activeOnly: z.boolean().default(true),
     headcount: z.array(z.string().regex(/^\d{2}$/)).max(12).optional(),
+    depth: z.enum(["standard", "deep", "max"]).default("standard"),
+    creditBudget: z.number().int().min(30).max(30000).optional(),
 });
 
 const contactSchema = z.object({

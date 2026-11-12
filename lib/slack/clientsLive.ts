@@ -14,6 +14,8 @@
  * never throws, so a Slack outage can't break a client's support message.
  */
 
+import { runtimeAppUrl } from "@/lib/runtime-config/env";
+
 const SLACK_TIMEOUT_MS = 5000;
 
 export function clientsLiveWebhookUrl(): string | null {
@@ -55,7 +57,8 @@ async function postToClientsLive(payload: {
 }
 
 function appUrl(): string {
-    return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "";
+    // Read at runtime: a literal process.env.NEXT_PUBLIC_* is frozen at build.
+    return runtimeAppUrl() || "";
 }
 
 function absoluteUrl(path: string): string | null {

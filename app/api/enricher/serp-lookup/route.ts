@@ -13,6 +13,7 @@ import {
     validateRequest,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { integrationKey } from "@/lib/integrations/keys";
 
 const scrapeSchema = z.object({
     company_name: z.string().optional(),
@@ -141,7 +142,7 @@ async function searchPhoneViaWeb(
     companyName: string,
     address?: string
 ): Promise<{ phone: string; source: string; confidence: number } | null> {
-    const apiKey = process.env.SERP_API_KEY;
+    const apiKey = integrationKey("SERP_API_KEY");
     if (!apiKey) return null;
 
     const q = [companyName, address, 'téléphone'].filter(Boolean).join(' ');

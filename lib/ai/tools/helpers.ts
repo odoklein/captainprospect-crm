@@ -12,6 +12,7 @@ import {
     AssistantContext,
     JsonSchemaObject,
     PendingActionCard,
+    ToolAuthorizationError,
     ToolDefinition,
     WriteOutcome,
 } from "./types";
@@ -29,6 +30,9 @@ interface BaseSpec<TArgs> {
     requiredPermissions?: string[];
     /** Defaults to true — most tools are meaningless without a project. */
     requiresProject?: boolean;
+    /** Hidden and refused inside a bound project (see ToolDefinition.agencyOnly). */
+    agencyOnly?: boolean;
+    noEvidence?: boolean;
 }
 
 /** No side effects. Runs automatically inside the loop. */
@@ -83,6 +87,18 @@ export function defineConfirmTool<TArgs>(
         allowedRoles: spec.allowedRoles ?? DEFAULT_ROLES,
         requiresProject: spec.requiresProject ?? true,
         risk: "confirm",
+        // Defence in depth: the worker proposes confirm actions, a manager
+        // executes them later under their own context. No code path of a
+        // background run may run one, even by mistake.
+        execute: async (args, ctx) => {
+            if (ctx.mode === "background") {
+                throw new ToolAuthorizationError(
+                    "Une action à confirmer ne s'exécute jamais en arrière-plan : elle est proposée au manager.",
+                    "background_confirm_forbidden",
+                );
+            }
+            return spec.execute(args, ctx);
+        },
     };
 }
 

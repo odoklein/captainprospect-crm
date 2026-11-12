@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Exclusion, ExclusionScope, ExclusionSource, ExclusionTarget, Prisma, PrismaClient } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -12,6 +13,14 @@ import {
     type ExclusionKeys,
 } from "./matching";
 import { resolveExpiry } from "./constants";
+import {
+    MAX_IMPORT_ROWS,
+    buildCompanyRuleIndex,
+    findRuleIdForCompany,
+    prepareImportRows,
+    summarizeImport,
+    type ImportRowInput,
+} from "./import";
 
 /**
  * Applying an exclusion means finding every prospect row the rule recognises,
@@ -268,12 +277,16 @@ async function applyContactRule(
 async function stopRunningOutreach(contactIds: string[]): Promise<number> {
     if (contactIds.length === 0) return 0;
 
-    const exited = await prisma.emailSequenceEnrollment.updateMany({
-        where: { contactId: { in: contactIds }, status: { in: ["ACTIVE", "PAUSED"] } },
-        data: { status: "MANUAL_EXIT", exitReason: "Exclusion — ne plus contacter", exitedAt: new Date() },
-    });
+    let exitedCount = 0;
+    for (const ids of chunked(contactIds, ID_CHUNK)) {
+        const exited = await prisma.emailSequenceEnrollment.updateMany({
+            where: { contactId: { in: ids }, status: { in: ["ACTIVE", "PAUSED"] } },
+            data: { status: "MANUAL_EXIT", exitReason: "Exclusion — ne plus contacter", exitedAt: new Date() },
+        });
+        exitedCount += exited.count;
+    }
 
-    return exited.count;
+    return exitedCount;
 }
 
 // ============================================
@@ -419,6 +432,300 @@ export async function createManualExclusion(input: CreateManualInput): Promise<E
 
     await applyExclusion(rule.id);
     return prisma.exclusion.findUniqueOrThrow({ where: { id: rule.id } });
+}
+
+// ============================================
+// BULK IMPORT
+// ============================================
+
+/** Stays well under Postgres' bind-parameter limit when a rule catches many rows. */
+const ID_CHUNK = 5_000;
+
+function chunked<T>(items: T[], size: number): T[][] {
+    const out: T[][] = [];
+    for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+    return out;
+}
+
+/**
+ * Stamp every company any of `ruleIds` recognises, in a single pass over the
+ * scope. applyExclusion() scans the whole scope once per rule, which is right
+ * for one rule and hopeless for a 2,000-line upload; here the rules are indexed
+ * and each company is looked up, so the cost is one scan however many rules.
+ *
+ * Same stamping contract as applyExclusion: a company already excluded keeps the
+ * rule that caught it first, and its contacts go with it.
+ */
+async function applyCompanyRulesInBulk(
+    ruleIds: string[],
+    scope: ExclusionScope,
+    scopeId: string | null
+): Promise<ApplyResult> {
+    if (ruleIds.length === 0) return { companies: 0, contacts: 0 };
+
+    const rules = await prisma.exclusion.findMany({
+        where: { id: { in: ruleIds } },
+        select: { id: true, companyNameKey: true, domainKey: true, phoneKey: true },
+    });
+    const index = buildCompanyRuleIndex(rules);
+
+    const listIds = await listIdsForScope(prisma, scope, scopeId);
+    const companiesByRule = new Map<string, string[]>();
+
+    if (listIds === null || listIds.length > 0) {
+        let scanned = 0;
+        let cursor: string | undefined;
+
+        for (;;) {
+            const batch = await prisma.company.findMany({
+                where: { ...companyWhereForScope(listIds), excludedAt: null },
+                select: { id: true, name: true, website: true, phone: true },
+                orderBy: { id: "asc" },
+                take: SCAN_CHUNK,
+                ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            });
+            if (batch.length === 0) break;
+
+            for (const company of batch) {
+                const ruleId = findRuleIdForCompany(index, company);
+                if (!ruleId) continue;
+                const hit = companiesByRule.get(ruleId);
+                if (hit) hit.push(company.id);
+                else companiesByRule.set(ruleId, [company.id]);
+            }
+
+            scanned += batch.length;
+            cursor = batch[batch.length - 1].id;
+            if (scanned >= MAX_SCANNED_ROWS) {
+                console.error(
+                    `Exclusion import: scan capped at ${MAX_SCANNED_ROWS} rows — coverage may be incomplete`
+                );
+                break;
+            }
+            if (batch.length < SCAN_CHUNK) break;
+        }
+    }
+
+    const stampedAt = new Date();
+    let companyTotal = 0;
+    let contactTotal = 0;
+    const touchedContactIds: string[] = [];
+
+    for (const [ruleId, companyIds] of companiesByRule) {
+        let ruleCompanies = 0;
+        let ruleContacts = 0;
+
+        for (const ids of chunked(companyIds, ID_CHUNK)) {
+            const companies = await prisma.company.updateMany({
+                where: { id: { in: ids }, excludedAt: null },
+                data: { excludedAt: stampedAt, exclusionId: ruleId },
+            });
+            ruleCompanies += companies.count;
+
+            const people = await prisma.contact.findMany({
+                where: { companyId: { in: ids }, excludedAt: null },
+                select: { id: true },
+            });
+            const personIds = people.map((p) => p.id);
+            for (const slice of chunked(personIds, ID_CHUNK)) {
+                const contacts = await prisma.contact.updateMany({
+                    where: { id: { in: slice } },
+                    data: { excludedAt: stampedAt, exclusionId: ruleId },
+                });
+                ruleContacts += contacts.count;
+            }
+            touchedContactIds.push(...personIds);
+        }
+
+        await prisma.exclusion.update({
+            where: { id: ruleId },
+            data: { appliedCompanies: ruleCompanies, appliedContacts: ruleContacts, lastAppliedAt: stampedAt },
+        });
+        companyTotal += ruleCompanies;
+        contactTotal += ruleContacts;
+    }
+
+    // Rules that caught nothing still record that they were applied.
+    const withoutHits = ruleIds.filter((id) => !companiesByRule.has(id));
+    for (const ids of chunked(withoutHits, ID_CHUNK)) {
+        await prisma.exclusion.updateMany({ where: { id: { in: ids } }, data: { lastAppliedAt: stampedAt } });
+    }
+
+    await stopRunningOutreach(touchedContactIds);
+
+    return { companies: companyTotal, contacts: contactTotal };
+}
+
+export interface ImportExclusionsInput {
+    scope: ExclusionScope;
+    scopeId: string | null;
+    rows: ImportRowInput[];
+    fileName?: string | null;
+    reason: string;
+    duration: string;
+    source: ExclusionSource;
+    actorId: string;
+}
+
+export interface ImportExclusionsResult {
+    importId: string;
+    total: number;
+    created: number;
+    duplicates: number;
+    rejected: number;
+    appliedCompanies: number;
+    appliedContacts: number;
+}
+
+/**
+ * Bulk "Importer une liste": one company-level rule per usable line, and the
+ * upload itself kept as a history record so the file can be read back later.
+ *
+ * The history row is written first. If its table is missing the import stops
+ * before any rule exists, rather than blacklisting a list nobody can then find.
+ */
+export async function importExclusions(input: ImportExclusionsInput): Promise<ImportExclusionsResult> {
+    if (input.rows.length === 0) throw new Error("Le fichier ne contient aucune ligne");
+    if (input.rows.length > MAX_IMPORT_ROWS) {
+        throw new Error(`Trop de lignes : ${MAX_IMPORT_ROWS} maximum par import`);
+    }
+
+    const scopeId = input.scope === "GLOBAL" ? null : input.scopeId;
+
+    const existing = await prisma.exclusion.findMany({
+        where: {
+            target: "COMPANY",
+            scope: input.scope,
+            scopeId,
+            liftedAt: null,
+            OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { companyNameKey: true, domainKey: true, phoneKey: true },
+    });
+
+    const prepared = prepareImportRows(input.rows, existing);
+    const summary = summarizeImport(prepared);
+    if (summary.created === 0) {
+        throw new Error(
+            summary.rejected === summary.total
+                ? "Aucune ligne exploitable : il faut au moins un nom de société, un site web ou un téléphone"
+                : "Toutes les lignes sont déjà dans la blacklist de ce périmètre"
+        );
+    }
+
+    const toCreate = prepared
+        .filter((row) => row.status === "CREATED")
+        .map((row) => ({ row, id: randomUUID() }));
+    const ruleIds = toCreate.map((entry) => entry.id);
+    const ruleIdByLine = new Map(toCreate.map((entry) => [entry.row.line, entry.id]));
+
+    const history = await prisma.exclusionImport.create({
+        data: {
+            fileName: input.fileName?.trim() || null,
+            scope: input.scope,
+            scopeId,
+            reason: input.reason,
+            duration: input.duration,
+            source: input.source,
+            totalRows: summary.total,
+            createdCount: summary.created,
+            duplicateCount: summary.duplicates,
+            rejectedCount: summary.rejected,
+            ruleIds,
+            createdById: input.actorId,
+            rows: prepared.map((row) => ({
+                line: row.line,
+                companyName: row.input.companyName ?? null,
+                website: row.input.website ?? null,
+                phone: row.input.phone ?? null,
+                status: row.status,
+                ruleId: ruleIdByLine.get(row.line) ?? null,
+            })),
+        },
+    });
+
+    const expiresAt = resolveExpiry(input.duration);
+    for (const slice of chunked(toCreate, 500)) {
+        await prisma.exclusion.createMany({
+            data: slice.map(({ row, id }) => ({
+                id,
+                target: "COMPANY" as const,
+                scope: input.scope,
+                scopeId,
+                ...row.keys,
+                label: row.label,
+                reason: input.reason,
+                source: input.source,
+                createdById: input.actorId,
+                expiresAt,
+            })),
+        });
+    }
+
+    const applied = await applyCompanyRulesInBulk(ruleIds, input.scope, scopeId);
+
+    await prisma.exclusionImport.update({
+        where: { id: history.id },
+        data: { appliedCompanies: applied.companies, appliedContacts: applied.contacts },
+    });
+
+    return {
+        importId: history.id,
+        total: summary.total,
+        created: summary.created,
+        duplicates: summary.duplicates,
+        rejected: summary.rejected,
+        appliedCompanies: applied.companies,
+        appliedContacts: applied.contacts,
+    };
+}
+
+/** Past uploads, newest first, without their rows (those load on demand). */
+export async function listExclusionImports(where: Prisma.ExclusionImportWhereInput, take = 100) {
+    const imports = await prisma.exclusionImport.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take,
+        select: {
+            id: true,
+            fileName: true,
+            scope: true,
+            scopeId: true,
+            reason: true,
+            duration: true,
+            totalRows: true,
+            createdCount: true,
+            duplicateCount: true,
+            rejectedCount: true,
+            appliedCompanies: true,
+            appliedContacts: true,
+            createdById: true,
+            createdAt: true,
+        },
+    });
+
+    const userIds = [...new Set(imports.map((i) => i.createdById))];
+    const users = userIds.length
+        ? await prisma.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true } })
+        : [];
+    const nameById = new Map(users.map((u) => [u.id, u.name]));
+
+    const clientIds = [...new Set(imports.filter((i) => i.scope === "CLIENT" && i.scopeId).map((i) => i.scopeId!))];
+    const clients = clientIds.length
+        ? await prisma.client.findMany({ where: { id: { in: clientIds } }, select: { id: true, name: true } })
+        : [];
+    const clientNameById = new Map(clients.map((c) => [c.id, c.name]));
+
+    return imports.map(({ createdById, ...row }) => ({
+        ...row,
+        createdByName: nameById.get(createdById) ?? null,
+        scopeName: row.scopeId ? clientNameById.get(row.scopeId) ?? null : null,
+    }));
+}
+
+/** One stored upload with every line and what became of it. */
+export async function getExclusionImport(id: string) {
+    return prisma.exclusionImport.findUnique({ where: { id } });
 }
 
 // ============================================
@@ -725,6 +1032,9 @@ export const exclusionService = {
     applyExclusion,
     createExclusionFromRow,
     createManualExclusion,
+    importExclusions,
+    listExclusionImports,
+    getExclusionImport,
     liftExclusion,
     applyActiveExclusionsToList,
     sweepExpiredExclusions,

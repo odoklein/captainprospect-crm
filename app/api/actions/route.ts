@@ -14,7 +14,9 @@ import { statusConfigService } from '@/lib/services/StatusConfigService';
 import { createExclusionFromRow } from '@/lib/exclusions/service';
 import { prisma } from '@/lib/prisma';
 import { enqueueActionCallEnrichment } from '@/lib/call-enrichment/scheduler';
+import { linkCallToAction } from '@/lib/telephony/service';
 import { z } from 'zod';
+import { ActionValidationError } from '@/lib/actions/action-result';
 
 // ============================================
 // SCHEMAS
@@ -34,6 +36,8 @@ const createActionSchema = z.object({
     meetingAddress: z.string().max(500).optional(),
     meetingJoinUrl: z.string().url('Lien de rejoindre invalide').max(2000).optional(),
     meetingPhone: z.string().max(50).optional(),
+    /** Integrated-phone call this outcome qualifies (« Mes appels » → Sans statut). */
+    telephonyCallId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/).optional(),
     /**
      * Optional "ne plus contacter" carried by the same call, so an SDR closing a
      * refusal does it in one gesture instead of a second trip through a manager.
@@ -137,28 +141,51 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
  return errorResponse('Une note est requise pour ce type de résultat', 400);
  }
 
-    // Use service layer with transaction
-    const action = await actionService.createAction({
-        contactId: data.contactId,
-        companyId: data.companyId,
-        sdrId: session.user.id,
-        campaignId: data.campaignId,
-        channel: data.channel,
-        result: data.result,
-        note: data.note,
-        callbackDate: data.callbackDate,
-        duration: data.duration,
-        meetingType: data.meetingType,
-        meetingCategory: data.meetingCategory,
-        meetingAddress: data.meetingAddress,
-        meetingJoinUrl: data.meetingJoinUrl,
-        meetingPhone: data.meetingPhone,
-    }, statusDef);
+    // Use service layer with transaction. A configured status that cannot be
+    // mapped to the ActionResult enum is a client error, not a server crash.
+    let action: any;
+    try {
+        action = await actionService.createAction({
+            contactId: data.contactId,
+            companyId: data.companyId,
+            sdrId: session.user.id,
+            campaignId: data.campaignId,
+            channel: data.channel,
+            result: data.result,
+            note: data.note,
+            callbackDate: data.callbackDate,
+            duration: data.duration,
+            meetingType: data.meetingType,
+            meetingCategory: data.meetingCategory,
+            meetingAddress: data.meetingAddress,
+            meetingJoinUrl: data.meetingJoinUrl,
+            meetingPhone: data.meetingPhone,
+        }, statusDef);
+    } catch (error) {
+        if (error instanceof ActionValidationError) {
+            return errorResponse(error.message, 400);
+        }
+        throw error;
+    }
 
     // A re-booked absence reuses the first RDV's Action: its recording and
     // fiche are that RDV's history, not this call's.
     if (data.channel === 'CALL' && !action.rebookedAbsent) {
-        after(() => enqueueActionCallEnrichment(action.id));
+        // A call placed from the in-app softphone already carries its duration and
+        // recording: attach it instead of searching Allo for a matching call.
+        let viaSoftphone = false;
+        try {
+            viaSoftphone = Boolean(await linkCallToAction({
+                id: action.id,
+                sdrId: session.user.id,
+                callId: data.telephonyCallId,
+                contactId: data.contactId,
+                companyId: data.companyId,
+            }));
+        } catch (err) {
+            console.error('Linking softphone call to action failed:', err);
+        }
+        if (!viaSoftphone) after(() => enqueueActionCallEnrichment(action.id));
     }
 
     // The exclusion is applied after the action is safely stored: a failure here

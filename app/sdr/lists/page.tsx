@@ -17,6 +17,7 @@ import {
     RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useBrand } from "@/lib/brand/client";
 import Link from "next/link";
 
 // ============================================
@@ -72,6 +73,7 @@ const CHANNEL_ICONS = {
 // ============================================
 
 export default function SDRListsPage() {
+    const brand = useBrand();
     const [lists, setLists] = useState<ListData[]>([]);
     const [missions, setMissions] = useState<Mission[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -300,7 +302,7 @@ export default function SDRListsPage() {
                                         <div className="flex items-center gap-2 flex-wrap">
                                             <h3 className="font-semibold text-slate-900 truncate">{list.name}</h3>
                                             <span className={`text-[10px] px-2 py-0.5 rounded-full ${TYPE_STYLES[list.type].color}`}>
-                                                {TYPE_STYLES[list.type].label}
+                                                {list.type === "SUZALI" ? brand.companyShortName : TYPE_STYLES[list.type].label}
                                             </span>
                                         </div>
                                         <p className="text-xs text-slate-500 mt-0.5 truncate">

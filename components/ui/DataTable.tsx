@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
     ChevronUp,
     ChevronDown,
@@ -28,6 +28,7 @@ export interface Column<T> {
     width?: string;
     /** Column text and header alignment */
     align?: "left" | "center" | "right";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- a cell value is whatever row[key] holds
     render?: (value: any, row: T) => React.ReactNode;
     /** Optional importance flag used for primary vs secondary columns */
     importance?: "primary" | "secondary";
@@ -70,12 +71,18 @@ interface DataTableProps<T> {
     stickyHeader?: boolean;
     /** Additional controls to display on the right side of the search/toolbar */
     toolbarRight?: React.ReactNode;
+    /** "fixed": column widths are honoured and long cells truncate (no horizontal scroll). */
+    layout?: "auto" | "fixed";
+    /** Row shown as open (e.g. in a side pane beside the table). */
+    activeRowKey?: string | null;
+    /** ↑/↓ or j/k move a cursor through the rows, Entrée opens it (onRowClick). Off while typing. */
+    keyboardNav?: boolean;
 }
 
 type SortDirection = "asc" | "desc" | null;
 
 /** Get value from row by key; supports nested paths e.g. "contact.firstName" */
-function getValueAtPath<T extends Record<string, any>>(row: T, field: string): unknown {
+function getValueAtPath<T extends Record<string, unknown>>(row: T, field: string): unknown {
     if (!field.includes(".")) return row[field];
     const parts = field.split(".");
     let current: unknown = row;
@@ -87,6 +94,7 @@ function getValueAtPath<T extends Record<string, any>>(row: T, field: string): u
     return current;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- rows are callers' own interfaces (no index signature)
 export function DataTable<T extends Record<string, any>>({
     data,
     columns,
@@ -109,6 +117,9 @@ export function DataTable<T extends Record<string, any>>({
     density = "normal",
     stickyHeader = false,
     toolbarRight,
+    layout = "auto",
+    activeRowKey = null,
+    keyboardNav = false,
 }: DataTableProps<T>) {
     const [searchQuery, setSearchQuery] = useState("");
     const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
@@ -128,8 +139,9 @@ export function DataTable<T extends Record<string, any>>({
 
     const ds = {
         compact: {
-            th: "px-3 py-2 text-2xs font-semibold uppercase tracking-wider text-ink-3",
-            td: "px-3 py-1.5 text-xs text-ink-2",
+            // Sentence-case headers: dense tables read calmer without a row of capitals.
+            th: "px-3 h-9 text-xs font-medium text-ink-3 whitespace-nowrap",
+            td: "px-3 py-2 text-xs text-ink-2",
             checkTh: "w-9 px-2 py-2 text-center",
             checkTd: "w-9 px-2 py-1.5 text-center",
         },
@@ -234,6 +246,43 @@ export function DataTable<T extends Record<string, any>>({
     }, [sortedData, pagination, currentPage, pageSize]);
 
     const totalPages = Math.ceil(sortedData.length / pageSize);
+
+    // Keyboard cursor: an index into sortedData, so it can cross pages.
+    const [cursor, setCursor] = useState<number | null>(null);
+    const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+    const cursorKey = cursor !== null && sortedData[cursor] ? getRowKey(sortedData[cursor]) : null;
+    useEffect(() => {
+        if (!keyboardNav) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            const el = e.target as HTMLElement | null;
+            if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
+            if (!sortedData.length) return;
+            // Arrows and Entrée keep their meaning on a focused control (segmented
+            // control, button, link…); j / k work from anywhere but a text field.
+            const onControl = !!el && el !== document.body && !!el.closest("button, a, [role]");
+            const down = e.key === "j" || (e.key === "ArrowDown" && !onControl);
+            const up = e.key === "k" || (e.key === "ArrowUp" && !onControl);
+            if (down || up) {
+                e.preventDefault();
+                const first = pagination ? (currentPage - 1) * pageSize : 0;
+                const next = cursor === null ? first : Math.max(0, Math.min(sortedData.length - 1, cursor + (down ? 1 : -1)));
+                setCursor(next);
+                if (pagination) setCurrentPage(Math.floor(next / pageSize) + 1);
+                const key = getRowKey(sortedData[next]);
+                requestAnimationFrame(() => rowRefs.current.get(key)?.scrollIntoView({ block: "nearest" }));
+            } else if (e.key === "Enter" && !onControl && cursor !== null && sortedData[cursor]) {
+                e.preventDefault();
+                onRowClick?.(sortedData[cursor]);
+            } else if (e.key === "Escape" && cursor !== null) {
+                setCursor(null);
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+        // getRowKey is derived from keyField
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [keyboardNav, sortedData, cursor, currentPage, pageSize, pagination, onRowClick]);
 
     // Reset to first page only when search query changes (not when data changes e.g. after quick action)
     useEffect(() => {
@@ -415,7 +464,7 @@ export function DataTable<T extends Record<string, any>>({
 
             {/* Table Viewport */}
             <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
+                <table className={cn("w-full border-collapse", layout === "fixed" && "table-fixed")}>
                     <thead>
                         <tr className={cn(
                             "bg-surface-2/70 border-b border-line text-ink-3",
@@ -523,16 +572,29 @@ export function DataTable<T extends Record<string, any>>({
                             paginatedData.map((row) => {
                                 const rowKey = getRowKey(row);
                                 const isSelected = selectedIds.has(rowKey);
+                                const isActive = activeRowKey !== null && activeRowKey === rowKey;
+                                const isCursor = keyboardNav && cursorKey === rowKey;
                                 return (
                                     <tr
                                         key={rowKey}
-                                        onClick={() => onRowClick?.(row)}
+                                        ref={(el) => {
+                                            if (el) rowRefs.current.set(rowKey, el);
+                                            else rowRefs.current.delete(rowKey);
+                                        }}
+                                        onClick={() => {
+                                            if (keyboardNav) setCursor(sortedData.indexOf(row));
+                                            onRowClick?.(row);
+                                        }}
+                                        aria-current={isActive ? "true" : undefined}
+                                        data-cursor={isCursor ? "" : undefined}
                                         className={cn(
                                             "group transition-colors duration-100",
                                             onRowClick && "cursor-pointer",
                                             onRowClick ? "hover:bg-primary-50/25" : "hover:bg-surface-2/40",
                                             selectable && isSelected && "bg-primary-50/50",
-                                            getRowClassName?.(row)
+                                            getRowClassName?.(row),
+                                            isCursor && "bg-surface-2 [&>td:first-child]:shadow-[inset_2px_0_0_var(--color-line-strong)]",
+                                            isActive && "!bg-primary-50/70 [&>td:first-child]:shadow-[inset_2px_0_0_var(--color-primary)]",
                                         )}
                                     >
                                         {selectable && (

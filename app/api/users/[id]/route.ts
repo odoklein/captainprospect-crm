@@ -10,6 +10,8 @@ import {
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
+import { checkSeatFor } from '@/lib/license/server';
+import { usesSeat } from '@/lib/license/resolve';
 
 // ============================================
 // GET /api/users/[id] - Get user details
@@ -31,6 +33,7 @@ export const GET = withErrorHandler(async (
             role: true,
             isActive: true,
             alloPhoneNumber: true,
+            twilioCallerId: true,
             createdAt: true,
             updatedAt: true,
             lastSignInAt: true,
@@ -87,6 +90,13 @@ const updateUserSchema = z.object({
     password: z.string().min(6).optional(),
     clientId: z.string().nullable().optional(),
     alloPhoneNumber: z.string().nullable().optional(),
+    // E.164 Twilio number presented to prospects by the in-app softphone; empty = workspace default.
+    twilioCallerId: z
+        .string()
+        .transform((v) => v.replace(/[\s.-]/g, ''))
+        .refine((v) => v === '' || /^\+[1-9]\d{6,14}$/.test(v), 'Numéro Twilio au format international (+33…)')
+        .nullable()
+        .optional(),
     preferences: z
         .object({
             sdrFeedback: z
@@ -115,14 +125,22 @@ export const PUT = withErrorHandler(async (
             email: true,
             name: true,
             role: true,
+            isActive: true,
             clientId: true,
             alloPhoneNumber: true,
+            twilioCallerId: true,
             preferences: true,
         },
     });
 
     if (!existingUser) {
         return errorResponse('Utilisateur non trouvé', 404);
+    }
+
+    // Moving an active client-portal user to a staff role takes a seat
+    if (data.role && existingUser.isActive && !usesSeat(existingUser.role) && usesSeat(data.role)) {
+        const seats = await checkSeatFor(data.role);
+        if (!seats.ok) return errorResponse(seats.message, 403);
     }
 
     // Check email uniqueness if changing
@@ -143,6 +161,9 @@ export const PUT = withErrorHandler(async (
     if (data.clientId !== undefined) updateData.clientId = data.clientId;
     if (data.alloPhoneNumber !== undefined) {
         updateData.alloPhoneNumber = data.alloPhoneNumber?.trim() || null;
+    }
+    if (data.twilioCallerId !== undefined) {
+        updateData.twilioCallerId = data.twilioCallerId || null;
     }
     if (data.password) {
         updateData.password = await bcrypt.hash(data.password, 10);
@@ -170,6 +191,7 @@ export const PUT = withErrorHandler(async (
             role: true,
             isActive: true,
             alloPhoneNumber: true,
+            twilioCallerId: true,
             preferences: true,
             clientId: true,
             createdAt: true,

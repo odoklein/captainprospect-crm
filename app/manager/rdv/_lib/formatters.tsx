@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
 import { Video, MapPin, Phone, Calendar, ThumbsUp, ThumbsDown, Minus, UserX } from "lucide-react";
 import type { Meeting, ConfirmationFilter, MeetingFilters } from "../_types";
-import { brandIcsProdId } from "@/lib/brand";
+import { brand as defaultBrand, brandIcsProdId, type Brand } from "@/lib/brand";
 
 export function hashColor(str: string): string {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
   const colors = [
     // Literal hex on purpose: callers append alpha suffixes (`${c}12`).
-    // Brand-harmonised: navy / rose family first, then calm support hues.
-    "#263460", "#C64B8B", "#3B5BA9", "#0F766E", "#B45309",
+    // Brand-harmonised: Suzalink navy / pink family first, then calm support hues.
+    "#14255F", "#D50069", "#3B5BA9", "#0F766E", "#B45309",
     "#7A3E6B", "#2F6F8F", "#4D5B7C", "#A23B5F", "#3F7D58",
   ];
   return colors[Math.abs(h) % colors.length];
@@ -189,7 +189,7 @@ export function generateICS(meeting: {
   meetingAddress?: string | null;
   meetingJoinUrl?: string | null;
   meetingType?: string | null;
-}): string {
+}, brand: Brand = defaultBrand): string {
   const start = meeting.callbackDate ? new Date(meeting.callbackDate) : new Date();
   const dur = meeting.duration || 30;
   const end = new Date(start.getTime() + dur * 60000);
@@ -206,7 +206,7 @@ export function generateICS(meeting: {
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    brandIcsProdId(),
+    brandIcsProdId("RDV", brand),
     "BEGIN:VEVENT",
     `DTSTART:${fmtDate(start)}`,
     `DTEND:${fmtDate(end)}`,
@@ -218,8 +218,8 @@ export function generateICS(meeting: {
   ].filter(Boolean).join("\r\n");
 }
 
-export function downloadICS(meeting: Parameters<typeof generateICS>[0]) {
-  const icsContent = generateICS(meeting);
+export function downloadICS(meeting: Parameters<typeof generateICS>[0], brand?: Brand) {
+  const icsContent = generateICS(meeting, brand);
   const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

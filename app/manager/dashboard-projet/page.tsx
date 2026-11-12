@@ -23,7 +23,7 @@ import { AiMark } from "@/components/ui/AiMark";
 import { DataTable, StatCard, Badge, Button, Input, Drawer, useToast, EmptyState, type Column } from "@/components/ui";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { cn, avatarColorForId, initialsFromName } from "@/lib/utils";
-import AssistantProjetPanel from "@/components/assistant-projet/AssistantProjetPanel";
+import AssistantProjetPanel from "@/components/assistant-ui/EmbeddedAssistant";
 
 interface Booker {
     id: string;

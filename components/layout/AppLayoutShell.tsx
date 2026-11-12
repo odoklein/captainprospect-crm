@@ -8,16 +8,21 @@ import { SidebarProvider, useSidebar } from "./SidebarProvider";
 import { PermissionProvider } from "@/lib/permissions/PermissionProvider";
 import { GlobalSidebar, MobileMenuButton } from "./GlobalSidebar";
 import { GlobalSearchModal } from "./GlobalSearchModal";
+import { CallingWorkspaceNav } from "@/components/sdr/CallingWorkspaceNav";
 import { SectionTabs } from "./SectionTabs";
 import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
+import { SmsDockItem } from "@/components/messaging/SmsDockItem";
+import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
+import { FloatingDock, FloatingDockProvider } from "@/components/layout/FloatingDock";
 import { Modal } from "@/components/ui";
 import { DailyReportModal } from "@/components/sdr/DailyReportModal";
 import { useSdrDailyReport } from "@/components/sdr/useSdrDailyReport";
 import { cn } from "@/lib/utils";
 import { RefreshCw, AlertTriangle, BellRing, CheckCircle2, PhoneCall } from "lucide-react";
+import { useBrand } from "@/lib/brand/client";
 
 interface AppLayoutShellProps {
     children: React.ReactNode;
@@ -46,6 +51,7 @@ function InnerLayout({
     allowedRoles,
     customNavigation,
 }: AppLayoutShellProps) {
+    const brand = useBrand();
     const { data: session, status } = useSession();
     const router = useRouter();
     const pathname = usePathname();
@@ -177,6 +183,10 @@ function InnerLayout({
         pathname === "/manager/planning" || pathname === "/sdr/planning";
     // The assistant is a chat app: history rail + thread + pinned composer.
     const isAssistantChat = pathname === "/manager/assistant";
+    // Calling workspaces: panes edge to edge, each scrolling on its own.
+    const isCallWorkspace =
+        pathname === "/sdr/focus" || pathname === "/sdr/appels" || pathname === "/manager/appels" ||
+        pathname === "/sdr/messages" || pathname === "/manager/messages";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";
@@ -190,18 +200,21 @@ function InnerLayout({
         planning: "Planning",
         projects: "Projets",
         emails: "Email Hub",
-        assistant: "Captain AI",
+        assistant: brand.assistantName,
+        agent: brand.agentName,
+        appels: "Appels",
+        focus: "Mode Focus",
     };
     const currentPage = pageLabels[rawPage?.toLowerCase()] || rawPage;
 
     return (
-        <div className="cp-layout">
+        <div className={cn("cp-layout", pathname.startsWith("/sdr") && "sdr-studio")}>
             <GlobalSearchModal
                 open={searchOpen}
                 onClose={closeSearch}
                 navigation={navigation}
             />
-            <GlobalSidebar navigation={navigation} />
+            {!isAssistantChat && <GlobalSidebar navigation={navigation} />}
 
             <main
                 className={cn(
@@ -209,16 +222,16 @@ function InnerLayout({
                     // Hovering a collapsed sidebar only peeks it over the page
                     // (it has its own shadow for that): pushing the page aside
                     // on every pass of the pointer reflowed the whole screen.
-                    isCollapsed ? "cp-main-collapsed" : "cp-main-expanded"
+                    !isAssistantChat && (isCollapsed ? "cp-main-collapsed" : "cp-main-expanded")
                 )}
             >
-                <header className="cp-topbar">
+                {!isAssistantChat && <header className="cp-topbar">
                     <div className="flex min-w-0 flex-1 items-center gap-3 pr-4">
                         <MobileMenuButton />
-                        <SectionTabs
+                        {["/sdr/action", "/sdr/focus", "/sdr/appels"].includes(pathname) ? <CallingWorkspaceNav /> : <SectionTabs
                             navigation={navigation}
                             fallback={{ root: roleConfig?.label || "App", current: currentPage }}
-                        />
+                        />}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -259,11 +272,13 @@ function InnerLayout({
                         </button>
                         <NotificationBell />
                     </div>
-                </header>
+                </header>}
+                <div className="cp-call-space shrink-0" aria-hidden />
 
-                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat ? (
+                {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat || isCallWorkspace ? (
                     // Email Hub & SAS RDV: fill remaining height, no outer padding wrapper, dedicated inner scroll
-                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: 'calc(100vh - 48px)' }}>
+                    <div className="flex-1 overflow-hidden flex flex-col min-h-0" style={{ height: isAssistantChat ? '100dvh' : 'calc(100dvh - 48px - var(--softphone-dock-h, 0px))' }}>
+
                         {children}
                     </div>
                 ) : (
@@ -355,7 +370,10 @@ function InnerLayout({
                 </Modal>
 
                 <IncomingCallPanel />
+                <SmsDockItem />
             </main>
+            {/* Mode Focus lists the shortcuts in its own rail. */}
+            <FloatingDock railed={pathname === "/sdr/focus"} />
         </div>
     );
 }
@@ -364,7 +382,11 @@ export function AppLayoutShell(props: AppLayoutShellProps) {
     return (
         <SidebarProvider>
             <PermissionProvider>
-                <InnerLayout {...props} />
+                <SoftphoneProvider>
+                    <FloatingDockProvider>
+                        <InnerLayout {...props} />
+                    </FloatingDockProvider>
+                </SoftphoneProvider>
             </PermissionProvider>
         </SidebarProvider>
     );

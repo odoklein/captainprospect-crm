@@ -1,19 +1,33 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
-    ArrowLeft, Loader2, Phone, Calendar, Target, Activity,
-    Clock, TrendingUp, LogIn, LogOut, AlertTriangle, Shield, Key,
-    MapPin, Monitor, ChevronLeft, ChevronRight, Check, X,
-    UserCheck, UserX, Trash2, Pencil, RotateCcw, BriefcaseBusiness,
-    FolderKanban, LayoutGrid, CalendarDays, Mail, Globe, Info,
-    AlertCircle, RefreshCw, Star, Zap, FileBarChart2, Download,
-    MessageSquare, ThumbsUp, ThumbsDown, Hash,
+    ChevronLeft, ChevronRight, Download, Eye, FileBarChart2, Key, LogOut, MapPin, Monitor,
+    Pencil, RefreshCw, RotateCcw, Shield, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { Switch } from "@/components/ui/Switch";
+import { CONTROL_HEIGHT, FIELD_BASE, FOCUS_RING, TONE_SOFT, type Tone } from "@/components/ui/recipes";
+import {
+    GroupHeading,
+    HubBackLink,
+    HubHeader,
+    HubTabs,
+    Metric,
+    MetricPlaceholder,
+    MetricStrip,
+    Panel,
+    PanelHeader,
+    PanelMessage,
+    PanelToolbar,
+    SkeletonRows,
+    TextButton,
+} from "@/components/hr/HubUI";
 import { RendezVousTab } from "./_components/RendezVousTab";
 
 // ============================================
@@ -24,13 +38,23 @@ type TabId = "apercu" | "activite" | "planning" | "rendezvous" | "historique" | 
 
 interface UserDetail {
     id: string; name: string; email: string; role: string;
-    isActive: boolean; alloPhoneNumber?: string | null;
+    isActive: boolean; alloPhoneNumber?: string | null; twilioCallerId?: string | null;
     createdAt: string; lastSignInAt?: string | null;
     lastSignInIp?: string | null; lastSignInCountry?: string | null;
     lastConnectedAt?: string | null;
     preferences?: { sdrFeedback?: { promptTime?: string; requiredDaily?: boolean } } | null;
     client?: { id: string; name: string } | null;
     _count: { assignedMissions: number; actions: number };
+}
+
+/** The fields of /api/actions/stats this page reads, for one user. */
+interface UserStats {
+    totalActions?: number;
+    interested?: number;
+    callbacks?: number;
+    callsThisWeek?: number;
+    meetingsThisWeek?: number;
+    meetingsThisMonth?: number;
 }
 
 interface AuthEvent {
@@ -55,6 +79,42 @@ interface ActionItem {
     contactOrCompanyName?: string; campaignName?: string;
 }
 
+/** /api/users/[id]/sdr-report */
+interface SdrReport {
+    overview: {
+        totalActions: number;
+        totalCalls: number;
+        qualifiedCalls: number;
+        alloCalls: number;
+        totalRdv: number;
+        totalCallbacks: number;
+        totalInterested: number;
+        totalNoResponse: number;
+        totalDuration: number;
+        alloAnswerRate: number | null;
+        conversionRate: number;
+    };
+    byMission: {
+        missionId: string;
+        missionName: string;
+        clientName: string | null;
+        calls: number;
+        rdv: number;
+        callbacks: number;
+        interested: number;
+        noResponse: number;
+        totalDuration: number;
+        conversionRate: number;
+    }[];
+    comments: {
+        total: number;
+        painPoints: string[];
+        positiveSignals: string[];
+        allSample: string[];
+        topKeywords: { word: string; count: number }[];
+    };
+}
+
 // ============================================
 // CONSTANTS
 // ============================================
@@ -64,30 +124,18 @@ const ROLE_LABELS: Record<string, string> = {
     DEVELOPER: "Développeur", CLIENT: "Client", BOOKER: "Booker", COMMERCIAL: "Commercial",
 };
 
-const ROLE_STRIPE: Record<string, string> = {
-    MANAGER: "bg-primary-600", SDR: "bg-blue-600", BUSINESS_DEVELOPER: "bg-emerald-600",
-    DEVELOPER: "bg-accent-600", CLIENT: "bg-sky-600", BOOKER: "bg-blue-500", COMMERCIAL: "bg-teal-600",
+// One dot per sign-in event: its outcome is the row's only colour.
+const OUTCOME_CONFIG: Record<string, { label: string; dot: string }> = {
+    SUCCESS:      { label: "Connexion réussie",    dot: "bg-success" },
+    BAD_PASSWORD: { label: "Mauvais mot de passe", dot: "bg-danger" },
+    UNKNOWN_USER: { label: "Email inconnu",        dot: "bg-warning" },
+    DISABLED:     { label: "Compte désactivé",     dot: "bg-danger" },
+    RATE_LIMITED: { label: "Trop de tentatives",   dot: "bg-warning" },
 };
 
-const OUTCOME_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
-    SUCCESS:      { label: "Connexion réussie",   cls: "bg-emerald-50 border-emerald-200", dot: "bg-emerald-500" },
-    BAD_PASSWORD: { label: "Mauvais mot de passe", cls: "bg-rose-50 border-rose-200",   dot: "bg-rose-500" },
-    UNKNOWN_USER: { label: "Email inconnu",        cls: "bg-orange-50 border-orange-200", dot: "bg-orange-400" },
-    DISABLED:     { label: "Compte désactivé",     cls: "bg-rose-50 border-rose-200",   dot: "bg-rose-600" },
-    RATE_LIMITED: { label: "Trop de tentatives",   cls: "bg-amber-50 border-amber-200",  dot: "bg-amber-500" },
-};
-
-const AUTH_EVENT_TAG_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
-    PASSWORD_RECOVERY_REQUEST: {
-        label: "Demande de recuperation du mot de passe",
-        cls: "bg-primary-50 border-primary-200",
-        dot: "bg-primary-500",
-    },
-    PASSWORD_RECOVERY_SUCCESS: {
-        label: "Mot de passe reinitialise",
-        cls: "bg-accent-50 border-accent-200",
-        dot: "bg-accent-500",
-    },
+const AUTH_EVENT_TAG_CONFIG: Record<string, { label: string; dot: string }> = {
+    PASSWORD_RECOVERY_REQUEST: { label: "Demande de récupération du mot de passe", dot: "bg-info" },
+    PASSWORD_RECOVERY_SUCCESS: { label: "Mot de passe réinitialisé", dot: "bg-primary-500" },
 };
 
 const ACTION_RESULT_LABELS: Record<string, string> = {
@@ -96,13 +144,42 @@ const ACTION_RESULT_LABELS: Record<string, string> = {
     BAD_CONTACT: "Mauvais contact", DISQUALIFIED: "Non qualifié",
 };
 
+const ACTION_RESULT_TONE: Record<string, Tone> = { MEETING_BOOKED: "success", INTERESTED: "info" };
+
+const BLOCK_STATUS_STYLES: Record<string, string> = {
+    SCHEDULED: "border-primary-200 bg-primary-50 text-primary-800",
+    IN_PROGRESS: "border-warning-line bg-warning-soft text-warning-ink",
+    COMPLETED: "border-success-line bg-success-soft text-success-ink",
+    CANCELLED: "border-line bg-surface-2 text-ink-3",
+};
+
+const PERMISSION_CATEGORIES: Record<string, string> = { pages: "Pages", features: "Fonctionnalités", actions: "Actions" };
+
+/** Quiet destructive look for a secondary button (the red stays in the text). */
+const DANGER_QUIET = "text-danger-ink hover:border-danger-line hover:bg-danger-soft hover:text-danger-ink";
+
+const FIELD = cn(FIELD_BASE, CONTROL_HEIGHT.md, "px-3");
+
+const TABS: { id: TabId; label: string }[] = [
+    { id: "apercu",     label: "Aperçu" },
+    { id: "activite",   label: "Activité" },
+    { id: "planning",   label: "Planning" },
+    { id: "rendezvous", label: "Rendez-vous" },
+    { id: "historique", label: "Historique" },
+    { id: "rapport",    label: "Rapport" },
+    { id: "securite",   label: "Sécurité" },
+    { id: "acces",      label: "Accès" },
+];
+
 // ============================================
 // UTILITIES
 // ============================================
 
-function getInitials(name: string) {
-    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-}
+const count = (n: number) => n.toLocaleString("fr-FR");
+/** French counts: singular for 0 and 1. */
+const plural = (n: number, one: string, many: string) => `${count(n)} ${n > 1 ? many : one}`;
+/** "12.5" → "12,5 %" */
+const percent = (v: number | string) => `${String(v).replace(".", ",")} %`;
 
 function timeAgo(iso: string | null | undefined): string {
     if (!iso) return "—";
@@ -113,12 +190,18 @@ function timeAgo(iso: string | null | undefined): string {
     const days = Math.floor(diffMs / 86400000);
     if (mins < 1) return "À l'instant";
     if (mins < 60) return `Il y a ${mins} min`;
-    if (hours < 24) return `Il y a ${hours}h`;
-    if (days < 7) return `Il y a ${days}j`;
+    if (hours < 24) return `Il y a ${hours} h`;
+    if (days < 7) return `Il y a ${days} j`;
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function formatDate(date: Date) { return date.toISOString().split("T")[0]; }
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const upperFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Local calendar day as YYYY-MM-DD (toISOString would give the UTC day, the day before around midnight in Paris). */
+function formatDate(date: Date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 function calcHours(start: string, end: string): number {
     const [sh, sm] = start.split(":").map(Number);
@@ -130,9 +213,15 @@ function isOnline(user: UserDetail) {
     return !!user.lastConnectedAt && Date.now() - new Date(user.lastConnectedAt).getTime() < 5 * 60 * 1000;
 }
 
+/** Minutes left on the 8 h JWT opened at the last sign-in. */
+function sessionMinutesLeft(lastSignInAt: string | null | undefined): number | null {
+    if (!lastSignInAt) return null;
+    return Math.max(0, 8 * 60 - Math.floor((Date.now() - new Date(lastSignInAt).getTime()) / 60000));
+}
+
 function browserFromUA(ua: string | null): string {
     if (!ua) return "—";
-    if (ua.startsWith("AUTH_EVT:")) return "Action securite";
+    if (ua.startsWith("AUTH_EVT:")) return "Action sécurité";
     if (ua.includes("Edg")) return "Edge";
     if (ua.includes("Chrome")) return "Chrome";
     if (ua.includes("Firefox")) return "Firefox";
@@ -143,11 +232,12 @@ function browserFromUA(ua: string | null): string {
 function osFromUA(ua: string | null): string {
     if (!ua) return "";
     if (ua.startsWith("AUTH_EVT:")) return "";
+    // Phones first: iOS agents also say "Mac OS X", Android ones also say "Linux".
+    if (ua.includes("iPhone") || ua.includes("iPad")) return "iOS";
+    if (ua.includes("Android")) return "Android";
     if (ua.includes("Windows")) return "Windows";
     if (ua.includes("Mac")) return "macOS";
     if (ua.includes("Linux")) return "Linux";
-    if (ua.includes("Android")) return "Android";
-    if (ua.includes("iPhone") || ua.includes("iPad")) return "iOS";
     return "";
 }
 
@@ -159,170 +249,149 @@ function parseAuthEventTag(ua: string | null): string | null {
 }
 
 // ============================================
-// TOGGLE SWITCH
+// PIECES
 // ============================================
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+/** One mark for presence and account state (same as the list). */
+function PresenceStatus({ user }: { user: UserDetail }) {
+    if (!user.isActive) {
+        return (
+            <span className="inline-flex h-[22px] items-center rounded-full border border-danger-line bg-danger-soft px-2 text-xs font-medium text-danger-ink">
+                Inactif
+            </span>
+        );
+    }
+    if (isOnline(user)) {
+        return (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-success-ink">
+                <span className="size-1.5 rounded-full bg-success" aria-hidden />
+                En ligne
+            </span>
+        );
+    }
     return (
-        <button
-            type="button"
-            role="switch"
-            aria-checked={checked}
-            onClick={() => onChange(!checked)}
-            className={cn("relative w-11 h-6 rounded-full transition-colors", checked ? "bg-primary-600" : "bg-slate-300")}
-        >
-            <span className={cn("absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform", checked && "translate-x-5")} />
-        </button>
+        <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-3">
+            <span className="size-1.5 rounded-full bg-line-strong" aria-hidden />
+            Actif
+        </span>
     );
 }
 
-// ============================================
-// TABS CONFIG
-// ============================================
+/** Label on the left, value on the right, one per line. */
+function FactRow({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div className="flex items-center justify-between gap-4 px-5 py-3 text-[13px]">
+            <dt className="shrink-0 text-ink-3">{label}</dt>
+            <dd className="min-w-0 truncate text-right font-medium text-ink">{children}</dd>
+        </div>
+    );
+}
 
-const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-    { id: "apercu",     label: "Aperçu",      icon: Activity },
-    { id: "activite",   label: "Activité",    icon: TrendingUp },
-    { id: "planning",   label: "Planning",    icon: Calendar },
-    { id: "rendezvous", label: "Rendez-vous", icon: CalendarDays },
-    { id: "historique", label: "Historique",  icon: Clock },
-    { id: "rapport",    label: "Rapport",     icon: FileBarChart2 },
-    { id: "securite",   label: "Sécurité",    icon: Shield },
-    { id: "acces",      label: "Accès",       icon: Key },
-];
+function Mono({ children }: { children: React.ReactNode }) {
+    return <span className="rounded-md bg-surface-2 px-1.5 py-0.5 font-mono text-xs font-normal text-ink-2">{children}</span>;
+}
+
+function ResultPill({ result }: { result: string }) {
+    return (
+        <span className={cn("inline-flex h-[22px] items-center whitespace-nowrap rounded-full border px-2 text-xs font-medium", TONE_SOFT[ACTION_RESULT_TONE[result] ?? "neutral"])}>
+            {ACTION_RESULT_LABELS[result] ?? result}
+        </span>
+    );
+}
+
+function Field({ id, label, children, className }: { id: string; label: React.ReactNode; children: React.ReactNode; className?: string }) {
+    return (
+        <div className={className}>
+            <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-ink-2">{label}</label>
+            {children}
+        </div>
+    );
+}
+
+/** A dash where a figure could not be loaded, a bar while it loads. */
+function Figure({ loading, failed, children }: { loading: boolean; failed: boolean; children: React.ReactNode }) {
+    if (loading) return <MetricPlaceholder />;
+    if (failed) return <span className="text-ink-4">—</span>;
+    return <>{children}</>;
+}
+
+function LoadError({ children, onRetry }: { children: React.ReactNode; onRetry: () => void }) {
+    return (
+        <PanelMessage tone="error" action={<TextButton onClick={onRetry}>Réessayer</TextButton>}>
+            {children}
+        </PanelMessage>
+    );
+}
 
 // ============================================
 // APERCU TAB
 // ============================================
 
-function ApercuTab({ user, stats }: { user: UserDetail; stats: any }) {
+function ApercuTab({ user, stats }: { user: UserDetail; stats: UserStats | null }) {
     const online = isOnline(user);
-    const sessionExpiresIn = user.lastSignInAt
-        ? Math.max(0, 8 * 60 - Math.floor((Date.now() - new Date(user.lastSignInAt).getTime()) / 60000))
-        : null;
+    const sessionExpiresIn = sessionMinutesLeft(user.lastSignInAt);
 
     return (
-        <div className="space-y-5">
-            {/* KPI cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: "Actions totales", value: user._count.actions, icon: Phone, color: "indigo" as const },
-                    { label: "Missions actives", value: user._count.assignedMissions, icon: Target, color: "emerald" as const },
-                    { label: "Appels cette semaine", value: stats?.callsThisWeek ?? 0, icon: Activity, color: "blue" as const },
-                    { label: "RDV ce mois", value: stats?.meetingsThisMonth ?? 0, icon: Star, color: "amber" as const },
-                ].map((kpi) => (
-                    <div key={kpi.label} className="bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-sm transition-shadow">
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-slate-500 mb-1">{kpi.label}</p>
-                                <p className="text-3xl font-bold text-slate-900">{kpi.value}</p>
-                            </div>
-                            <div className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center",
-                                kpi.color === "indigo" ? "bg-primary-100 text-primary-600" :
-                                kpi.color === "emerald" ? "bg-emerald-100 text-emerald-600" :
-                                kpi.color === "blue" ? "bg-blue-100 text-blue-600" :
-                                "bg-amber-100 text-amber-600"
-                            )}>
-                                <kpi.icon className="w-5 h-5" />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+        <div className="space-y-4">
+            <MetricStrip>
+                <Metric label="Actions totales" value={count(user._count.actions)} />
+                <Metric label="Missions actives" value={count(user._count.assignedMissions)} />
+                <Metric label="Appels cette semaine" value={count(stats?.callsThisWeek ?? 0)} />
+                <Metric label="RDV ce mois" value={count(stats?.meetingsThisMonth ?? 0)} />
+            </MetricStrip>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Session card */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-                            <LogIn className="w-4 h-4 text-primary-600" />
-                        </div>
-                        <p className="font-semibold text-slate-900">Session actuelle</p>
-                    </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Panel>
+                    <PanelHeader
+                        title="Session actuelle"
+                        actions={
+                            online ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success-ink">
+                                    <span className="size-1.5 rounded-full bg-success" aria-hidden />
+                                    Actif en ce moment
+                                </span>
+                            ) : undefined
+                        }
+                    />
                     {user.lastSignInAt ? (
-                        <div className="space-y-2 text-sm">
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Connecté</span>
-                                <span className="font-medium text-slate-900">{timeAgo(user.lastSignInAt)}</span>
-                            </div>
-                            {user.lastSignInIp && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-500">IP</span>
-                                    <span className="font-mono text-xs text-slate-700 bg-slate-50 px-2 py-0.5 rounded">{user.lastSignInIp}</span>
-                                </div>
-                            )}
-                            {user.lastSignInCountry && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-500">Pays</span>
-                                    <span className="font-medium text-slate-900">{user.lastSignInCountry}</span>
-                                </div>
-                            )}
+                        <dl className="divide-y divide-line-subtle">
+                            <FactRow label="Connecté">{timeAgo(user.lastSignInAt)}</FactRow>
+                            {user.lastSignInIp && <FactRow label="IP"><Mono>{user.lastSignInIp}</Mono></FactRow>}
+                            {user.lastSignInCountry && <FactRow label="Pays">{user.lastSignInCountry}</FactRow>}
                             {sessionExpiresIn !== null && (
-                                <div className="flex items-center justify-between">
-                                    <span className="text-slate-500">JWT expire dans</span>
-                                    <span className={cn("font-medium", sessionExpiresIn < 30 ? "text-amber-600" : "text-slate-900")}>
+                                <FactRow label="JWT expire dans">
+                                    <span className={cn("tabular-nums", sessionExpiresIn < 30 && "text-warning-ink")}>
                                         {sessionExpiresIn > 0 ? `${Math.floor(sessionExpiresIn / 60)}h${String(sessionExpiresIn % 60).padStart(2, "0")}` : "Expiré"}
                                     </span>
-                                </div>
+                                </FactRow>
                             )}
-                            {online && (
-                                <div className="flex items-center gap-2 pt-1">
-                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                    <span className="text-xs text-emerald-600 font-medium">Actif en ce moment</span>
-                                </div>
-                            )}
-                        </div>
+                        </dl>
                     ) : (
-                        <p className="text-sm text-slate-400">Aucune connexion enregistrée.</p>
+                        <PanelMessage className="py-8">Aucune connexion enregistrée.</PanelMessage>
                     )}
-                    <p className="text-[11px] text-slate-400 border-t border-slate-100 pt-2">
+                    <p className="border-t border-line-subtle px-5 py-3 text-xs leading-4 text-ink-3">
                         Sessions JWT non révocables individuellement. Désactivez le compte pour forcer la déconnexion.
                     </p>
-                </div>
+                </Panel>
 
-                {/* Profile quick info */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                            <Globe className="w-4 h-4 text-slate-500" />
-                        </div>
-                        <p className="font-semibold text-slate-900">Informations</p>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Membre depuis</span>
-                            <span className="font-medium text-slate-900">
-                                {new Date(user.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-                            </span>
-                        </div>
-                        {user.alloPhoneNumber && (
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Allo</span>
-                                <span className="font-mono text-xs bg-slate-50 px-2 py-0.5 rounded text-slate-700">{user.alloPhoneNumber}</span>
-                            </div>
-                        )}
-                        {user.client && (
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Client</span>
-                                <span className="font-medium text-slate-900">{user.client.name}</span>
-                            </div>
-                        )}
+                <Panel>
+                    <PanelHeader title="Informations" />
+                    <dl className="divide-y divide-line-subtle">
+                        <FactRow label="Membre depuis">
+                            {new Date(user.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                        </FactRow>
+                        {user.alloPhoneNumber && <FactRow label="Allo"><Mono>{user.alloPhoneNumber}</Mono></FactRow>}
+                        {user.twilioCallerId && <FactRow label="Twilio"><Mono>{user.twilioCallerId}</Mono></FactRow>}
+                        {user.client && <FactRow label="Client">{user.client.name}</FactRow>}
                         {(user.role === "SDR" || user.role === "BOOKER") && user.preferences?.sdrFeedback && (
-                            <div className="flex items-center justify-between">
-                                <span className="text-slate-500">Feedback SDR</span>
-                                <span className="text-slate-700">
-                                    {user.preferences.sdrFeedback.promptTime ?? "15:45"} —
-                                    {user.preferences.sdrFeedback.requiredDaily ? " Obligatoire" : " Optionnel"}
-                                </span>
-                            </div>
+                            <FactRow label="Retour journée">
+                                <span className="tabular-nums">{user.preferences.sdrFeedback.promptTime ?? "15:45"}</span>
+                                <span className="font-normal text-ink-3"> · {user.preferences.sdrFeedback.requiredDaily ? "Obligatoire" : "Optionnel"}</span>
+                            </FactRow>
                         )}
-                        <div className="flex items-center justify-between">
-                            <span className="text-slate-500">Dernière activité</span>
-                            <span className="font-medium text-slate-900">{timeAgo(user.lastConnectedAt ?? user.lastSignInAt)}</span>
-                        </div>
-                    </div>
-                </div>
+                        <FactRow label="Dernière activité">{timeAgo(user.lastConnectedAt ?? user.lastSignInAt)}</FactRow>
+                    </dl>
+                </Panel>
             </div>
         </div>
     );
@@ -333,82 +402,86 @@ function ApercuTab({ user, stats }: { user: UserDetail; stats: any }) {
 // ============================================
 
 function ActiviteTab({ userId }: { userId: string }) {
-    const [stats, setStats] = useState<any>(null);
+    const [stats, setStats] = useState<UserStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [failed, setFailed] = useState(false);
 
-    useEffect(() => {
-        fetch(`/api/actions/stats?userId=${userId}`)
-            .then(r => r.json())
-            .then(j => { if (j.success) setStats(j.data?.[userId] ?? j.data ?? null); })
-            .catch(() => {})
-            .finally(() => setLoading(false));
+    const load = useCallback(async () => {
+        setLoading(true);
+        setFailed(false);
+        try {
+            const j = await fetch(`/api/actions/stats?userId=${userId}`).then(r => r.json());
+            if (j.success) setStats(j.data?.[userId] ?? j.data ?? null);
+            else setFailed(true);
+        } catch {
+            setFailed(true);
+        } finally {
+            setLoading(false);
+        }
     }, [userId]);
 
-    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>;
+    useEffect(() => { load(); }, [load]);
 
+    const figure = (value: React.ReactNode) => <Figure loading={loading} failed={failed}>{value}</Figure>;
     const callsW = stats?.callsThisWeek ?? 0;
     const meetingsW = stats?.meetingsThisWeek ?? 0;
     const convRate = callsW > 0 ? ((meetingsW / callsW) * 100).toFixed(1) : "0.0";
 
     const resultBreakdown = [
-        { label: "RDV pris",       count: meetingsW,                  color: "bg-emerald-500" },
-        { label: "Intéressé",      count: stats?.interested ?? 0,     color: "bg-blue-500" },
-        { label: "Rappel",         count: stats?.callbacks ?? 0,      color: "bg-amber-500" },
-        { label: "Pas de réponse", count: Math.max(0, callsW - meetingsW - (stats?.interested ?? 0) - (stats?.callbacks ?? 0)), color: "bg-slate-300" },
+        { label: "RDV pris",       count: meetingsW,                  color: "bg-success" },
+        { label: "Intéressé",      count: stats?.interested ?? 0,     color: "bg-info" },
+        { label: "Rappel",         count: stats?.callbacks ?? 0,      color: "bg-warning" },
+        { label: "Pas de réponse", count: Math.max(0, callsW - meetingsW - (stats?.interested ?? 0) - (stats?.callbacks ?? 0)), color: "bg-line-strong" },
     ].filter(r => r.count > 0);
     const totalRes = resultBreakdown.reduce((s, r) => s + r.count, 0);
 
     return (
-        <div className="space-y-5">
-            {/* KPIs */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: "Appels (semaine)", value: callsW },
-                    { label: "RDV (semaine)", value: meetingsW },
-                    { label: "Taux de conversion", value: `${convRate}%` },
-                    { label: "Total actions", value: stats?.totalActions ?? 0 },
-                ].map((k) => (
-                    <div key={k.label} className="bg-white rounded-2xl border border-slate-200 p-4">
-                        <p className="text-xs text-slate-500 mb-1">{k.label}</p>
-                        <p className="text-3xl font-bold text-slate-900">{k.value}</p>
-                    </div>
-                ))}
-            </div>
+        <div className="space-y-4">
+            <MetricStrip>
+                <Metric label="Appels (semaine)" value={figure(count(callsW))} />
+                <Metric label="RDV (semaine)" value={figure(count(meetingsW))} />
+                <Metric label="Taux de conversion" value={figure(percent(convRate))} />
+                <Metric label="Total actions" value={figure(count(stats?.totalActions ?? 0))} />
+            </MetricStrip>
 
-            {/* Result breakdown */}
-            {resultBreakdown.length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                    <p className="font-semibold text-slate-900 mb-4">Répartition des résultats (semaine)</p>
-                    <div className="space-y-3">
-                        {resultBreakdown.map((r) => (
-                            <div key={r.label} className="space-y-1">
-                                <div className="flex items-center justify-between text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn("w-3 h-3 rounded-full", r.color)} />
-                                        <span className="text-slate-700">{r.label}</span>
+            {loading ? (
+                <Panel>
+                    <SkeletonRows rows={4} columns={[18, 50, 6, 6]} pitch="py-3.5" />
+                </Panel>
+            ) : failed ? (
+                <Panel>
+                    <LoadError onRetry={load}>L’activité de la semaine n’a pas pu être chargée.</LoadError>
+                </Panel>
+            ) : resultBreakdown.length > 0 ? (
+                <Panel>
+                    <PanelHeader title="Répartition des résultats (semaine)" />
+                    <ul className="divide-y divide-line-subtle">
+                        {resultBreakdown.map((r) => {
+                            const share = totalRes > 0 ? (r.count / totalRes) * 100 : 0;
+                            return (
+                                <li
+                                    key={r.label}
+                                    className="grid grid-cols-[minmax(0,1fr)_auto_3rem] items-center gap-x-4 gap-y-2 px-5 py-3 text-[13px] sm:grid-cols-[180px_minmax(0,1fr)_4rem_3rem]"
+                                >
+                                    <span className="flex items-center gap-2 text-ink-2">
+                                        <span className={cn("size-2 shrink-0 rounded-full", r.color)} aria-hidden />
+                                        {r.label}
+                                    </span>
+                                    <div className="order-last col-span-3 h-1.5 overflow-hidden rounded-full bg-surface-3 sm:order-none sm:col-span-1" aria-hidden>
+                                        <div className={cn("h-full rounded-full", r.color)} style={{ width: `${share}%` }} />
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-semibold text-slate-900">{r.count}</span>
-                                        <span className="text-xs text-slate-400 w-10 text-right">
-                                            {totalRes > 0 ? Math.round((r.count / totalRes) * 100) : 0}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div className={cn("h-full rounded-full transition-all", r.color)} style={{ width: `${totalRes > 0 ? (r.count / totalRes) * 100 : 0}%` }} />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {!stats && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
-                    <Activity className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500">Aucune donnée d'activité disponible.</p>
-                </div>
-            )}
+                                    <span className="text-right font-semibold tabular-nums text-ink">{count(r.count)}</span>
+                                    <span className="text-right text-xs tabular-nums text-ink-3">{Math.round(share)} %</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </Panel>
+            ) : !stats ? (
+                <Panel>
+                    <PanelMessage>Aucune donnée d’activité disponible.</PanelMessage>
+                </Panel>
+            ) : null}
         </div>
     );
 }
@@ -420,7 +493,9 @@ function ActiviteTab({ userId }: { userId: string }) {
 function PlanningTab({ userId }: { userId: string }) {
     const [blocks, setBlocks]     = useState<ScheduleBlock[]>([]);
     const [loading, setLoading]   = useState(true);
+    const [failed, setFailed]     = useState(false);
     const [weekOffset, setWeekOffset] = useState(0);
+    const seq = useRef(0);
 
     const weekDates = useMemo(() => {
         const today = new Date();
@@ -434,84 +509,119 @@ function PlanningTab({ userId }: { userId: string }) {
         });
     }, [weekOffset]);
 
-    useEffect(() => {
+    // Only the last week asked for lands on screen.
+    const load = useCallback(async () => {
+        const mine = ++seq.current;
         setLoading(true);
+        setFailed(false);
         const start = formatDate(weekDates[0]);
         const end   = formatDate(weekDates[4]);
-        fetch(`/api/planning?sdrId=${userId}&startDate=${start}&endDate=${end}`)
-            .then(r => r.json())
-            .then(j => { if (j.success) setBlocks(j.data?.blocks ?? j.data ?? []); })
-            .catch(() => {})
-            .finally(() => setLoading(false));
+        try {
+            const j = await fetch(`/api/planning?sdrId=${userId}&startDate=${start}&endDate=${end}`).then(r => r.json());
+            if (mine !== seq.current) return;
+            if (j.success) setBlocks(j.data?.blocks ?? j.data ?? []);
+            else setFailed(true);
+        } catch {
+            if (mine === seq.current) setFailed(true);
+        } finally {
+            if (mine === seq.current) setLoading(false);
+        }
     }, [userId, weekDates]);
 
-    const STATUS_COLORS: Record<string, string> = {
-        SCHEDULED: "bg-primary-100 text-primary-700 border-primary-200",
-        IN_PROGRESS: "bg-amber-100 text-amber-700 border-amber-200",
-        COMPLETED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-        CANCELLED: "bg-slate-100 text-slate-500 border-slate-200",
-    };
+    useEffect(() => { load(); }, [load]);
 
     const totalHours = blocks.reduce((s, b) => s + calcHours(b.startTime, b.endTime), 0);
+    const todayKey = formatDate(new Date());
+    const first = weekDates[0];
+    const last = weekDates[4];
 
     return (
-        <div className="space-y-4">
-            {/* Week navigator */}
-            <div className="flex items-center justify-between bg-white rounded-2xl border border-slate-200 px-5 py-3">
-                <button onClick={() => setWeekOffset(w => w - 1)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                    <ChevronLeft className="w-4 h-4 text-slate-500" />
-                </button>
-                <div className="text-center">
-                    <p className="font-semibold text-slate-900">
-                        {weekDates[0].toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} —{" "}
-                        {weekDates[4].toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-                    </p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                        {totalHours.toFixed(1)}h planifiées · {blocks.length} blocs
-                    </p>
+        <Panel>
+            <PanelToolbar className="justify-between">
+                <div className="flex h-9 items-center rounded-[10px] border border-line bg-surface">
+                    <button
+                        type="button"
+                        onClick={() => setWeekOffset(w => w - 1)}
+                        aria-label="Semaine précédente"
+                        className={cn("flex size-9 items-center justify-center rounded-l-[10px] text-ink-3 hover:bg-surface-2 hover:text-ink", FOCUS_RING)}
+                    >
+                        <ChevronLeft className="size-4" />
+                    </button>
+                    <span className="select-none px-1 text-center text-[13px] font-semibold tabular-nums text-ink sm:min-w-[220px]" aria-live="polite">
+                        <span className="sm:hidden">
+                            {first.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} – {last.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                        </span>
+                        <span className="hidden sm:inline">
+                            {first.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} – {last.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                        </span>
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setWeekOffset(w => w + 1)}
+                        aria-label="Semaine suivante"
+                        className={cn("flex size-9 items-center justify-center text-ink-3 hover:bg-surface-2 hover:text-ink", weekOffset === 0 && "rounded-r-[10px]", FOCUS_RING)}
+                    >
+                        <ChevronRight className="size-4" />
+                    </button>
+                    {weekOffset !== 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setWeekOffset(0)}
+                            className={cn("h-9 rounded-r-[10px] border-l border-line px-3 text-[12px] font-semibold text-primary-700 hover:bg-primary-50", FOCUS_RING)}
+                        >
+                            Cette semaine
+                        </button>
+                    )}
                 </div>
-                <button onClick={() => setWeekOffset(w => w + 1)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                    <ChevronRight className="w-4 h-4 text-slate-500" />
-                </button>
-            </div>
+                <span className="text-xs tabular-nums text-ink-3">
+                    {loading ? "Chargement…" : `${totalHours.toFixed(1).replace(".", ",")} h planifiées · ${plural(blocks.length, "bloc", "blocs")}`}
+                </span>
+            </PanelToolbar>
 
-            {loading ? (
-                <div className="flex items-center justify-center py-16">
-                    <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
-                </div>
+            {failed ? (
+                <LoadError onRetry={load}>Le planning de cette semaine n’a pas pu être chargé.</LoadError>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 gap-px bg-line-subtle sm:grid-cols-5">
                     {weekDates.map((d) => {
                         const ds = formatDate(d);
                         const dayBlocks = blocks.filter(b => b.date.split("T")[0] === ds);
-                        const isToday = formatDate(new Date()) === ds;
+                        const isToday = todayKey === ds;
                         return (
-                            <div key={ds} className={cn("rounded-2xl border bg-white p-3 space-y-2", isToday && "border-primary-300 ring-1 ring-primary-200/50")}>
-                                <div className="text-center">
-                                    <p className={cn("text-xs font-semibold uppercase tracking-wide", isToday ? "text-primary-600" : "text-slate-400")}>
+                            <div key={ds} className="flex gap-4 bg-surface px-4 py-3 sm:min-h-[200px] sm:flex-col sm:gap-2.5 sm:px-3">
+                                <div className="w-11 shrink-0 sm:w-auto" aria-current={isToday ? "date" : undefined}>
+                                    <p className={cn("text-xs capitalize", isToday ? "font-semibold text-primary-700" : "text-ink-3")}>
                                         {d.toLocaleDateString("fr-FR", { weekday: "short" })}
                                     </p>
-                                    <p className={cn("text-lg font-bold", isToday ? "text-primary-700" : "text-slate-800")}>
+                                    <p
+                                        className={cn(
+                                            "mt-0.5 inline-flex h-7 min-w-7 items-center justify-center rounded-full font-display text-lg font-semibold tabular-nums",
+                                            isToday ? "-ml-1.5 bg-primary px-1.5 text-primary-fg" : "text-ink",
+                                        )}
+                                    >
                                         {d.getDate()}
                                     </p>
                                 </div>
-                                {dayBlocks.length === 0 ? (
-                                    <p className="text-[11px] text-slate-300 text-center py-2">—</p>
-                                ) : (
-                                    dayBlocks.map((block) => (
-                                        <div key={block.id} className={cn("rounded-lg border p-2 text-[11px]", STATUS_COLORS[block.status] ?? STATUS_COLORS.SCHEDULED)}>
-                                            <p className="font-semibold truncate">{block.mission.name}</p>
-                                            <p className="opacity-70">{block.startTime} → {block.endTime}</p>
-                                            {block.mission.client && <p className="opacity-60 truncate">{block.mission.client.name}</p>}
-                                        </div>
-                                    ))
-                                )}
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                    {loading ? (
+                                        <span className="block h-12 rounded-lg bg-surface-3" aria-hidden />
+                                    ) : dayBlocks.length === 0 ? (
+                                        <p className="py-1 text-xs text-ink-4">—</p>
+                                    ) : (
+                                        dayBlocks.map((block) => (
+                                            <div key={block.id} className={cn("rounded-lg border px-2.5 py-2 text-xs", BLOCK_STATUS_STYLES[block.status] ?? BLOCK_STATUS_STYLES.SCHEDULED)}>
+                                                <p className="truncate font-semibold">{block.mission.name}</p>
+                                                <p className="tabular-nums opacity-80">{block.startTime} → {block.endTime}</p>
+                                                {block.mission.client && <p className="truncate opacity-70">{block.mission.client.name}</p>}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
                 </div>
             )}
-        </div>
+        </Panel>
     );
 }
 
@@ -522,59 +632,75 @@ function PlanningTab({ userId }: { userId: string }) {
 function HistoriqueTab({ userId }: { userId: string }) {
     const [actions, setActions] = useState<ActionItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [failed, setFailed] = useState(false);
 
-    useEffect(() => {
-        fetch(`/api/actions/recent?userId=${userId}&limit=50`)
-            .then(r => r.json())
-            .then(j => { if (j.success) setActions(Array.isArray(j.data) ? j.data : []); })
-            .catch(() => {})
-            .finally(() => setLoading(false));
+    const load = useCallback(async () => {
+        setLoading(true);
+        setFailed(false);
+        try {
+            const j = await fetch(`/api/actions/recent?userId=${userId}&limit=50`).then(r => r.json());
+            if (j.success) setActions(Array.isArray(j.data) ? j.data : []);
+            else setFailed(true);
+        } catch {
+            setFailed(true);
+        } finally {
+            setLoading(false);
+        }
     }, [userId]);
 
-    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>;
+    useEffect(() => { load(); }, [load]);
 
-    if (actions.length === 0) return (
-        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
-            <Clock className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">Aucune action enregistrée.</p>
-        </div>
-    );
+    const when = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
-                <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="text-left py-3 px-4 font-semibold text-slate-500 text-xs uppercase tracking-wide">Date</th>
-                        <th className="text-left py-3 px-4 font-semibold text-slate-500 text-xs uppercase tracking-wide">Résultat</th>
-                        <th className="text-left py-3 px-4 font-semibold text-slate-500 text-xs uppercase tracking-wide">Contact / Société</th>
-                        <th className="text-left py-3 px-4 font-semibold text-slate-500 text-xs uppercase tracking-wide">Campagne</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {actions.map((a) => (
-                        <tr key={a.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                            <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                                {new Date(a.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                            </td>
-                            <td className="py-3 px-4">
-                                {a.result ? (
-                                    <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full",
-                                        a.result === "MEETING_BOOKED" ? "bg-emerald-100 text-emerald-700" :
-                                        a.result === "INTERESTED" ? "bg-blue-100 text-blue-700" :
-                                        "bg-slate-100 text-slate-600"
-                                    )}>
-                                        {ACTION_RESULT_LABELS[a.result] ?? a.result}
-                                    </span>
-                                ) : "—"}
-                            </td>
-                            <td className="py-3 px-4 text-slate-700">{a.contactOrCompanyName ?? "—"}</td>
-                            <td className="py-3 px-4 text-slate-500 text-xs">{a.campaignName ?? "—"}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+        <Panel>
+            {loading ? (
+                <SkeletonRows rows={8} columns={[12, 10, 30, 18]} pitch="py-3.5" />
+            ) : failed ? (
+                <LoadError onRetry={load}>L’historique des actions n’a pas pu être chargé.</LoadError>
+            ) : actions.length === 0 ? (
+                <PanelMessage>Aucune action enregistrée.</PanelMessage>
+            ) : (
+                <>
+                    {/* Phones: one line per action */}
+                    <ul className="divide-y divide-line-subtle md:hidden">
+                        {actions.map((a) => (
+                            <li key={a.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                                <div className="min-w-0">
+                                    <p className="truncate text-[13px] font-medium text-ink">{a.contactOrCompanyName ?? "—"}</p>
+                                    <p className="truncate text-xs tabular-nums text-ink-3">
+                                        {when(a.createdAt)}
+                                        {a.campaignName ? ` · ${a.campaignName}` : ""}
+                                    </p>
+                                </div>
+                                {a.result ? <ResultPill result={a.result} /> : <span className="text-ink-4">—</span>}
+                            </li>
+                        ))}
+                    </ul>
+
+                    <table className="hidden w-full border-collapse text-left text-[13px] md:table">
+                        <thead className="border-b border-line text-xs text-ink-3">
+                            <tr>
+                                <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">Date</th>
+                                <th scope="col" className="px-3 py-2.5 font-medium">Résultat</th>
+                                <th scope="col" className="px-3 py-2.5 font-medium">Contact / Société</th>
+                                <th scope="col" className="py-2.5 pl-3 pr-5 font-medium">Campagne</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {actions.map((a) => (
+                                <tr key={a.id} className="border-b border-line-subtle transition-colors duration-100 last:border-b-0 hover:bg-surface-2/70">
+                                    <td className="whitespace-nowrap py-3 pl-5 pr-3 tabular-nums text-ink-3">{when(a.createdAt)}</td>
+                                    <td className="px-3 py-3">{a.result ? <ResultPill result={a.result} /> : <span className="text-ink-4">—</span>}</td>
+                                    <td className="px-3 py-3 text-ink">{a.contactOrCompanyName ?? "—"}</td>
+                                    <td className="py-3 pl-3 pr-5 text-ink-3">{a.campaignName ?? "—"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </>
+            )}
+        </Panel>
     );
 }
 
@@ -586,17 +712,23 @@ function SessionsSection({ userId }: { userId: string }) {
     const { success, error: showError } = useToast();
     const [sessions, setSessions]       = useState<UserSessionRow[]>([]);
     const [loading, setLoading]         = useState(true);
+    const [failed, setFailed]           = useState(false);
     const [revokingId, setRevokingId]   = useState<string | null>(null);
     const [forceLogoutOpen, setForceLogoutOpen] = useState(false);
     const [forceLogoutLoading, setForceLogoutLoading] = useState(false);
 
-    const load = useCallback(() => {
+    const load = useCallback(async () => {
         setLoading(true);
-        fetch(`/api/users/${userId}/sessions`)
-            .then(r => r.json())
-            .then(j => { if (j.success) setSessions(j.data.sessions ?? []); })
-            .catch(() => {})
-            .finally(() => setLoading(false));
+        setFailed(false);
+        try {
+            const j = await fetch(`/api/users/${userId}/sessions`).then(r => r.json());
+            if (j.success) setSessions(j.data.sessions ?? []);
+            else setFailed(true);
+        } catch {
+            setFailed(true);
+        } finally {
+            setLoading(false);
+        }
     }, [userId]);
 
     useEffect(() => { load(); }, [load]);
@@ -624,56 +756,59 @@ function SessionsSection({ userId }: { userId: string }) {
     const active = sessions.filter(s => !s.revokedAt);
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="font-semibold text-slate-900 text-sm">Sessions actives</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Appareils actuellement connectés avec le compte de cet utilisateur.</p>
-                </div>
-                {active.length > 0 && (
-                    <button
-                        onClick={() => setForceLogoutOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors shrink-0"
-                    >
-                        <LogOut className="w-3.5 h-3.5" /> Déconnecter partout
-                    </button>
-                )}
-            </div>
+        <Panel>
+            <PanelHeader
+                title="Sessions actives"
+                description="Appareils actuellement connectés avec le compte de cet utilisateur."
+                actions={
+                    active.length > 0 ? (
+                        <Button variant="secondary" size="xs" className={DANGER_QUIET} onClick={() => setForceLogoutOpen(true)} leftIcon={<LogOut className="size-3.5" />}>
+                            Déconnecter partout
+                        </Button>
+                    ) : undefined
+                }
+            />
 
             {loading ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
+                <SkeletonRows rows={2} columns={[30, 20]} pitch="py-3.5" />
+            ) : failed ? (
+                <LoadError onRetry={load}>Les sessions n’ont pas pu être chargées.</LoadError>
             ) : active.length === 0 ? (
-                <p className="text-sm text-slate-400 py-4 text-center">Aucune session active.</p>
+                <PanelMessage className="py-8">Aucune session active.</PanelMessage>
             ) : (
-                <div className="space-y-2">
+                <ul className="divide-y divide-line-subtle">
                     {active.map((s) => {
                         const browser = browserFromUA(s.userAgent);
                         const os = osFromUA(s.userAgent);
                         return (
-                            <div key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                            <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
                                 <div className="min-w-0">
-                                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                                        <Monitor className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                        <span className="font-medium">{[browser, os].filter(Boolean).join(" / ") || "Appareil inconnu"}</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
-                                        {s.country && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{s.country}</span>}
+                                    <p className="flex items-center gap-2 text-[13px] font-medium text-ink">
+                                        <Monitor className="size-3.5 shrink-0 text-ink-4" aria-hidden />
+                                        <span className="truncate">{[browser, os].filter(Boolean).join(" / ") || "Appareil inconnu"}</span>
+                                    </p>
+                                    <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 pl-5.5 text-xs text-ink-3">
+                                        {s.country && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{s.country}</span>}
                                         {s.ip && <span className="font-mono">{s.ip}</span>}
-                                        <span>Vu {timeAgo(s.lastSeenAt)}</span>
-                                    </div>
+                                        <span>Vu {lowerFirst(timeAgo(s.lastSeenAt))}</span>
+                                    </p>
                                 </div>
                                 <button
+                                    type="button"
                                     onClick={() => revoke(s.id)}
                                     disabled={revokingId === s.id}
-                                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 disabled:opacity-40 shrink-0"
+                                    className={cn(
+                                        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-danger-ink transition-colors hover:bg-danger-soft disabled:opacity-40",
+                                        FOCUS_RING,
+                                    )}
                                 >
-                                    {revokingId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                    {revokingId === s.id ? <RefreshCw className="size-3.5 animate-spin" aria-hidden /> : <Trash2 className="size-3.5" aria-hidden />}
                                     Révoquer
                                 </button>
-                            </div>
+                            </li>
                         );
                     })}
-                </div>
+                </ul>
             )}
 
             <ConfirmModal
@@ -686,23 +821,30 @@ function SessionsSection({ userId }: { userId: string }) {
                 variant="danger"
                 isLoading={forceLogoutLoading}
             />
-        </div>
+        </Panel>
     );
 }
 
 function SecuriteTab({ userId }: { userId: string }) {
     const [events, setEvents]   = useState<AuthEvent[]>([]);
     const [loading, setLoading] = useState(true);
+    const [failed, setFailed]   = useState(false);
 
-    useEffect(() => {
-        fetch(`/api/auth/events/${userId}?limit=50`)
-            .then(r => r.json())
-            .then(j => { if (j.success) setEvents(j.data.events ?? []); })
-            .catch(() => {})
-            .finally(() => setLoading(false));
+    const load = useCallback(async () => {
+        setLoading(true);
+        setFailed(false);
+        try {
+            const j = await fetch(`/api/auth/events/${userId}?limit=50`).then(r => r.json());
+            if (j.success) setEvents(j.data.events ?? []);
+            else setFailed(true);
+        } catch {
+            setFailed(true);
+        } finally {
+            setLoading(false);
+        }
     }, [userId]);
 
-    if (loading) return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 text-primary-500 animate-spin" /></div>;
+    useEffect(() => { load(); }, [load]);
 
     // Group events by day
     const grouped: { label: string; events: AuthEvent[] }[] = [];
@@ -717,76 +859,67 @@ function SecuriteTab({ userId }: { userId: string }) {
         <div className="space-y-4">
             <SessionsSection userId={userId} />
 
-            {/* Accountability notice */}
-            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">
-                    Votre accès à cet historique de connexion a été enregistré pour audit.
-                </p>
-            </div>
+            <Panel>
+                <PanelHeader
+                    title="Historique de connexion"
+                    description={
+                        <span className="inline-flex items-start gap-1.5 text-warning-ink">
+                            <Eye className="mt-px size-3.5 shrink-0" aria-hidden />
+                            Votre accès à cet historique de connexion a été enregistré pour audit.
+                        </span>
+                    }
+                    meta={!loading && !failed ? plural(events.length, "événement", "événements") : undefined}
+                />
 
-            {events.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
-                    <Shield className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500">Aucun événement de connexion enregistré.</p>
-                </div>
-            ) : (
-                <div className="space-y-6">
-                    {grouped.map((group) => (
-                        <div key={group.label}>
-                            <div className="flex items-center gap-3 mb-3">
-                                <div className="h-px flex-1 bg-slate-200" />
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{group.label}</span>
-                                <div className="h-px flex-1 bg-slate-200" />
-                            </div>
-                            <div className="relative space-y-2 pl-6">
-                                {/* Connecting line */}
-                                <div className="absolute left-2 top-3 bottom-3 w-px bg-slate-200" />
+                {loading ? (
+                    <SkeletonRows rows={5} columns={[34, 22]} pitch="py-3.5" />
+                ) : failed ? (
+                    <LoadError onRetry={load}>L’historique de connexion n’a pas pu être chargé.</LoadError>
+                ) : events.length === 0 ? (
+                    <PanelMessage>Aucun événement de connexion enregistré.</PanelMessage>
+                ) : (
+                    grouped.map((group) => (
+                        <section key={group.label} aria-label={group.label}>
+                            <GroupHeading count={plural(group.events.length, "événement", "événements")}>{upperFirst(group.label)}</GroupHeading>
+                            <ul>
                                 {group.events.map((e) => {
                                     const eventTag = parseAuthEventTag(e.userAgent);
                                     const tagCfg = eventTag ? AUTH_EVENT_TAG_CONFIG[eventTag] : null;
-                                    const cfg = tagCfg ?? OUTCOME_CONFIG[e.outcome] ?? { label: e.outcome, cls: "bg-slate-50 border-slate-200", dot: "bg-slate-400" };
-                                    const isSuccess = tagCfg ? true : e.outcome === "SUCCESS";
+                                    const cfg = tagCfg ?? OUTCOME_CONFIG[e.outcome] ?? { label: e.outcome, dot: "bg-ink-4" };
                                     const browser = browserFromUA(e.userAgent);
                                     const os = osFromUA(e.userAgent);
                                     const time = new Date(e.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
                                     return (
-                                        <div key={e.id} className="relative flex items-start gap-3">
-                                            {/* Dot on timeline */}
-                                            <div className={cn("absolute -left-4 mt-2.5 w-3 h-3 rounded-full border-2 border-white", cfg.dot)} />
-
-                                            <div className={cn("flex-1 rounded-xl border p-3", cfg.cls)}>
-                                                <div className="flex items-start justify-between gap-2">
-                                                    <div>
-                                                        <div className="flex items-center gap-2 flex-wrap">
-                                                            <span className={cn("inline-flex items-center gap-1 text-sm font-semibold", isSuccess ? "text-emerald-800" : "text-rose-800")}>
-                                                                {isSuccess ? <Check className="w-3.5 h-3.5 shrink-0" /> : <X className="w-3.5 h-3.5 shrink-0" />}
-                                                                {cfg.label}
-                                                            </span>
-                                                            {e.usedMasterPassword && (
-                                                                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                                                                    <Key className="w-2.5 h-2.5" /> MPW
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-slate-500">
-                                                            {e.country && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{e.country}</span>}
-                                                            {e.ip && <span className="font-mono">{e.ip}</span>}
-                                                            {browser && <span className="flex items-center gap-1"><Monitor className="w-3 h-3" />{[browser, os].filter(Boolean).join(" / ")}</span>}
-                                                        </div>
-                                                    </div>
-                                                    <span className="text-xs text-slate-400 shrink-0">{time}</span>
-                                                </div>
+                                        <li key={e.id} className="flex items-start gap-3 border-b border-line-subtle px-5 py-3 last:border-b-0">
+                                            <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", cfg.dot)} aria-hidden />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="flex flex-wrap items-center gap-2 text-[13px] font-medium text-ink">
+                                                    {cfg.label}
+                                                    {e.usedMasterPassword && (
+                                                        <span
+                                                            title="Connexion avec le mot de passe maître"
+                                                            className="inline-flex h-5 items-center gap-1 rounded-full border border-warning-line bg-warning-soft px-1.5 text-[11px] font-semibold text-warning-ink"
+                                                        >
+                                                            <Key className="size-3" aria-hidden /> MPW
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <p className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-ink-3">
+                                                    {e.country && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{e.country}</span>}
+                                                    {e.ip && <span className="font-mono">{e.ip}</span>}
+                                                    {browser && <span className="inline-flex items-center gap-1"><Monitor className="size-3" aria-hidden />{[browser, os].filter(Boolean).join(" / ")}</span>}
+                                                </p>
                                             </div>
-                                        </div>
+                                            <time dateTime={e.createdAt} className="shrink-0 text-xs tabular-nums text-ink-3">{time}</time>
+                                        </li>
                                     );
                                 })}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+                            </ul>
+                        </section>
+                    ))
+                )}
+            </Panel>
         </div>
     );
 }
@@ -801,13 +934,14 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
     const [allPerms, setAllPerms]       = useState<Permission[]>([]);
     const [userPerms, setUserPerms]     = useState<Set<string>>(new Set());
     const [permsLoading, setPermsLoading] = useState(true);
+    const [permsFailed, setPermsFailed] = useState(false);
     const [clients, setClients]         = useState<{ id: string; name: string }[]>([]);
     const [saving, setSaving]           = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(false);
-    const [deleteInput, setDeleteInput] = useState("");
     const [formData, setFormData]       = useState({
         name: user.name, email: user.email, password: "",
         role: user.role, alloPhoneNumber: user.alloPhoneNumber ?? "",
+        twilioCallerId: user.twilioCallerId ?? "",
         clientId: user.client?.id ?? "",
         sdrFeedbackPromptTime: user.preferences?.sdrFeedback?.promptTime ?? "15:45",
         sdrFeedbackRequiredDaily: user.preferences?.sdrFeedback?.requiredDaily ?? true,
@@ -817,23 +951,34 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
 
     const patch = (p: Partial<typeof formData>) => { setFormData(d => ({ ...d, ...p })); setFormDirty(true); };
 
-    useEffect(() => {
-        Promise.all([
-            fetch("/api/permissions").then(r => r.json()),
-            fetch(`/api/users/${user.id}/permissions`).then(r => r.json()),
-            fetch("/api/clients").then(r => r.json()),
-        ]).then(([allJ, userJ, clientJ]) => {
+    const loadPerms = useCallback(async () => {
+        setPermsLoading(true);
+        setPermsFailed(false);
+        try {
+            const [allJ, userJ, clientJ] = await Promise.all([
+                fetch("/api/permissions").then(r => r.json()),
+                fetch(`/api/users/${user.id}/permissions`).then(r => r.json()),
+                fetch("/api/clients").then(r => r.json()),
+            ]);
             if (allJ.success) setAllPerms(allJ.data.permissions ?? []);
             if (userJ.success) setUserPerms(new Set(userJ.data ?? []));
+            if (!allJ.success || !userJ.success) setPermsFailed(true);
             const list = clientJ.data?.clients ?? clientJ.data ?? [];
             setClients(Array.isArray(list) ? list : []);
-        }).finally(() => setPermsLoading(false));
+        } catch {
+            setPermsFailed(true);
+        } finally {
+            setPermsLoading(false);
+        }
     }, [user.id]);
+
+    useEffect(() => { loadPerms(); }, [loadPerms]);
 
     const togglePerm = async (code: string) => {
         const granted = !userPerms.has(code);
         const next = new Set(userPerms);
-        granted ? next.add(code) : next.delete(code);
+        if (granted) next.add(code);
+        else next.delete(code);
         setUserPerms(next);
         try {
             await fetch(`/api/users/${user.id}/permissions`, {
@@ -841,7 +986,8 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
                 body: JSON.stringify({ permissions: [{ code, granted }] }),
             });
         } catch {
-            granted ? next.delete(code) : next.add(code);
+            if (granted) next.delete(code);
+            else next.add(code);
             setUserPerms(new Set(next));
         }
     };
@@ -866,6 +1012,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
             const payload: Record<string, unknown> = {
                 name: formData.name, email: formData.email, role: formData.role,
                 alloPhoneNumber: formData.alloPhoneNumber.trim() || null,
+                twilioCallerId: formData.twilioCallerId.trim() || null,
             };
             if (formData.password) payload.password = formData.password;
             if (formData.role === "CLIENT") payload.clientId = formData.clientId || null;
@@ -909,146 +1056,155 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
         return acc;
     }, {});
 
-    const fieldClass = "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-900";
-    const labelClass = "block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5";
-
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
 
-            {/* ── Profil section ── */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-                <p className="font-semibold text-slate-900 text-sm">Informations du compte</p>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className={labelClass}>Nom</label>
-                        <input className={fieldClass} value={formData.name} onChange={(e) => patch({ name: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Rôle</label>
-                        <select className={fieldClass} value={formData.role} onChange={(e) => patch({ role: e.target.value })}>
-                            <option value="SDR">SDR</option>
-                            <option value="BOOKER">Booker</option>
-                            <option value="BUSINESS_DEVELOPER">Business Dev</option>
-                            <option value="MANAGER">Manager</option>
-                            <option value="DEVELOPER">Développeur</option>
-                            <option value="CLIENT">Client</option>
-                            <option value="COMMERCIAL">Commercial</option>
-                        </select>
-                    </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className={labelClass}>Email</label>
-                        <input className={fieldClass} type="email" value={formData.email} onChange={(e) => patch({ email: e.target.value })} />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Numéro Allo</label>
-                        <input className={fieldClass} value={formData.alloPhoneNumber} onChange={(e) => patch({ alloPhoneNumber: e.target.value })} placeholder="+33…" />
-                    </div>
-                </div>
-                <div>
-                    <label className={labelClass}>Nouveau mot de passe <span className="text-slate-400 normal-case font-normal">(laisser vide pour conserver)</span></label>
-                    <input className={fieldClass} type="password" value={formData.password} onChange={(e) => patch({ password: e.target.value })} placeholder="••••••••" />
-                </div>
+            {/* ── Profil ── */}
+            <Panel>
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        if (formDirty && !saving) void saveProfile();
+                    }}
+                >
+                    <PanelHeader title="Informations du compte" />
+                    <div className="space-y-4 px-5 py-5">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <Field id="acc-name" label="Nom">
+                                <input id="acc-name" className={FIELD} value={formData.name} onChange={(e) => patch({ name: e.target.value })} />
+                            </Field>
+                            <Field id="acc-role" label="Rôle">
+                                <select id="acc-role" className={FIELD} value={formData.role} onChange={(e) => patch({ role: e.target.value })}>
+                                    <option value="SDR">SDR</option>
+                                    <option value="BOOKER">Booker</option>
+                                    <option value="BUSINESS_DEVELOPER">Business Dev</option>
+                                    <option value="MANAGER">Manager</option>
+                                    <option value="DEVELOPER">Développeur</option>
+                                    <option value="CLIENT">Client</option>
+                                    <option value="COMMERCIAL">Commercial</option>
+                                </select>
+                            </Field>
+                            <Field id="acc-email" label="Email">
+                                <input id="acc-email" className={FIELD} type="email" value={formData.email} onChange={(e) => patch({ email: e.target.value })} />
+                            </Field>
+                            <Field id="acc-allo" label="Numéro Allo">
+                                <input id="acc-allo" className={cn(FIELD, "tabular-nums")} value={formData.alloPhoneNumber} onChange={(e) => patch({ alloPhoneNumber: e.target.value })} placeholder="+33…" />
+                            </Field>
+                            <Field id="acc-twilio" label={<>Numéro Twilio sortant <span className="font-normal text-ink-3">(vide = Allo · à choisir dans Paramètres → Téléphonie)</span></>}>
+                                <input id="acc-twilio" className={cn(FIELD, "tabular-nums")} value={formData.twilioCallerId} onChange={(e) => patch({ twilioCallerId: e.target.value })} placeholder="+33…" />
+                            </Field>
+                        </div>
+                        <Field
+                            id="acc-password"
+                            label={<>Nouveau mot de passe <span className="font-normal text-ink-3">(laisser vide pour conserver)</span></>}
+                        >
+                            <input id="acc-password" className={FIELD} type="password" autoComplete="new-password" value={formData.password} onChange={(e) => patch({ password: e.target.value })} placeholder="••••••••" />
+                        </Field>
 
-                {formData.role === "CLIENT" && (
-                    <div>
-                        <label className={labelClass}>Client associé</label>
-                        <select className={fieldClass} value={formData.clientId} onChange={(e) => patch({ clientId: e.target.value })}>
-                            <option value="">Aucun</option>
-                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                )}
+                        {formData.role === "CLIENT" && (
+                            <Field id="acc-client" label="Client associé">
+                                <select id="acc-client" className={FIELD} value={formData.clientId} onChange={(e) => patch({ clientId: e.target.value })}>
+                                    <option value="">Aucun</option>
+                                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </Field>
+                        )}
 
-                {(formData.role === "SDR" || formData.role === "BOOKER") && (
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Configuration Feedback SDR</p>
-                        <div className="grid grid-cols-2 gap-3 items-end">
-                            <div>
-                                <label className={labelClass}>Heure d'affichage</label>
-                                <input type="time" className={fieldClass} value={formData.sdrFeedbackPromptTime} onChange={(e) => patch({ sdrFeedbackPromptTime: e.target.value })} />
-                            </div>
-                            <label className="flex items-center gap-2 text-sm text-slate-700 pb-2.5 cursor-pointer">
-                                <input type="checkbox" checked={formData.sdrFeedbackRequiredDaily} onChange={(e) => patch({ sdrFeedbackRequiredDaily: e.target.checked })} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
-                                Feedback obligatoire
-                            </label>
+                        {(formData.role === "SDR" || formData.role === "BOOKER") && (
+                            <fieldset className="rounded-xl border border-line bg-surface-2 p-4">
+                                <legend className="sr-only">Retour journée</legend>
+                                <p className="text-[13px] font-semibold text-ink">Retour journée</p>
+                                <p className="mt-0.5 text-xs text-ink-3">Le formulaire de fin de journée s’affiche à cette heure.</p>
+                                <div className="mt-3 grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
+                                    <Field id="acc-feedback-time" label="Heure d’affichage">
+                                        <input id="acc-feedback-time" type="time" className={cn(FIELD, "tabular-nums")} value={formData.sdrFeedbackPromptTime} onChange={(e) => patch({ sdrFeedbackPromptTime: e.target.value })} />
+                                    </Field>
+                                    <label className="flex h-10 cursor-pointer items-center gap-2.5 text-[13px] text-ink-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.sdrFeedbackRequiredDaily}
+                                            onChange={(e) => patch({ sdrFeedbackRequiredDaily: e.target.checked })}
+                                            className="size-4 rounded border-line-strong text-primary-600 focus:ring-primary-500"
+                                        />
+                                        Obligatoire chaque jour
+                                    </label>
+                                </div>
+                            </fieldset>
+                        )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-subtle bg-surface-2/60 px-5 py-3">
+                        <span className="inline-flex items-center gap-2 text-[13px] text-ink-2">
+                            <span className={cn("size-1.5 rounded-full", user.isActive ? "bg-success" : "bg-danger")} aria-hidden />
+                            Compte {user.isActive ? "actif" : "désactivé"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Button type="button" variant="secondary" size="sm" onClick={toggleStatus} className={user.isActive ? DANGER_QUIET : undefined}>
+                                {user.isActive ? "Désactiver" : "Activer"}
+                            </Button>
+                            <Button type="submit" size="sm" disabled={!formDirty} isLoading={saving}>
+                                {saving ? "Sauvegarde…" : "Sauvegarder"}
+                            </Button>
                         </div>
                     </div>
-                )}
+                </form>
+            </Panel>
 
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                        <div className={cn("w-2.5 h-2.5 rounded-full", user.isActive ? "bg-emerald-500" : "bg-rose-500")} />
-                        <span className="text-sm text-slate-600">Compte {user.isActive ? "actif" : "désactivé"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={toggleStatus}
-                            className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors",
-                                user.isActive ? "text-rose-600 bg-rose-50 hover:bg-rose-100" : "text-emerald-600 bg-emerald-50 hover:bg-emerald-100"
-                            )}
-                        >
-                            {user.isActive ? "Désactiver" : "Activer"}
-                        </button>
-                        <button
-                            onClick={saveProfile}
-                            disabled={saving || !formDirty}
-                            className="px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
-                        >
-                            {saving ? "Sauvegarde…" : "Sauvegarder"}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Permissions section ── */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                    <p className="font-semibold text-slate-900 text-sm">Permissions</p>
-                    <button onClick={resetPerms} disabled={permsLoading} className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 disabled:opacity-40">
-                        <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser aux défauts du rôle
-                    </button>
-                </div>
-                <p className="text-xs text-slate-400">Les modifications sont enregistrées automatiquement.</p>
+            {/* ── Permissions ── */}
+            <Panel>
+                <PanelHeader
+                    title="Permissions"
+                    description="Les modifications sont enregistrées automatiquement."
+                    actions={
+                        <TextButton onClick={resetPerms} disabled={permsLoading}>
+                            <RotateCcw className="size-3.5" aria-hidden /> Réinitialiser aux défauts du rôle
+                        </TextButton>
+                    }
+                />
 
                 {permsLoading ? (
-                    <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 text-primary-500 animate-spin" /></div>
+                    <SkeletonRows rows={6} columns={[30, 44]} pitch="py-3.5" />
+                ) : permsFailed && allPerms.length === 0 ? (
+                    <LoadError onRetry={loadPerms}>Les permissions n’ont pas pu être chargées.</LoadError>
+                ) : allPerms.length === 0 ? (
+                    <PanelMessage>Aucune permission à régler.</PanelMessage>
                 ) : (
-                    <div className="space-y-5">
-                        {Object.entries(groupedPerms).map(([category, perms]) => (
-                            <div key={category}>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-                                    {{ pages: "Pages", features: "Fonctionnalités", actions: "Actions" }[category] ?? category}
-                                </p>
-                                <div className="space-y-1">
-                                    {perms.map((perm) => {
-                                        const enabled = userPerms.has(perm.code);
-                                        return (
-                                            <div key={perm.id} className={cn("flex items-center justify-between p-3 rounded-xl transition-colors", enabled ? "bg-primary-50 border border-primary-100" : "bg-slate-50 border border-transparent hover:border-slate-200")}>
-                                                <div className="min-w-0 mr-4">
-                                                    <p className="text-sm font-medium text-slate-900 truncate">{perm.name}</p>
-                                                    {perm.description && <p className="text-xs text-slate-400 truncate">{perm.description}</p>}
-                                                </div>
-                                                <Toggle checked={enabled} onChange={() => togglePerm(perm.code)} />
+                    Object.entries(groupedPerms).map(([category, perms]) => {
+                        const label = PERMISSION_CATEGORIES[category] ?? category;
+                        const on = perms.filter((p) => userPerms.has(p.code)).length;
+                        return (
+                            <section key={category} aria-label={label}>
+                                <GroupHeading count={`${on} / ${perms.length}`}>{label}</GroupHeading>
+                                <ul className="grid grid-cols-1 lg:grid-cols-2">
+                                    {perms.map((perm) => (
+                                        <li key={perm.id} className="flex items-center justify-between gap-4 border-b border-line-subtle px-5 py-3 lg:odd:border-r">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-[13px] font-medium text-ink">{perm.name}</p>
+                                                {perm.description && <p className="truncate text-xs text-ink-3" title={perm.description}>{perm.description}</p>}
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                                            <Switch size="sm" checked={userPerms.has(perm.code)} onChange={() => togglePerm(perm.code)} ariaLabel={perm.name} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            </section>
+                        );
+                    })
                 )}
-            </div>
+            </Panel>
 
             {/* ── Danger zone ── */}
-            <div className="bg-white rounded-2xl border border-rose-200 p-5 space-y-3">
-                <p className="font-semibold text-rose-700 text-sm">Zone dangereuse</p>
-                <p className="text-xs text-slate-500">La suppression est irréversible. Toutes les données associées seront perdues.</p>
-                <button onClick={() => setDeleteConfirm(true)} className="flex items-center gap-2 px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-sm font-semibold transition-colors border border-rose-200">
-                    <Trash2 className="w-4 h-4" /> Supprimer ce compte
-                </button>
-            </div>
+            <Panel className="border-danger-line">
+                <PanelHeader
+                    className="border-b-0"
+                    title={<span className="text-danger-ink">Zone dangereuse</span>}
+                    description="La suppression est irréversible. Toutes les données associées seront perdues."
+                    actions={
+                        <Button variant="secondary" size="sm" className={DANGER_QUIET} onClick={() => setDeleteConfirm(true)} leftIcon={<Trash2 className="size-4" />}>
+                            Supprimer ce compte
+                        </Button>
+                    }
+                />
+            </Panel>
 
             <ConfirmModal
                 isOpen={deleteConfirm}
@@ -1068,19 +1224,6 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
 // RAPPORT TAB
 // ============================================
 
-const ACTION_RESULT_FR: Record<string, string> = {
-    MEETING_BOOKED: "RDV pris",
-    CALLBACK_REQUESTED: "Rappel",
-    INTERESTED: "Intéressé",
-    NO_RESPONSE: "Pas de réponse",
-    BAD_CONTACT: "Mauvais contact",
-    DISQUALIFIED: "Non qualifié",
-    NOT_INTERESTED: "Pas intéressé",
-    MEETING_CANCELLED: "RDV annulé",
-    VOICEMAIL: "Messagerie",
-    WRONG_NUMBER: "Mauvais numéro",
-};
-
 function fmtDuration(seconds: number): string {
     if (seconds < 60) return `${seconds}s`;
     const h = Math.floor(seconds / 3600);
@@ -1090,7 +1233,7 @@ function fmtDuration(seconds: number): string {
     return `${m}m${String(s).padStart(2, "0")}s`;
 }
 
-function exportCsv(data: any, userName: string, from: string, to: string) {
+function exportCsv(data: SdrReport, userName: string, from: string, to: string) {
     const rows: string[][] = [];
 
     rows.push(["Rapport SDR", userName]);
@@ -1141,13 +1284,42 @@ function exportCsv(data: any, userName: string, from: string, to: string) {
     URL.revokeObjectURL(url);
 }
 
+const DATE_FIELD =
+    "h-9 rounded-[10px] border border-line bg-surface px-3 text-[13px] tabular-nums text-ink transition-[border-color,box-shadow] duration-150 hover:border-line-strong focus:border-primary-400 focus:outline-none focus:ring-4 focus:ring-primary-500/12";
+
+/** Extracts from comments, one per line. */
+function NotesPanel({ title, dot, notes, empty }: { title: string; dot: string; notes: string[]; empty: string }) {
+    return (
+        <Panel>
+            <PanelHeader
+                title={
+                    <span className="inline-flex items-center gap-2">
+                        <span className={cn("size-2 rounded-full", dot)} aria-hidden />
+                        {title}
+                    </span>
+                }
+                meta={plural(notes.length, "extrait", "extraits")}
+            />
+            {notes.length === 0 ? (
+                <p className="px-5 py-4 text-[13px] text-ink-3">{empty}</p>
+            ) : (
+                <ul className="max-h-48 divide-y divide-line-subtle overflow-y-auto">
+                    {notes.map((note, i) => (
+                        <li key={i} className="px-5 py-2.5 text-[13px] leading-5 text-ink-2">{note}</li>
+                    ))}
+                </ul>
+            )}
+        </Panel>
+    );
+}
+
 function RapportTab({ userId, userName }: { userId: string; userName: string }) {
     const today = new Date();
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const [from, setFrom] = useState(firstOfMonth.toISOString().split("T")[0]);
-    const [to, setTo]     = useState(today.toISOString().split("T")[0]);
-    const [data, setData] = useState<any>(null);
+    const [from, setFrom] = useState(formatDate(firstOfMonth));
+    const [to, setTo]     = useState(formatDate(today));
+    const [data, setData] = useState<SdrReport | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError]     = useState<string | null>(null);
 
@@ -1169,262 +1341,179 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
     // Load on mount
     useEffect(() => { load(); }, [load]);
 
-    const fieldCls = "px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 text-slate-900";
-
     return (
-        <div className="space-y-5">
+        <div className="space-y-4">
 
-            {/* Date range bar */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-end gap-3">
-                <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Du</p>
-                    <input type="date" className={fieldCls} value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+            {/* Period */}
+            <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 text-[13px] text-ink-3">
+                    Du
+                    <input type="date" className={DATE_FIELD} value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+                </label>
+                <label className="inline-flex items-center gap-2 text-[13px] text-ink-3">
+                    Au
+                    <input type="date" className={DATE_FIELD} value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+                </label>
+                <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                    {data && (
+                        <Button variant="secondary" size="sm" onClick={() => exportCsv(data, userName, from, to)} leftIcon={<Download className="size-4" />}>
+                            Exporter CSV
+                        </Button>
+                    )}
+                    <Button size="sm" onClick={load} isLoading={loading} leftIcon={<FileBarChart2 className="size-4" />}>
+                        Générer le rapport
+                    </Button>
                 </div>
-                <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Au</p>
-                    <input type="date" className={fieldCls} value={to} min={from} onChange={(e) => setTo(e.target.value)} />
-                </div>
-                <button
-                    onClick={load}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
-                >
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileBarChart2 className="w-4 h-4" />}
-                    Générer le rapport
-                </button>
-                {data && (
-                    <button
-                        onClick={() => exportCsv(data, userName, from, to)}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-semibold transition-colors"
-                    >
-                        <Download className="w-4 h-4" />
-                        Exporter CSV
-                    </button>
-                )}
             </div>
 
             {error && (
-                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-sm text-rose-700">{error}</div>
-            )}
-
-            {loading && !data && (
-                <div className="flex items-center justify-center py-20">
-                    <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+                <div
+                    role="alert"
+                    className="flex flex-col gap-2 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] text-danger-ink sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <span>
+                        {error}
+                        {data && " Le rapport affiché est celui de la période précédente."}
+                    </span>
+                    <Button variant="secondary" size="xs" onClick={load} className="self-start sm:self-auto">
+                        Réessayer
+                    </Button>
                 </div>
             )}
 
-            {data && (
+            {loading && !data && (
                 <>
-                    {/* Overview KPIs */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        {[
-                            {
-                                label: "Total appels",
-                                value: data.overview.totalCalls,
-                                subtext: data.overview.alloCalls && data.overview.qualifiedCalls && data.overview.alloCalls !== data.overview.qualifiedCalls
-                                    ? `${data.overview.qualifiedCalls} qualifiés CRM`
-                                    : undefined,
-                                icon: Phone,
-                                color: "indigo",
-                            },
-                            { label: "RDV pris", value: data.overview.totalRdv, icon: Calendar, color: "emerald" },
-                            { label: "Taux de conversion", value: `${data.overview.conversionRate}%`, icon: TrendingUp, color: "blue" },
-                            {
-                                label: "Temps de comm.",
-                                value: fmtDuration(data.overview.totalDuration),
-                                subtext: data.overview.alloAnswerRate != null && data.overview.alloAnswerRate > 0
-                                    ? `${data.overview.alloAnswerRate}% décrochés`
-                                    : undefined,
-                                icon: Clock,
-                                color: "amber",
-                            },
-                        ].map((kpi) => (
-                            <div key={kpi.label} className="bg-white rounded-2xl border border-slate-200 p-4">
-                                <div className="flex items-start justify-between">
-                                    <div>
-                                        <p className="text-xs font-medium text-slate-500 mb-1">{kpi.label}</p>
-                                        <p className="text-3xl font-bold text-slate-900">{kpi.value}</p>
-                                        {kpi.subtext && (
-                                            <p className="text-[11px] text-slate-500 mt-1">{kpi.subtext}</p>
-                                        )}
-                                    </div>
-                                    <div className={cn(
-                                        "w-10 h-10 rounded-xl flex items-center justify-center",
-                                        kpi.color === "indigo" ? "bg-primary-100 text-primary-600" :
-                                        kpi.color === "emerald" ? "bg-emerald-100 text-emerald-600" :
-                                        kpi.color === "blue" ? "bg-blue-100 text-blue-600" :
-                                        "bg-amber-100 text-amber-600"
-                                    )}>
-                                        <kpi.icon className="w-5 h-5" />
-                                    </div>
-                                </div>
-                            </div>
+                    <MetricStrip>
+                        {["Total appels", "RDV pris", "Taux de conversion", "Temps de comm."].map((label) => (
+                            <Metric key={label} label={label} value={<MetricPlaceholder />} />
                         ))}
-                    </div>
+                    </MetricStrip>
+                    <Panel>
+                        <SkeletonRows rows={5} columns={[24, 14, 8, 8, 8, 8]} pitch="py-3.5" />
+                    </Panel>
+                </>
+            )}
 
-                    {/* Secondary KPIs */}
-                    <div className="grid grid-cols-3 gap-4">
-                        {[
-                            { label: "Rappels", value: data.overview.totalCallbacks, color: "bg-amber-100 text-amber-700" },
-                            { label: "Intéressés", value: data.overview.totalInterested, color: "bg-blue-100 text-blue-700" },
-                            { label: "Pas de réponse", value: data.overview.totalNoResponse, color: "bg-slate-100 text-slate-600" },
-                        ].map((k) => (
-                            <div key={k.label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between">
-                                <span className="text-sm text-slate-600">{k.label}</span>
-                                <span className={cn("text-sm font-bold px-3 py-1 rounded-full", k.color)}>{k.value}</span>
-                            </div>
-                        ))}
-                    </div>
+            {data && (
+                <div className={cn("space-y-4 transition-opacity duration-150", loading && "opacity-60")}>
+                    <MetricStrip>
+                        <Metric
+                            label="Total appels"
+                            value={count(data.overview.totalCalls)}
+                            hint={
+                                data.overview.alloCalls && data.overview.qualifiedCalls && data.overview.alloCalls !== data.overview.qualifiedCalls
+                                    ? `${count(data.overview.qualifiedCalls)} qualifiés CRM`
+                                    : undefined
+                            }
+                        />
+                        <Metric label="RDV pris" value={count(data.overview.totalRdv)} />
+                        <Metric label="Taux de conversion" value={percent(data.overview.conversionRate)} />
+                        <Metric
+                            label="Temps de comm."
+                            value={fmtDuration(data.overview.totalDuration)}
+                            hint={
+                                data.overview.alloAnswerRate != null && data.overview.alloAnswerRate > 0
+                                    ? `${percent(data.overview.alloAnswerRate)} décrochés`
+                                    : undefined
+                            }
+                        />
+                    </MetricStrip>
 
-                    {/* Per-mission table */}
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-                            <Target className="w-4 h-4 text-primary-500" />
-                            <p className="font-semibold text-slate-900">Appels par mission</p>
-                            <span className="ml-auto text-xs text-slate-400">{data.byMission.length} mission(s)</span>
-                        </div>
+                    <MetricStrip className="grid-cols-3">
+                        <Metric className="px-4 sm:px-5" label="Rappels" value={count(data.overview.totalCallbacks)} />
+                        <Metric className="px-4 sm:px-5" label="Intéressés" value={count(data.overview.totalInterested)} />
+                        <Metric className="px-4 sm:px-5" label="Pas de réponse" value={count(data.overview.totalNoResponse)} />
+                    </MetricStrip>
+
+                    {data.overview.totalActions === 0 && (
+                        <Panel>
+                            <PanelMessage className="py-8">Aucune activité enregistrée sur cette période.</PanelMessage>
+                        </Panel>
+                    )}
+
+                    {/* Per mission */}
+                    <Panel>
+                        <PanelHeader title="Appels par mission" meta={plural(data.byMission.length, "mission", "missions")} />
                         {data.byMission.length === 0 ? (
-                            <div className="p-10 text-center text-slate-400 text-sm">Aucune mission sur cette période.</div>
+                            <PanelMessage className="py-10">Aucune mission sur cette période.</PanelMessage>
                         ) : (
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="bg-slate-50 border-b border-slate-100">
-                                            <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Mission</th>
-                                            <th className="text-left py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Client</th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Appels</th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">RDV</th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Conv.</th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Rappels</th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Intéressés</th>
-                                            <th className="text-center py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wide">Durée</th>
+                                <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
+                                    <thead className="border-b border-line text-xs text-ink-3">
+                                        <tr>
+                                            <th scope="col" className="py-2.5 pl-5 pr-3 font-medium">Mission</th>
+                                            <th scope="col" className="px-3 py-2.5 font-medium">Client</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Appels</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">RDV</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Conv.</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Rappels</th>
+                                            <th scope="col" className="px-3 py-2.5 text-right font-medium">Intéressés</th>
+                                            <th scope="col" className="py-2.5 pl-3 pr-5 text-right font-medium">Durée</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {data.byMission.map((m: any) => (
-                                            <tr key={m.missionId} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
-                                                <td className="py-3 px-4 font-medium text-slate-900 max-w-[180px] truncate">{m.missionName}</td>
-                                                <td className="py-3 px-4 text-slate-500 text-xs">{m.clientName ?? "—"}</td>
-                                                <td className="py-3 px-4 text-center font-semibold text-slate-900">{m.calls}</td>
-                                                <td className="py-3 px-4 text-center">
-                                                    <span className={cn("font-semibold px-2 py-0.5 rounded-full text-xs", m.rdv > 0 ? "bg-emerald-100 text-emerald-700" : "text-slate-400")}>
-                                                        {m.rdv}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3 px-4 text-center text-xs font-medium text-slate-600">{m.conversionRate}%</td>
-                                                <td className="py-3 px-4 text-center text-amber-600 font-medium">{m.callbacks}</td>
-                                                <td className="py-3 px-4 text-center text-blue-600 font-medium">{m.interested}</td>
-                                                <td className="py-3 px-4 text-center text-xs text-slate-500">{fmtDuration(m.totalDuration)}</td>
+                                        {data.byMission.map((m) => (
+                                            <tr key={m.missionId} className="border-b border-line-subtle transition-colors duration-100 last:border-b-0 hover:bg-surface-2/70">
+                                                <td className="max-w-[240px] truncate py-3 pl-5 pr-3 font-medium text-ink" title={m.missionName}>{m.missionName}</td>
+                                                <td className="px-3 py-3 text-ink-3">{m.clientName ?? "—"}</td>
+                                                <td className="px-3 py-3 text-right font-medium tabular-nums text-ink">{count(m.calls)}</td>
+                                                <td className={cn("px-3 py-3 text-right tabular-nums", m.rdv > 0 ? "font-semibold text-success-ink" : "text-ink-4")}>{m.rdv}</td>
+                                                <td className="px-3 py-3 text-right tabular-nums text-ink-2">{percent(m.conversionRate)}</td>
+                                                <td className="px-3 py-3 text-right tabular-nums text-ink-2">{m.callbacks}</td>
+                                                <td className="px-3 py-3 text-right tabular-nums text-ink-2">{m.interested}</td>
+                                                <td className="py-3 pl-3 pr-5 text-right tabular-nums text-ink-3">{fmtDuration(m.totalDuration)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
                         )}
-                    </div>
+                    </Panel>
 
                     {/* Comments analysis */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                        {/* Top keywords */}
-                        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Hash className="w-4 h-4 text-primary-500" />
-                                <p className="font-semibold text-slate-900">Mots-clés fréquents</p>
-                                <span className="ml-auto text-xs text-slate-400">{data.comments.total} commentaires</span>
-                            </div>
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <Panel>
+                            <PanelHeader title="Mots-clés fréquents" meta={plural(data.comments.total, "commentaire", "commentaires")} />
                             {data.comments.topKeywords.length === 0 ? (
-                                <p className="text-sm text-slate-400 text-center py-4">Pas assez de commentaires.</p>
+                                <PanelMessage className="py-8">Pas assez de commentaires.</PanelMessage>
                             ) : (
-                                <div className="space-y-2">
-                                    {data.comments.topKeywords.map((kw: any) => {
+                                <ul className="py-2">
+                                    {data.comments.topKeywords.map((kw) => {
                                         const max = data.comments.topKeywords[0]?.count ?? 1;
                                         const pct = Math.round((kw.count / max) * 100);
                                         return (
-                                            <div key={kw.word} className="space-y-0.5">
-                                                <div className="flex items-center justify-between text-sm">
-                                                    <span className="text-slate-700 font-medium">{kw.word}</span>
-                                                    <span className="text-xs text-slate-400">{kw.count}×</span>
-                                                </div>
-                                                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-primary-400 rounded-full" style={{ width: `${pct}%` }} />
-                                                </div>
-                                            </div>
+                                            <li key={kw.word} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_2.5rem] items-center gap-3 px-5 py-1.5 text-[13px]">
+                                                <span className="truncate font-medium text-ink-2">{kw.word}</span>
+                                                <span className="h-1.5 overflow-hidden rounded-full bg-surface-3" aria-hidden>
+                                                    <span className="block h-full rounded-full bg-primary-400" style={{ width: `${pct}%` }} />
+                                                </span>
+                                                <span className="text-right text-xs tabular-nums text-ink-3">{kw.count}×</span>
+                                            </li>
                                         );
                                     })}
-                                </div>
+                                </ul>
                             )}
-                        </div>
+                        </Panel>
 
-                        {/* Pain points + positive signals */}
                         <div className="space-y-4">
-                            <div className="bg-white rounded-2xl border border-rose-100 p-5">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <ThumbsDown className="w-4 h-4 text-rose-500" />
-                                    <p className="font-semibold text-slate-900">Points de friction</p>
-                                    <span className="ml-auto text-xs text-slate-400">{data.comments.painPoints.length} extrait(s)</span>
-                                </div>
-                                {data.comments.painPoints.length === 0 ? (
-                                    <p className="text-xs text-slate-400">Aucun commentaire négatif sur la période.</p>
-                                ) : (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                        {data.comments.painPoints.map((note: string, i: number) => (
-                                            <div key={i} className="flex items-start gap-2 text-xs text-slate-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
-                                                <span className="text-rose-400 shrink-0 mt-0.5">•</span>
-                                                <span>{note}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="bg-white rounded-2xl border border-emerald-100 p-5">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <ThumbsUp className="w-4 h-4 text-emerald-500" />
-                                    <p className="font-semibold text-slate-900">Signaux positifs</p>
-                                    <span className="ml-auto text-xs text-slate-400">{data.comments.positiveSignals.length} extrait(s)</span>
-                                </div>
-                                {data.comments.positiveSignals.length === 0 ? (
-                                    <p className="text-xs text-slate-400">Aucun commentaire positif sur la période.</p>
-                                ) : (
-                                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                                        {data.comments.positiveSignals.map((note: string, i: number) => (
-                                            <div key={i} className="flex items-start gap-2 text-xs text-slate-600 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
-                                                <span className="text-emerald-500 shrink-0 mt-0.5">•</span>
-                                                <span>{note}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                            <NotesPanel title="Points de friction" dot="bg-danger" notes={data.comments.painPoints} empty="Aucun commentaire négatif sur la période." />
+                            <NotesPanel title="Signaux positifs" dot="bg-success" notes={data.comments.positiveSignals} empty="Aucun commentaire positif sur la période." />
                         </div>
                     </div>
 
-                    {/* All comments sample */}
                     {data.comments.allSample.length > 0 && (
-                        <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                            <div className="flex items-center gap-2 mb-4">
-                                <MessageSquare className="w-4 h-4 text-slate-500" />
-                                <p className="font-semibold text-slate-900">Échantillon de commentaires</p>
-                                <span className="ml-auto text-xs text-slate-400">50 derniers</span>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-                                {data.comments.allSample.map((note: string, i: number) => (
-                                    <div key={i} className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 leading-relaxed">
+                        <Panel>
+                            <PanelHeader title="Échantillon de commentaires" meta="50 derniers" />
+                            <ul className="grid max-h-72 grid-cols-1 overflow-y-auto sm:grid-cols-2">
+                                {data.comments.allSample.map((note, i) => (
+                                    <li key={i} className="border-b border-line-subtle px-5 py-3 text-[13px] leading-5 text-ink-2 sm:odd:border-r">
                                         {note}
-                                    </div>
+                                    </li>
                                 ))}
-                            </div>
-                        </div>
+                            </ul>
+                        </Panel>
                     )}
-
-                    {data.overview.totalActions === 0 && (
-                        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center">
-                            <FileBarChart2 className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                            <p className="text-slate-500">Aucune activité enregistrée sur cette période.</p>
-                        </div>
-                    )}
-                </>
+                </div>
             )}
         </div>
     );
@@ -1434,150 +1523,126 @@ function RapportTab({ userId, userName }: { userId: string; userName: string }) 
 // MAIN PAGE
 // ============================================
 
+function DetailSkeleton() {
+    return (
+        <div className="space-y-4 pb-2" aria-busy="true" aria-label="Chargement">
+            <span className="block h-4 w-36 rounded bg-surface-3" />
+            <div className="flex items-center gap-4">
+                <span className="size-11 shrink-0 rounded-full bg-surface-3" />
+                <div className="min-w-0 space-y-2">
+                    <span className="block h-6 w-48 rounded bg-surface-3" />
+                    <span className="block h-3.5 w-72 max-w-[60vw] rounded bg-surface-3" />
+                </div>
+            </div>
+            <div className="flex gap-6 border-b border-line pb-3">
+                {[52, 60, 58, 84, 70].map((w) => (
+                    <span key={w} className="h-3.5 shrink-0 rounded bg-surface-3" style={{ width: w }} />
+                ))}
+            </div>
+            <MetricStrip>
+                {[0, 1, 2, 3].map((i) => (
+                    <Metric key={i} label={<span className="h-3 w-24 rounded bg-surface-3" />} value={<MetricPlaceholder />} />
+                ))}
+            </MetricStrip>
+        </div>
+    );
+}
+
 export default function UtilisateurDetailPage() {
     const params = useParams();
-    const router = useRouter();
-    const { error: showError } = useToast();
 
     const userId = params.id as string;
     const [user, setUser]         = useState<UserDetail | null>(null);
-    const [stats, setStats]       = useState<any>(null);
+    const [stats, setStats]       = useState<UserStats | null>(null);
     const [loading, setLoading]   = useState(true);
+    const [loadError, setLoadError] = useState<{ message: string; retry: boolean } | null>(null);
     const [activeTab, setActiveTab] = useState<TabId>("apercu");
 
     const fetchUser = useCallback(async () => {
+        setLoading(true);
+        setLoadError(null);
         try {
             const [userRes, statsRes] = await Promise.all([
                 fetch(`/api/users/${userId}`),
                 fetch(`/api/actions/stats?userId=${userId}`),
             ]);
-            const userJson  = await userRes.json();
-            const statsJson = await statsRes.json();
-            if (userJson.success)  setUser(userJson.data);
+            const userJson  = await userRes.json().catch(() => ({}));
+            const statsJson = await statsRes.json().catch(() => ({}));
+            if (userJson.success) setUser(userJson.data);
+            else if (userRes.status === 404) setLoadError({ message: "Utilisateur introuvable.", retry: false });
+            else setLoadError({ message: userJson.error || "Impossible de charger l'utilisateur.", retry: true });
             if (statsJson.success) setStats(statsJson.data?.[userId] ?? statsJson.data ?? null);
         } catch {
-            showError("Erreur", "Impossible de charger l'utilisateur");
+            setLoadError({ message: "Impossible de charger l'utilisateur.", retry: true });
         } finally {
             setLoading(false);
         }
-    }, [userId, showError]);
+    }, [userId]);
 
     useEffect(() => { fetchUser(); }, [fetchUser]);
 
-    if (loading) return (
-        <div className="flex items-center justify-center min-h-[60vh]">
-            <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-        </div>
-    );
+    const backLink = <HubBackLink href="/manager/utilisateurs">Utilisateurs & accès</HubBackLink>;
+
+    if (loading && !user) return <DetailSkeleton />;
 
     if (!user) return (
-        <div className="p-8 text-center">
-            <p className="text-slate-500">Utilisateur introuvable.</p>
-            <button onClick={() => router.push("/manager/utilisateurs")} className="mt-4 text-primary-600 hover:underline text-sm">
-                ← Retour aux utilisateurs
-            </button>
+        <div className="space-y-4 pb-2">
+            {backLink}
+            <Panel>
+                <PanelMessage
+                    tone={loadError?.retry ? "error" : "neutral"}
+                    action={loadError?.retry ? <TextButton onClick={fetchUser}>Réessayer</TextButton> : undefined}
+                >
+                    {loadError?.message ?? "Utilisateur introuvable."}
+                </PanelMessage>
+            </Panel>
         </div>
     );
 
-    const stripe = ROLE_STRIPE[user.role] ?? "bg-slate-500";
-    const online = isOnline(user);
+    const tabs = TABS
+        .filter((tab) => tab.id !== "rendezvous" || ["SDR", "BOOKER", "BUSINESS_DEVELOPER"].includes(user.role))
+        .map((tab) => ({ value: tab.id, label: tab.label }));
+    const current = tabs.find((t) => t.value === activeTab);
 
     return (
-        <div className="min-h-full bg-slate-50">
+        <div className="space-y-4 pb-2">
+            {backLink}
 
-            {/* ── Back button ── */}
-            <div className="px-6 pt-5">
-                <button
-                    onClick={() => router.push("/manager/utilisateurs")}
-                    className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-primary-600 transition-colors"
-                >
-                    <ArrowLeft className="w-4 h-4" /> Utilisateurs
-                </button>
+            {/* ── Identity ── */}
+            <div className="flex items-start gap-4">
+                <Avatar name={user.name} size="lg" shape="circle" className={cn("mt-0.5", !user.isActive && "opacity-50")} />
+                <HubHeader
+                    className="min-w-0 flex-1"
+                    title={user.name}
+                    beside={<PresenceStatus user={user} />}
+                    finding={
+                        <>
+                            {ROLE_LABELS[user.role] ?? user.role}
+                            {user.client && ` · ${user.client.name}`}
+                            {" · "}
+                            <span className="break-all">{user.email}</span>
+                            {" · "}Membre depuis {new Date(user.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
+                        </>
+                    }
+                    actions={
+                        <>
+                            <Button variant="secondary" size="sm" onClick={() => setActiveTab("acces")} leftIcon={<Pencil className="size-4" />}>
+                                Modifier
+                            </Button>
+                            <Button variant="secondary" size="sm" onClick={() => setActiveTab("securite")} leftIcon={<Shield className="size-4" />}>
+                                Sécurité
+                            </Button>
+                        </>
+                    }
+                />
             </div>
 
-            {/* ── Hero header ── */}
-            <div className="mx-6 mt-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex">
-                    {/* Role color stripe */}
-                    <div className={cn("w-1.5 shrink-0", stripe)} />
-
-                    <div className="flex-1 p-5 flex items-center gap-5">
-                        {/* Avatar */}
-                        <div className="relative shrink-0">
-                            <div className={cn("w-16 h-16 rounded-2xl flex items-center justify-center text-white font-bold text-xl", stripe)}>
-                                {getInitials(user.name)}
-                            </div>
-                            <span className={cn(
-                                "absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm",
-                                online ? "bg-emerald-500" : user.isActive ? "bg-slate-300" : "bg-rose-400"
-                            )} />
-                        </div>
-
-                        {/* Identity */}
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                                <h1 className="text-xl font-bold text-slate-900">{user.name}</h1>
-                                <span className={cn(
-                                    "text-xs font-bold px-2.5 py-0.5 rounded-full",
-                                    user.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"
-                                )}>
-                                    {user.isActive ? "Actif" : "Inactif"}
-                                </span>
-                                {online && (
-                                    <span className="flex items-center gap-1 text-xs text-emerald-600 font-semibold">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        En ligne
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-sm text-slate-500 mt-0.5">{user.email}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                                {ROLE_LABELS[user.role] ?? user.role}
-                                {user.client && ` · ${user.client.name}`}
-                                {" · "}Membre depuis {new Date(user.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
-                            </p>
-                        </div>
-
-                        {/* Quick actions */}
-                        <div className="flex items-center gap-2 shrink-0">
-                            <button
-                                onClick={() => setActiveTab("acces")}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
-                            >
-                                <Pencil className="w-3.5 h-3.5" /> Modifier
-                            </button>
-                            <button
-                                onClick={() => setActiveTab("securite")}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 rounded-xl text-xs font-semibold transition-colors"
-                            >
-                                <Shield className="w-3.5 h-3.5" /> Sécurité
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            {/* ── Sections ── */}
+            <div className="border-b border-line">
+                <HubTabs ariaLabel="Sections de la fiche" tabs={tabs} value={activeTab} onChange={setActiveTab} className="-ml-3" />
             </div>
 
-            {/* ── Tab navigation ── */}
-            <div className="mx-6 mt-4 flex items-center gap-1 bg-white rounded-2xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
-                {TABS.filter((tab) => tab.id !== "rendezvous" || ["SDR", "BOOKER", "BUSINESS_DEVELOPER"].includes(user.role)).map((tab) => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={cn(
-                            "flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium transition-all whitespace-nowrap",
-                            activeTab === tab.id
-                                ? "bg-primary-600 text-white shadow-sm"
-                                : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
-                        )}
-                    >
-                        <tab.icon className="w-4 h-4" />
-                        <span className="hidden sm:block">{tab.label}</span>
-                    </button>
-                ))}
-            </div>
-
-            {/* ── Tab content ── */}
-            <div className="mx-6 mt-4 pb-8">
+            <div role="tabpanel" aria-label={current?.label}>
                 {activeTab === "apercu" && <ApercuTab user={user} stats={stats} />}
                 {activeTab === "activite" && <ActiviteTab userId={userId} />}
                 {activeTab === "planning" && <PlanningTab userId={userId} />}

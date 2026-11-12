@@ -7,6 +7,7 @@
 import { encrypt } from "@/lib/encryption";
 import { prisma } from "@/lib/prisma";
 import { config } from "@/lib/config";
+import { runtimeAppUrl } from "@/lib/runtime-config/env";
 
 const SLACK_OAUTH_SCOPES = [
   "chat:write", "chat:write.public", "channels:read", "groups:read",
@@ -18,15 +19,15 @@ export function buildSlackInstallUrl(state: string): string {
   const url = new URL("https://slack.com/oauth/v2/authorize");
   url.searchParams.set("client_id", config.messaging.slackClientId);
   url.searchParams.set("scope", SLACK_OAUTH_SCOPES.join(","));
-  // Using process.env.NEXT_PUBLIC_APP_URL to build redirect_uri
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Container env read at runtime (a literal NEXT_PUBLIC_ read is frozen at build)
+  const appUrl = runtimeAppUrl() || "http://localhost:3000";
   url.searchParams.set("redirect_uri", `${appUrl}/api/integrations/messaging/slack/oauth/callback`);
   url.searchParams.set("state", state);
   return url.toString();
 }
 
 export async function handleSlackOAuthCallback(code: string, installedById?: string): Promise<{ workspaceId: string }> {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  const appUrl = runtimeAppUrl() || "http://localhost:3000";
   const redirectUri = `${appUrl}/api/integrations/messaging/slack/oauth/callback`;
   
   const response = await fetch("https://slack.com/api/oauth.v2.access", {

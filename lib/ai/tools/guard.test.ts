@@ -16,7 +16,8 @@ import { z } from "zod";
 
 import { checkToolAccess, parseToolArguments, authorizeToolCall, listAccessibleTools } from "./guard";
 import { scrubSensitive, sanitizeUntrusted, wrapToolPayload, REDACTED } from "./redact";
-import { ToolNotFoundError, ToolValidationError } from "./types";
+import { ToolAuthorizationError, ToolNotFoundError, ToolValidationError } from "./types";
+import { defineConfirmTool } from "./helpers";
 import type { AssistantContext, AnyToolDefinition, ToolRisk } from "./types";
 
 // ============================================
@@ -245,4 +246,67 @@ test("wraps payloads with the untrusted-data note and scrubs them", () => {
     assert.equal(wrapped.tool, "list_credentials");
     assert.match(wrapped._note, /NON FIABLES/);
     assert.equal(wrapped.data.password, REDACTED);
+});
+
+// ============================================
+// ALLOWLIST + BACKGROUND MODE — the agent worker's narrowing
+// ============================================
+
+test("an allowlist hides every tool it does not name", () => {
+    const allow = ctx({ toolAllowlist: new Set(["show_visual"]) });
+    const visual = tool({ name: "show_visual", requiresProject: false });
+    const other = tool({ name: "get_sales_report", requiresProject: false });
+    assert.equal(checkToolAccess(visual, allow).allowed, true);
+    const decision = checkToolAccess(other, allow);
+    assert.equal(decision.allowed, false);
+    assert.equal(decision.code, "tool_not_allowed");
+    assert.deepEqual(
+        listAccessibleTools([visual, other], allow).map((t) => t.name),
+        ["show_visual"],
+    );
+});
+
+test("an empty allowlist refuses everything; no allowlist means the whole registry", () => {
+    const none = ctx({ toolAllowlist: new Set() });
+    assert.equal(checkToolAccess(tool({ requiresProject: false }), none).code, "tool_not_allowed");
+    assert.equal(checkToolAccess(tool({ requiresProject: false }), ctx()).allowed, true);
+});
+
+test("the allowlist is checked before the role, so a denied tool never reveals a role gap", () => {
+    const decision = checkToolAccess(
+        tool({ name: "x", allowedRoles: ["SDR"] }),
+        ctx({ toolAllowlist: new Set(["y"]) }),
+    );
+    assert.equal(decision.code, "tool_not_allowed");
+});
+
+test("authorizeToolCall throws tool_not_allowed outside the allowlist", () => {
+    assert.throws(
+        () => authorizeToolCall(tool({ name: "x" }), "x", {}, ctx({ toolAllowlist: new Set(["y"]) })),
+        (e: unknown) => e instanceof ToolAuthorizationError && e.code === "tool_not_allowed",
+    );
+});
+
+test("a confirm tool's execute refuses to run in background mode, and runs in chat", async () => {
+    let ran = 0;
+    const confirm = defineConfirmTool({
+        name: "send_thing",
+        label: "Envoyer",
+        description: "",
+        parameters: { type: "object", properties: {}, additionalProperties: false },
+        schema: z.object({}),
+        execute: async () => {
+            ran += 1;
+            return { message: "sent" };
+        },
+        describe: async () => ({ title: "Envoyer", details: [], warning: null, confirmLabel: "OK", danger: false }),
+    });
+    await assert.rejects(
+        () => confirm.execute({}, ctx({ mode: "background" })),
+        (e: unknown) => e instanceof ToolAuthorizationError && e.code === "background_confirm_forbidden",
+    );
+    assert.equal(ran, 0);
+    assert.deepEqual(await confirm.execute({}, ctx({ mode: "chat" })), { message: "sent" });
+    assert.deepEqual(await confirm.execute({}, ctx()), { message: "sent" });
+    assert.equal(ran, 2);
 });

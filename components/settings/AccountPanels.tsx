@@ -27,7 +27,7 @@ import { ROLE_LABEL } from "./roles";
 import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SECONDARY_BUTTON, SaveBar, SettingRow, SettingsCard, Toggle,
 } from "./SettingsUI";
-import { brand } from "@/lib/brand";
+import { useBrand } from "@/lib/brand/client";
 
 // ── Profile data ────────────────────────────────────────────────────────────
 
@@ -699,6 +699,7 @@ function readPermission(): Permission {
 }
 
 export function DesktopNotificationsCard() {
+    const brand = useBrand();
     const [, bump] = useState(0);
     const permission = useSyncExternalStore(subscribePermission, readPermission, () => "default" as Permission);
 

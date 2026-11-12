@@ -7,6 +7,7 @@
 // ============================================
 
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getClientIp } from "./geo-ip";
 
@@ -26,6 +27,7 @@ export const AUDIT_ACTIONS = {
     SESSION_REVOKE: "SESSION_REVOKE",
     FORCE_LOGOUT: "FORCE_LOGOUT",
     BULK_ACTION: "BULK_ACTION",
+    BRAND_UPDATE: "BRAND_UPDATE",
 } as const;
 
 // `& {}` keeps the union's autocomplete while still accepting any string —
@@ -75,6 +77,36 @@ export function audit(request: NextRequest, session: AuditActor, input: AuditEve
         })
         .catch((err) => {
             console.error(`[Audit] failed to record ${input.action} ${input.entityType}`, err);
+        });
+}
+
+/**
+ * Same as audit() for an actor that is not a user (the control plane's signed
+ * /api/instance/* calls, scripts). actorId stays null; the label is stored as
+ * actorRole and in metadata.actor. Fire-and-forget, never throws.
+ */
+export function auditSystem(input: AuditEventInput, actorLabel: string, request?: NextRequest): void {
+    const userAgent = request?.headers.get("user-agent") ?? null;
+
+    prisma.auditEvent
+        .create({
+            data: {
+                actorId: null,
+                actorRole: actorLabel,
+                action: input.action,
+                entityType: input.entityType,
+                entityId: input.entityId ?? null,
+                summary: input.summary,
+                before: input.before === undefined ? undefined : (input.before as Prisma.InputJsonValue),
+                after: input.after === undefined ? undefined : (input.after as Prisma.InputJsonValue),
+                metadata: { ...(input.metadata ?? {}), actor: actorLabel } as Prisma.InputJsonValue,
+                ip: request ? getClientIp(request) : null,
+                userAgent: userAgent ? userAgent.slice(0, MAX_UA_LENGTH) : null,
+                sessionId: null,
+            },
+        })
+        .catch((err) => {
+            console.error(`[Audit] failed to record ${input.action} ${input.entityType} (${actorLabel})`, err);
         });
 }
 

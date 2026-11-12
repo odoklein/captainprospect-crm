@@ -9,18 +9,42 @@ import {
     getPaginationParams,
 } from '@/lib/api-utils';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { getClientProductionInsights } from '@/lib/client-insights';
+import {
+    addMonths,
+    buildCampaignScript,
+    defaultMissionName,
+    plainTextToHtml,
+    sequenceEmailName,
+    templateVariables,
+} from '@/lib/onboarding/client-create';
+import { parisDayOf } from '@/lib/onboarding/checklist-template';
+import { startChecklist } from '@/lib/onboarding/checklist-service';
+import { NOTETAKER_IDS } from '@/lib/notetakers/catalog';
 
 // ============================================
 // SCHEMAS
 // ============================================
 
+const contactSchema = z.object({
+    name: z.string().trim().default(''),
+    role: z.string().trim().optional().default(''),
+    email: z.string().trim().optional().default(''),
+    phone: z.string().trim().optional().default(''),
+    /** Create a ClientInterlocuteur (RDV recipient) for this person. */
+    asInterlocuteur: z.boolean().optional().default(false),
+});
+
+const channelSchema = z.enum(['CALL', 'EMAIL', 'LINKEDIN']);
+
 const createClientSchema = z.object({
-    name: z.string().min(1, 'Nom requis'),
+    name: z.string().trim().min(1, 'Nom requis'),
     email: z.string().email('Email invalide').optional().nullable(),
     phone: z.string().optional().nullable(),
     industry: z.string().optional().nullable(),
     logo: z.string().url('URL logo invalide').optional().nullable(),
+    website: z.string().optional().nullable(),
     onboardingData: z.object({
         icp: z.string().optional(),
         targetIndustries: z.array(z.string()).optional(),
@@ -31,17 +55,25 @@ const createClientSchema = z.object({
         listingCriteria: z.string().optional(),
         estimatedContacts: z.string().optional(),
         aiAnalysis: z.any().optional(),
+        pitch: z.string().optional(),
+        nextSteps: z.array(z.string()).optional(),
+        rdvTargetPerMonth: z.number().optional(),
+        workingDaysPerMonth: z.number().optional(),
+        durationMonths: z.number().optional(),
     }).optional(),
+    contacts: z.array(contactSchema).max(20).optional(),
     targetLaunchDate: z.string().optional().nullable(),
     scripts: z.record(z.string(), z.unknown()).optional(),
     notes: z.string().optional().nullable(),
     createMission: z.boolean().optional(),
     missionName: z.string().optional().nullable(),
     missionObjective: z.string().optional().nullable(),
-    missionChannel: z.enum(['CALL', 'EMAIL', 'LINKEDIN']).optional(),
+    missionChannel: channelSchema.optional(),
+    missionChannels: z.array(channelSchema).optional(),
     missionDurationMonths: z.number().optional().nullable(),
     missionWorkingDays: z.number().optional().nullable(),
     missionRdvTarget: z.number().optional().nullable(),
+    campaignPitch: z.string().optional().nullable(),
     salesPlaybook: z.record(z.string(), z.unknown()).optional().nullable(),
     // Email templates from playbook sequence
     emailTemplates: z.array(z.object({
@@ -51,28 +83,21 @@ const createClientSchema = z.object({
     // Leexi import audit trail
     leexiImport: z.object({
         leexiCallId: z.string().optional(),
-        source: z.enum(['api', 'paste', 'webhook']),
+        // 'api' = Leexi; another note-taker's id when the call came from it.
+        source: z.enum(['api', 'paste', 'webhook', ...NOTETAKER_IDS]),
         rawRecap: z.string(),
         callTitle: z.string().optional(),
-        callDate: z.string().optional(),
+        callDate: z.string().optional().nullable(),
         callDuration: z.number().optional(),
     }).optional().nullable(),
+    // Onboarding checklist (lib/onboarding): started right after creation
+    startChecklist: z.boolean().optional(),
+    checklistStartDay: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
 });
 
-function extractUnifiedScript(scripts: Record<string, unknown> | undefined): string {
-    if (!scripts || typeof scripts !== 'object') return '';
-    if (typeof scripts.base === 'string' && scripts.base.trim()) return scripts.base;
-    const ordered = [
-        ['Introduction', scripts.intro],
-        ['Decouverte', scripts.discovery],
-        ['Objections', scripts.objection],
-        ['Closing', scripts.closing],
-    ]
-        .map(([label, value]) =>
-            typeof value === 'string' && value.trim() ? `--- ${label} ---\n${value.trim()}` : null
-        )
-        .filter((v): v is string => Boolean(v));
-    return ordered.join('\n\n');
+function splitName(full: string): { firstName: string; lastName: string } {
+    const parts = full.trim().split(/\s+/);
+    return { firstName: parts[0] ?? '', lastName: parts.slice(1).join(' ') };
 }
 
 // ============================================
@@ -157,7 +182,9 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         phone,
         industry,
         logo,
+        website,
         onboardingData,
+        contacts,
         targetLaunchDate,
         scripts,
         notes,
@@ -165,92 +192,128 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         missionName,
         missionObjective,
         missionChannel,
+        missionChannels,
         missionDurationMonths,
         missionWorkingDays,
         missionRdvTarget,
+        campaignPitch,
         salesPlaybook,
         emailTemplates,
         leexiImport,
     } = data;
+    const userId = session.user.id;
+    const playbookJson = (salesPlaybook ?? undefined) as Prisma.InputJsonValue | undefined;
 
-    const client = await prisma.client.create({
-        data: {
-            name,
-            email: email || undefined,
-            phone: phone || undefined,
-            industry: industry || undefined,
-            logo: logo || undefined,
-            salesPlaybook: salesPlaybook || undefined,
-        },
-    });
+    // Everything below lands together or not at all: a failure halfway used to
+    // leave a client without its mission, campaign or templates.
+    const { clientId, missionId } = await prisma.$transaction(async (tx) => {
+        const client = await tx.client.create({
+            data: {
+                name,
+                email: email || undefined,
+                phone: phone || undefined,
+                industry: industry || undefined,
+                logo: logo || undefined,
+                salesPlaybook: playbookJson,
+            },
+        });
 
-    const hasOnboardingData = onboardingData || scripts || notes || targetLaunchDate;
-
-    if (hasOnboardingData) {
-        await prisma.clientOnboarding.create({
+        await tx.clientOnboarding.create({
             data: {
                 clientId: client.id,
                 status: 'IN_PROGRESS',
-                onboardingData: onboardingData || {},
-                scripts: scripts || {},
+                // Client has no website column: it lives with the rest of the fiche.
+                onboardingData: {
+                    ...(onboardingData ?? {}),
+                    ...(website ? { website } : {}),
+                    ...(missionRdvTarget ? { rdvTargetPerMonth: missionRdvTarget } : {}),
+                    ...(missionWorkingDays ? { workingDaysPerMonth: missionWorkingDays } : {}),
+                    ...(missionDurationMonths ? { durationMonths: missionDurationMonths } : {}),
+                    ...(contacts?.length ? { contacts: contacts.map(({ asInterlocuteur: _drop, ...c }) => c) } : {}),
+                },
+                scripts: (scripts ?? {}) as Prisma.InputJsonValue,
                 notes: notes || undefined,
                 targetLaunchDate: targetLaunchDate ? new Date(targetLaunchDate) : undefined,
-                createdById: session.user.id,
-            },
-        });
-    }
-
-    let missionId: string | undefined;
-
-    if (createMission && missionName) {
-        const durationMonths = missionDurationMonths || 3;
-        const startDate = targetLaunchDate ? new Date(targetLaunchDate) : new Date();
-        const endDate = new Date(startDate.getTime() + durationMonths * 30 * 24 * 60 * 60 * 1000);
-
-        const mission = await prisma.mission.create({
-            data: {
-                clientId: client.id,
-                name: missionName,
-                objective: missionObjective || `Mission pour ${name}`,
-                channel: missionChannel || 'CALL',
-                startDate,
-                endDate,
-                isActive: true,
-                totalContractDays: missionWorkingDays ? missionWorkingDays * durationMonths : undefined,
-                playbook: salesPlaybook || undefined,
+                createdById: userId,
             },
         });
 
-        missionId = mission.id;
-
-        const unifiedScript = extractUnifiedScript(scripts as Record<string, unknown> | undefined);
-        if (unifiedScript || onboardingData?.icp) {
-            await prisma.campaign.create({
+        const interlocuteurIds: string[] = [];
+        for (const contact of contacts ?? []) {
+            if (!contact.asInterlocuteur || !contact.name) continue;
+            const { firstName, lastName } = splitName(contact.name);
+            const created = await tx.clientInterlocuteur.create({
                 data: {
-                    missionId: mission.id,
-                    name: `Campagne ${name}`,
-                    icp: onboardingData?.icp || 'ICP à définir',
-                    pitch: onboardingData?.icp || 'Pitch à définir',
-                    script: unifiedScript || undefined,
-                    isActive: true,
+                    clientId: client.id,
+                    firstName,
+                    lastName,
+                    title: contact.role || null,
+                    emails: contact.email ? [{ value: contact.email, label: 'Pro', isPrimary: true }] : [],
+                    phones: contact.phone ? [{ value: contact.phone, label: 'Pro', isPrimary: true }] : [],
+                    bookingLinks: [],
                 },
+                select: { id: true },
             });
+            interlocuteurIds.push(created.id);
         }
 
-        if (emailTemplates && emailTemplates.length > 0) {
-            for (let i = 0; i < emailTemplates.length; i++) {
-                const tpl = emailTemplates[i];
-                const template = await prisma.emailTemplate.create({
+        let createdMissionId: string | undefined;
+
+        if (createMission) {
+            const durationMonths = missionDurationMonths || 3;
+            const startDate = targetLaunchDate ? new Date(targetLaunchDate) : new Date();
+            const channels = missionChannels?.length ? missionChannels : [missionChannel || 'CALL'];
+
+            const mission = await tx.mission.create({
+                data: {
+                    clientId: client.id,
+                    name: missionName?.trim() || defaultMissionName(name),
+                    objective: missionObjective || `Mission pour ${name}`,
+                    channel: channels[0],
+                    channels,
+                    startDate,
+                    endDate: addMonths(startDate, durationMonths),
+                    isActive: true,
+                    totalContractDays: missionWorkingDays ? missionWorkingDays * durationMonths : undefined,
+                    playbook: playbookJson,
+                    defaultInterlocuteurId: interlocuteurIds[0],
+                },
+            });
+
+            createdMissionId = mission.id;
+
+            const unifiedScript = buildCampaignScript(scripts);
+            const icp = onboardingData?.icp?.trim();
+            const pitch = campaignPitch?.trim() || onboardingData?.pitch?.trim();
+            if (unifiedScript || icp || pitch) {
+                await tx.campaign.create({
                     data: {
-                        createdById: session.user.id,
-                        name: `Email ${i + 1} — ${name}`,
+                        missionId: mission.id,
+                        name: `Campagne ${name}`,
+                        icp: icp || 'ICP à définir',
+                        pitch: pitch || icp || 'Pitch à définir',
+                        script: unifiedScript || undefined,
+                        isActive: true,
+                    },
+                });
+            }
+
+            const templates = (emailTemplates ?? []).filter((t) => t.subject.trim() || t.body.trim());
+            for (let i = 0; i < templates.length; i++) {
+                const tpl = templates[i];
+                const template = await tx.emailTemplate.create({
+                    data: {
+                        createdById: userId,
+                        name: sequenceEmailName(i, name),
                         subject: tpl.subject,
-                        bodyHtml: tpl.body,
+                        bodyHtml: plainTextToHtml(tpl.body),
+                        bodyText: tpl.body,
+                        variables: templateVariables(tpl.subject, tpl.body),
                         category: 'sales',
                         isShared: true,
                     },
                 });
-                await prisma.missionEmailTemplate.create({
+                await tx.missionEmailTemplate.create({
                     data: {
                         missionId: mission.id,
                         templateId: template.id,
@@ -259,27 +322,45 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 });
             }
         }
-    }
 
-    if (leexiImport) {
-        await prisma.leexiCallImport.create({
-            data: {
-                leexiCallId: leexiImport.leexiCallId || `paste-${Date.now()}`,
-                clientId: client.id,
-                missionId: missionId || undefined,
-                importedById: session.user.id,
-                source: leexiImport.source,
-                rawRecap: leexiImport.rawRecap,
-                extractedData: salesPlaybook || undefined,
-                callTitle: leexiImport.callTitle || undefined,
-                callDate: leexiImport.callDate ? new Date(leexiImport.callDate) : undefined,
-                callDuration: leexiImport.callDuration || undefined,
-            },
-        });
+        if (leexiImport) {
+            await tx.leexiCallImport.create({
+                data: {
+                    leexiCallId: leexiImport.leexiCallId || `paste-${Date.now()}`,
+                    clientId: client.id,
+                    missionId: createdMissionId,
+                    importedById: userId,
+                    source: leexiImport.source,
+                    rawRecap: leexiImport.rawRecap,
+                    extractedData: playbookJson,
+                    callTitle: leexiImport.callTitle || undefined,
+                    callDate: leexiImport.callDate ? new Date(leexiImport.callDate) : undefined,
+                    callDuration: leexiImport.callDuration || undefined,
+                },
+            });
+        }
+
+        return { clientId: client.id, missionId: createdMissionId };
+    }, { timeout: 30_000 });
+
+    // The checklist has its own transaction (and project); a failure there must
+    // not undo the client: it is reported and can be started from the drawer.
+    let checklist: { started: boolean; error?: string } | undefined;
+    if (data.startChecklist) {
+        try {
+            await startChecklist(clientId, userId, {
+                startDay: data.checklistStartDay || parisDayOf(new Date()),
+                assigneeId: userId,
+            });
+            checklist = { started: true };
+        } catch (err) {
+            console.error('Onboarding checklist start failed:', err);
+            checklist = { started: false, error: err instanceof Error ? err.message : 'Checklist non démarrée' };
+        }
     }
 
     const clientWithOnboarding = await prisma.client.findUnique({
-        where: { id: client.id },
+        where: { id: clientId },
         include: {
             onboarding: true,
             missions: { select: { id: true, name: true }, take: 5 },
@@ -292,5 +373,5 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         },
     });
 
-    return successResponse(clientWithOnboarding, 201);
+    return successResponse({ ...clientWithOnboarding, missionId, checklist }, 201);
 });

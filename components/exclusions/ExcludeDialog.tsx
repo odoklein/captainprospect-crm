@@ -101,7 +101,7 @@ export function ExcludeDialog({
         <Modal
             isOpen={isOpen}
             onClose={onClose}
-            title="Ne plus contacter"
+            title="Blacklist"
             description="La fiche sort des files d'appel et des séquences email, et le restera après un ré-import."
             size="lg"
         >
