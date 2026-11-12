@@ -64,8 +64,12 @@ function lockScroll() {
     const previousPadding = workspace?.style.paddingRight ?? "";
     if (workspace) {
         const scrollbar = workspace.offsetWidth - workspace.clientWidth;
+        const computed = getComputedStyle(workspace);
+        const reserveGutter = computed.scrollbarGutter.includes("stable");
+        if (scrollbar > 0 && !reserveGutter) {
+            workspace.style.paddingRight = `calc(${computed.paddingRight} + ${scrollbar}px)`;
+        }
         workspace.style.overflowY = "hidden";
-        if (scrollbar > 0) workspace.style.paddingRight = `calc(${getComputedStyle(workspace).paddingRight} + ${scrollbar}px)`;
     }
     return () => {
         document.body.style.overflow = bodyOverflow;

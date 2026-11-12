@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import dynamic from "next/dynamic";
+import { Drawer } from "@/components/ui/Drawer";
+const ClientDetailWorkspace = dynamic(() => import("@/components/manager/ClientDetailWorkspace").then(module => module.ClientDetailWorkspace), { loading: () => <div role="status" className="p-8 text-sm text-slate-500">Chargement des sessions…</div> });
+const SdrFeedbackWorkspace = dynamic(() => import("@/components/manager/SdrFeedbackWorkspace").then(module => module.SdrFeedbackWorkspace), { loading: () => <div role="status" className="p-8 text-sm text-slate-500">Chargement des avis…</div> });
 import {
     Button,
     Badge,
@@ -539,6 +542,7 @@ export function ClientDrawer({
     });
 
     // Sessions & CRs (compact read-only view)
+    const [detailPanel, setDetailPanel] = useState<"sessions" | "feedback" | null>(null);
     const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
     const [bilanOpen, setBilanOpen] = useState(false);
     const [sessionCrTab, setSessionCrTab] = useState<"cr" | "email">("cr");
@@ -1418,13 +1422,13 @@ export function ClientDrawer({
                         Ressentis quotidiens liés aux missions de ce client.
                     </p>
                 </div>
-                <Link
-                    href="/manager/sdr-feedback"
+                <button type="button"
+                    onClick={() => setDetailPanel("feedback")}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-primary-200 hover:text-primary-600"
                 >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Tous les avis
-                </Link>
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Tous les avis SDR
+                </button>
             </div>
 
             {sdrFeedback.length === 0 ? (
@@ -1526,12 +1530,12 @@ export function ClientDrawer({
                     >
                         <FileText className="w-3.5 h-3.5" aria-hidden /> Bilan de la semaine
                     </button>
-                    <Link
-                        href={`/manager/clients/${client.id}?tab=sessions`}
+                    <button type="button"
+                        onClick={() => setDetailPanel("sessions")}
                         className="text-xs font-semibold text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
                     >
                         Gérer les sessions <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                    </button>
                     </div>
                 )}
             </div>
@@ -1824,6 +1828,9 @@ export function ClientDrawer({
             />
 
             {managementSection && <ClientManagementDrawer key={`${client.id}:${managementSection}`} clientId={client.id} clientName={client.name} section={managementSection} onClose={() => setManagementSection(null)} onSaved={refreshClientQueries} />}
+            {client && detailPanel && <Drawer isOpen onClose={() => { setDetailPanel(null); void queryClient.invalidateQueries({ queryKey: ["client-sessions", client.id] }); void queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) }); }} title={detailPanel === "sessions" ? "Sessions & comptes rendus" : "Tous les avis SDR"} description={client.name} size="full" closeOnOverlay={false} bodyClassName="p-4 sm:p-6">
+                {detailPanel === "sessions" ? <ClientDetailWorkspace key={client.id} clientId={client.id} sessionsOnly /> : <SdrFeedbackWorkspace key={client.id} clientId={client.id} />}
+            </Drawer>}
             <NewMissionDialog
                 initialClientId={client.id}
                 isOpen={showNewMission}
@@ -1883,16 +1890,7 @@ function MissionRow({
 
     return (
         <div
-            role="button"
-            tabIndex={0}
             onClick={() => onOpen()}
-            onKeyDown={(e) => {
-                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    onOpen();
-                }
-            }}
-            aria-label={`Ouvrir la mission ${mission.name}`}
             className={
                 "cw-mission-row group flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors " +
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 " +
@@ -1912,9 +1910,9 @@ function MissionRow({
             </div>
 
             <div className="flex-1 min-w-0">
-                <span className="block truncate text-left text-sm font-semibold text-slate-900 transition-colors group-hover:text-primary-600">
+                <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }} aria-label={`Ouvrir la mission ${mission.name}`} className="block max-w-full truncate rounded text-left text-sm font-semibold text-slate-900 transition-colors group-hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40">
                     {mission.name}
-                </span>
+                </button>
                 {mission.objective && (
                     <p className="text-xs text-slate-500 truncate mt-0.5">{mission.objective}</p>
                 )}

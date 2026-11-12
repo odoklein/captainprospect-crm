@@ -162,6 +162,15 @@ function buildFoldersUrl(currentFolder: string | null, clientFilter: string) {
   return `/api/folders?${params.toString()}`;
 }
 
+function downloadFile(id: string) {
+  const link = document.createElement("a");
+  link.href = `/api/files/${encodeURIComponent(id)}/download`;
+  link.download = "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 function getFolderPseudoFile(folder: FolderItem): FileListItem {
   return {
     id: folder.id,
@@ -720,7 +729,7 @@ export default function ManagerFilesWorkspace({ fixedClientId }: { fixedClientId
 
       <div className="grid gap-6 xl:grid-cols-[280px,minmax(0,1fr),320px]">
         <div className="space-y-4">
-          <Card className="space-y-3 p-4">
+          {!fixedClientId && <Card className="space-y-3 p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-slate-900">Sources</p>
               <Badge variant={driveStatusQuery.data?.connected ? "success" : "outline"}>
@@ -781,7 +790,7 @@ export default function ManagerFilesWorkspace({ fixedClientId }: { fixedClientId
                 Connecter Google Drive
               </Button>
             )}
-          </Card>
+          </Card>}
 
           {activeTab === "crm" ? (
             <Card className="space-y-4 p-4">
@@ -1045,11 +1054,7 @@ export default function ManagerFilesWorkspace({ fixedClientId }: { fixedClientId
                               setDetailsOpen(true);
                             }}
                             onDownload={() =>
-                              window.open(
-                                `/api/files/${entry.file.id}/download`,
-                                "_blank",
-                                "noopener,noreferrer",
-                              )
+                              downloadFile(entry.file.id)
                             }
                             onDelete={() =>
                               setDeleteTarget({
@@ -1188,11 +1193,7 @@ export default function ManagerFilesWorkspace({ fixedClientId }: { fixedClientId
                             setDetailsOpen(true);
                           }}
                           onDownload={() =>
-                            window.open(
-                              `/api/files/${file.id}/download`,
-                              "_blank",
-                              "noopener,noreferrer",
-                            )
+                            downloadFile(file.id)
                           }
                           onDelete={() =>
                             setDeleteTarget({
@@ -1291,11 +1292,7 @@ export default function ManagerFilesWorkspace({ fixedClientId }: { fixedClientId
                     <Button
                       variant="secondary"
                       onClick={() =>
-                        window.open(
-                          `/api/files/${selectedDetails.id}/download`,
-                          "_blank",
-                          "noopener,noreferrer",
-                        )
+                        downloadFile(selectedDetails.id)
                       }
                     >
                       <Download className="h-4 w-4" />

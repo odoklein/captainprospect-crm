@@ -2,8 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { registerDialogLayer } from "./dialogStack";
+import { useDialogPortalTarget } from "./useDialogPortalTarget";
 
 // ============================================
 // DRAWER COMPONENT
@@ -178,6 +180,7 @@ export function Drawer({
     bodyClassName,
 }: DrawerProps) {
     const drawerRef = useRef<HTMLDivElement>(null);
+    const portalTarget = useDialogPortalTarget(isOpen && modal && !docked, true);
     const closeRef = useRef({ onClose, closeOnEscape });
     useEffect(() => {
         closeRef.current = { onClose, closeOnEscape };
@@ -193,7 +196,7 @@ export function Drawer({
             close: () => { if (closeRef.current.closeOnEscape) closeRef.current.onClose(); },
             focus: "panel",
         });
-    }, [isOpen, modal, docked]);
+    }, [isOpen, modal, docked, portalTarget]);
 
     useEffect(() => {
         if (!isOpen || !docked) return;
@@ -241,9 +244,9 @@ export function Drawer({
         );
     }
 
-    return (
+    const panel = (
         <div
-            className={cn("fixed inset-x-0 top-0 z-[80] flex", modal ? "pointer-events-auto" : "pointer-events-none")}
+            className={cn("fixed inset-x-0 top-0 z-[80] flex", modal ? "pointer-events-auto" : "pointer-events-none", portalTarget && "cw-drawer-layer")}
             style={{ bottom: "var(--softphone-dock-h, 0px)" }}
         >
             {/* Overlay */}
@@ -290,7 +293,7 @@ export function Drawer({
                 )}
 
                 {/* Content */}
-                <div className={cn("min-h-0 flex-1 overflow-y-auto drawer-scrollbar", bodyClassName ?? "p-6")}>
+                <div className={cn("min-h-0 flex-1 overflow-y-auto drawer-scrollbar", portalTarget && "cw-drawer-body", bodyClassName ?? "p-6")}>
                     {children}
                 </div>
 
@@ -317,6 +320,7 @@ export function Drawer({
             </div>
         </div>
     );
+    return portalTarget ? createPortal(panel, portalTarget) : panel;
 }
 
 // ============================================

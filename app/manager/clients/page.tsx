@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -132,12 +132,25 @@ function ClientsPageInner() {
     const [showLeexiSection, setShowLeexiSection] = useState(false);
     const [expandedRecapId, setExpandedRecapId] = useState<string | null>(null);
     const [recent, setRecent] = useState<WorkspaceLocation | null>(null);
+    const directoryScroll = useRef(0);
 
     const clientParam = searchParams.get("client");
     const missionParam = searchParams.get("mission");
     const missionTab = searchParams.get("tab") ?? "general";
     const clientTab = searchParams.get("espace") ?? "missions";
     const recentKey = session?.user?.id ? `cp:client-workspace:${session.user.id}` : null;
+
+    useLayoutEffect(() => {
+        const canvas = document.querySelector<HTMLElement>(".cw-app-canvas");
+        if (!canvas) return;
+        canvas.scrollTop = clientParam ? 0 : directoryScroll.current;
+
+        if (!clientParam) {
+            const rememberPosition = () => { directoryScroll.current = canvas.scrollTop; };
+            canvas.addEventListener("scroll", rememberPosition, { passive: true });
+            return () => canvas.removeEventListener("scroll", rememberPosition);
+        }
+    }, [clientParam, missionParam, missionTab, clientTab]);
 
     function navigate(next: WorkspaceLocation | null) {
         const params = new URLSearchParams(window.location.search);
@@ -148,8 +161,10 @@ function ClientsPageInner() {
         }
         const url = params.size ? `${pathname}?${params}` : pathname;
         if (url === window.location.pathname + window.location.search) return;
+        if (!clientParam) {
+            directoryScroll.current = document.querySelector(".cw-app-canvas")?.scrollTop ?? 0;
+        }
         window.history.pushState(null, "", url);
-        document.querySelector(".cw-app-canvas")?.scrollTo({ top: 0 });
     }
 
     const { data: clients = [], isLoading, refetch: refetchClients, error: clientsError } = useQuery({

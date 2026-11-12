@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useId, useSyncExternalStore } from "react";
+import { useEffect, useRef, useId } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, OctagonAlert, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "./Button";
 import { FOCUS_RING } from "./recipes";
 import { registerDialogLayer } from "./dialogStack";
+import { useDialogPortalTarget } from "./useDialogPortalTarget";
 
 // ============================================
 // MODAL COMPONENT
@@ -36,10 +37,6 @@ const SIZES = {
     full: "max-w-[95vw] max-h-[95vh]",
 };
 
-const subscribeToHydration = () => () => {};
-const clientReady = () => true;
-const serverReady = () => false;
-
 export function Modal({
     isOpen,
     onClose,
@@ -53,12 +50,7 @@ export function Modal({
     className,
     contentClassName,
 }: ModalProps) {
-    const hydrated = useSyncExternalStore(subscribeToHydration, clientReady, serverReady);
-    // A nested confirmation must escape the clipped drawer panel, while
-    // workspace dialogs still inherit the workspace palette.
-    const portalTarget = isOpen && hydrated
-        ? document.querySelector(".manager-client-studio") ?? document.body
-        : null;
+    const portalTarget = useDialogPortalTarget(isOpen);
     const modalRef = useRef<HTMLDivElement>(null);
     const overlayPointerDownRef = useRef(false);
     const uid = useId();
