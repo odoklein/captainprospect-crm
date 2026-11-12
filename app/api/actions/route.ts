@@ -16,6 +16,7 @@ import { prisma } from '@/lib/prisma';
 import { enqueueActionCallEnrichment } from '@/lib/call-enrichment/scheduler';
 import { linkCallToAction } from '@/lib/telephony/service';
 import { z } from 'zod';
+import { ActionValidationError } from '@/lib/actions/action-result';
 
 // ============================================
 // SCHEMAS
@@ -140,23 +141,32 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
  return errorResponse('Une note est requise pour ce type de résultat', 400);
  }
 
-    // Use service layer with transaction
-    const action = await actionService.createAction({
-        contactId: data.contactId,
-        companyId: data.companyId,
-        sdrId: session.user.id,
-        campaignId: data.campaignId,
-        channel: data.channel,
-        result: data.result,
-        note: data.note,
-        callbackDate: data.callbackDate,
-        duration: data.duration,
-        meetingType: data.meetingType,
-        meetingCategory: data.meetingCategory,
-        meetingAddress: data.meetingAddress,
-        meetingJoinUrl: data.meetingJoinUrl,
-        meetingPhone: data.meetingPhone,
-    }, statusDef);
+    // Use service layer with transaction. A configured status that cannot be
+    // mapped to the ActionResult enum is a client error, not a server crash.
+    let action: any;
+    try {
+        action = await actionService.createAction({
+            contactId: data.contactId,
+            companyId: data.companyId,
+            sdrId: session.user.id,
+            campaignId: data.campaignId,
+            channel: data.channel,
+            result: data.result,
+            note: data.note,
+            callbackDate: data.callbackDate,
+            duration: data.duration,
+            meetingType: data.meetingType,
+            meetingCategory: data.meetingCategory,
+            meetingAddress: data.meetingAddress,
+            meetingJoinUrl: data.meetingJoinUrl,
+            meetingPhone: data.meetingPhone,
+        }, statusDef);
+    } catch (error) {
+        if (error instanceof ActionValidationError) {
+            return errorResponse(error.message, 400);
+        }
+        throw error;
+    }
 
     // A re-booked absence reuses the first RDV's Action: its recording and
     // fiche are that RDV's history, not this call's.

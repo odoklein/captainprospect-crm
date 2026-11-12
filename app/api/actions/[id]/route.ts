@@ -13,9 +13,10 @@ import {
     MEETING_CANCELLATION_REASON_CODES,
     type MeetingCancellationReasonCode,
 } from '@/lib/constants/meetingCancellationReasons';
-import { actionService, resolveActionResult } from '@/lib/services/ActionService';
+import { actionService } from '@/lib/services/ActionService';
+import { ActionValidationError, resolveActionResult } from '@/lib/actions/action-result';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
-import type { ActionResult } from '@prisma/client';
+import type { ActionResult, MeetingConfirmationStatus } from '@prisma/client';
 import { z } from 'zod';
 import {
     createClientPortalNotification,
@@ -106,7 +107,7 @@ export const PATCH = withErrorHandler(async (
         meetingAddress?: string | null;
         meetingJoinUrl?: string | null;
         meetingPhone?: string | null;
-        confirmationStatus?: string;
+        confirmationStatus?: MeetingConfirmationStatus;
         confirmationUpdatedAt?: Date;
     } = {};
     if (data.callbackDate !== undefined) updateData.callbackDate = data.callbackDate;
@@ -140,7 +141,14 @@ export const PATCH = withErrorHandler(async (
         if (statusDef?.requiresNote && !finalNote?.trim()) {
             return errorResponse('Une note est requise pour ce type de résultat', 400);
         }
-        resolvedGeneralResult = resolveActionResult(data.result);
+        try {
+            resolvedGeneralResult = resolveActionResult(data.result, statusDef);
+        } catch (error) {
+            if (error instanceof ActionValidationError) {
+                return errorResponse(error.message, 400);
+            }
+            throw error;
+        }
         updateData.result = resolvedGeneralResult;
     }
 
