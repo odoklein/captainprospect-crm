@@ -74,7 +74,7 @@ export function ExecutionMockup({ label }: { label: string }) {
 export function AiMockup({ label }: { label: string }) {
   return (
     <MockRoot label={label} className="text-white">
-      <div className="relative grid gap-3 md:grid-cols-[1.15fr_1fr] md:items-start">
+      <div className="relative grid gap-3 xl:grid-cols-[1.15fr_1fr] xl:items-start">
         <BriefCard tone="dark" />
         <div className="grid gap-3">
           <div className="rounded-[18px] border border-white/10 bg-[#0F2529] p-4">
