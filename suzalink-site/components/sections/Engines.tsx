@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { engines } from "@/content/home";
 import { tools } from "@/content/brands";
 import { BrandMark } from "@/components/ui/BrandMark";
@@ -66,6 +67,7 @@ export function Engines() {
                   ) : null}
 
                   <div className="relative flex flex-col gap-5">
+                    <Image src={`/creative/${item.id}.svg`} width={64} height={64} alt="" className="size-16" />
                     <p className={cx("eyebrow flex items-center gap-3", dark ? "text-white/70" : "text-muted")}>
                       <span className="font-mono">{item.index}</span>
                       <span aria-hidden className={cx("h-px w-8", dark ? "bg-white/30" : "bg-ink/20")} />
