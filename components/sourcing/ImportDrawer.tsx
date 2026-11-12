@@ -11,7 +11,11 @@ import type { CrmMatch, SourcedLead, SourcingImportResult, SourcingQuery } from 
 // ============================================
 // "Ajouter à une liste": destination, duplicates policy, then a result
 // screen that links to the list instead of silently bouncing back.
+// Large selections are sent in batches so the old 2 000-row request cap
+// never blocks a sourcing run.
 // ============================================
+
+const IMPORT_BATCH = 1000;
 
 interface ListOption {
     id: string;
@@ -53,10 +57,16 @@ export function ImportDrawer({
     const [skipKnown, setSkipKnown] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<SourcingImportResult | null>(null);
+    const [importLimit, setImportLimit] = useState<number | null>(null);
+    const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+    const [partialError, setPartialError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!open) return;
         setResult(null);
+        setPartialError(null);
+        setProgress(null);
+        setImportLimit(null);
         setName(suggestListName(query?.activities.map((a) => a.label) ?? [], query?.locations ?? []));
         setLoading(true);
         Promise.all([
@@ -74,34 +84,67 @@ export function ImportDrawer({
 
     const knownCount = leads.filter((l) => matches[l.id]).length;
     const toImport = useMemo(() => (skipKnown ? leads.filter((l) => !matches[l.id]) : leads), [leads, matches, skipKnown]);
+    const available = toImport.length;
+    const importCount = available === 0 ? 0 : Math.min(importLimit ?? available, available);
+    const selectedForImport = useMemo(() => toImport.slice(0, importCount), [toImport, importCount]);
     const stats = {
-        companies: toImport.length,
-        phones: toImport.filter((l) => l.phone).length,
-        contacts: toImport.reduce((n, l) => n + l.contacts.length, 0),
+        companies: selectedForImport.length,
+        phones: selectedForImport.filter((l) => l.phone).length,
+        contacts: selectedForImport.reduce((n, l) => n + l.contacts.length, 0),
     };
 
-    const valid = toImport.length > 0 && (mode === "existing" ? !!listId : !!name.trim() && !!missionId);
+    const valid = selectedForImport.length > 0 && (mode === "existing" ? !!listId : !!name.trim() && !!missionId);
 
     const submit = async () => {
+        const queue = selectedForImport;
+        const total = queue.length;
+        let currentListId = mode === "existing" ? listId : undefined;
+        let aggregate: SourcingImportResult = { listId: "", listName: "", created: 0, skipped: 0, contacts: 0, phones: 0 };
+        const importedIds: string[] = [];
         setSubmitting(true);
+        setProgress({ done: 0, total });
         try {
-            const res = await fetch("/api/prospects/sourcing/import", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...(mode === "existing" ? { listId } : { newList: { name: name.trim(), missionId, type } }),
-                    leads: toImport,
-                    query,
-                }),
-            });
-            const json = await res.json();
-            if (!json.success) throw new Error(json.error || "Import impossible");
-            setResult(json.data);
-            onImported(json.data, toImport.map((l) => l.id));
+            for (let offset = 0; offset < total; offset += IMPORT_BATCH) {
+                const chunk = queue.slice(offset, offset + IMPORT_BATCH);
+                const res = await fetch("/api/prospects/sourcing/import", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        ...(currentListId ? { listId: currentListId } : { newList: { name: name.trim(), missionId, type } }),
+                        leads: chunk,
+                        query,
+                    }),
+                });
+                const json = await res.json();
+                if (!json.success) throw new Error(json.error || "Import impossible");
+                const data = json.data as SourcingImportResult;
+                currentListId = data.listId;
+                aggregate = {
+                    ...aggregate,
+                    listId: data.listId,
+                    listName: data.listName,
+                    created: aggregate.created + data.created,
+                    skipped: aggregate.skipped + data.skipped,
+                    contacts: aggregate.contacts + data.contacts,
+                    phones: aggregate.phones + data.phones,
+                };
+                importedIds.push(...chunk.map((l) => l.id));
+                setProgress({ done: Math.min(offset + chunk.length, total), total });
+            }
+            setResult(aggregate);
+            onImported(aggregate, importedIds);
         } catch (e) {
-            showError("Import échoué", e instanceof Error ? e.message : "Erreur inconnue");
+            const message = e instanceof Error ? e.message : "Erreur inconnue";
+            if (aggregate.created > 0) {
+                setResult(aggregate);
+                setPartialError(message);
+                onImported(aggregate, importedIds);
+            } else {
+                showError("Import échoué", message);
+            }
         } finally {
             setSubmitting(false);
+            setProgress(null);
         }
     };
 
@@ -110,7 +153,7 @@ export function ImportDrawer({
             isOpen={open}
             onClose={submitting ? () => {} : onClose}
             size="md"
-            title={result ? "Import terminé" : "Ajouter à une liste"}
+            title={result ? (partialError ? "Import partiel" : "Import terminé") : "Ajouter à une liste"}
             description={result ? result.listName : `${leads.length} société${leads.length > 1 ? "s" : ""} sélectionnée${leads.length > 1 ? "s" : ""}`}
             footer={
                 result ? (
@@ -131,7 +174,9 @@ export function ImportDrawer({
                         </Button>
                         <Button className="flex-1" onClick={submit} disabled={!valid || submitting}>
                             {submitting && <Loader2 className="size-4 animate-spin" />}
-                            Importer {stats.companies.toLocaleString("fr-FR")} société{stats.companies > 1 ? "s" : ""}
+                            {submitting && progress
+                                ? `Import en cours… ${progress.done.toLocaleString("fr-FR")} / ${progress.total.toLocaleString("fr-FR")}`
+                                : `Importer ${stats.companies.toLocaleString("fr-FR")} société${stats.companies > 1 ? "s" : ""}`}
                         </Button>
                     </div>
                 )
@@ -153,6 +198,12 @@ export function ImportDrawer({
                         )}
                     </div>
                     <Tiles companies={result.created} phones={result.phones} contacts={result.contacts} />
+                    {partialError && (
+                        <Callout tone="warning" title="Import interrompu">
+                            {partialError} Les sociétés déjà ajoutées restent dans la liste ; vous pouvez relancer l&apos;import
+                            pour le reste.
+                        </Callout>
+                    )}
                     <Callout tone="info">
                         La BlackList a été réappliquée à la liste. Pensez à l&apos;assigner aux SDR depuis la mission.
                     </Callout>
@@ -160,6 +211,74 @@ export function ImportDrawer({
             ) : (
                 <div className="space-y-6 p-1">
                     <Tiles companies={stats.companies} phones={stats.phones} contacts={stats.contacts} />
+
+                    <Field
+                        label="Sociétés à importer"
+                        hint={
+                            available === 0
+                                ? "Aucune société à importer avec ce filtre."
+                                : `${importCount.toLocaleString("fr-FR")} sur ${available.toLocaleString("fr-FR")} seront ajoutées à la liste.`
+                        }
+                    >
+                        <div className="grid grid-cols-[120px_minmax(0,1fr)] items-center gap-2">
+                            <Input
+                                type="number"
+                                inputMode="numeric"
+                                min={available ? 1 : 0}
+                                max={Math.max(available, 1)}
+                                value={importCount}
+                                disabled={available === 0 || submitting}
+                                aria-label="Nombre de sociétés à importer"
+                                onChange={(e) => {
+                                    const next = Number(e.target.value);
+                                    if (!Number.isFinite(next)) {
+                                        setImportLimit(null);
+                                        return;
+                                    }
+                                    setImportLimit(Math.max(1, Math.min(Math.floor(next), available)));
+                                }}
+                            />
+                            <div className="flex flex-wrap gap-1.5">
+                                {[100, 500, 1000, 5000]
+                                    .filter((n) => n < available)
+                                    .map((n) => (
+                                        <Button
+                                            key={n}
+                                            type="button"
+                                            variant="soft"
+                                            size="xs"
+                                            onClick={() => setImportLimit(n)}
+                                            disabled={submitting}
+                                        >
+                                            {n.toLocaleString("fr-FR")}
+                                        </Button>
+                                    ))}
+                                <Button
+                                    type="button"
+                                    variant={importLimit === null ? "secondary" : "ghost"}
+                                    size="xs"
+                                    onClick={() => setImportLimit(null)}
+                                    disabled={available === 0 || submitting}
+                                >
+                                    Tout ({available.toLocaleString("fr-FR")})
+                                </Button>
+                            </div>
+                        </div>
+                    </Field>
+
+                    {submitting && progress && (
+                        <div className="space-y-1.5">
+                            <div className="h-1.5 overflow-hidden rounded-full bg-surface-3">
+                                <div
+                                    className="h-full rounded-full bg-primary transition-[width] duration-300"
+                                    style={{ width: `${progress.total ? Math.round((progress.done / progress.total) * 100) : 0}%` }}
+                                />
+                            </div>
+                            <p className="text-xs tabular-nums text-ink-3">
+                                Import en cours : {progress.done.toLocaleString("fr-FR")} / {progress.total.toLocaleString("fr-FR")}
+                            </p>
+                        </div>
+                    )}
 
                     {knownCount > 0 && (
                         <div className="rounded-panel border border-warning-line bg-warning-soft p-3">

@@ -30,6 +30,7 @@ export default function SourcingPage() {
     const [providers, setProviders] = useState<ProvidersStatus | null>(null);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [importOpen, setImportOpen] = useState(false);
+    const [importAll, setImportAll] = useState(false);
 
     useEffect(() => {
         fetch("/api/prospects/sourcing/providers")
@@ -103,13 +104,27 @@ export default function SourcingPage() {
 
                     {s.leads.length > 0 && (
                         <>
-                            {multiSource > 0 && (
-                                <p className="flex items-center gap-1.5 text-xs text-ink-3">
-                                    <Combine className="size-3.5" />
-                                    {multiSource} société{multiSource > 1 ? "s" : ""} trouvée{multiSource > 1 ? "s" : ""} par plusieurs
-                                    sources, fusionnée{multiSource > 1 ? "s" : ""} en une seule ligne.
-                                </p>
-                            )}
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                {multiSource > 0 ? (
+                                    <p className="flex items-center gap-1.5 text-xs text-ink-3">
+                                        <Combine className="size-3.5" />
+                                        {multiSource} société{multiSource > 1 ? "s" : ""} trouvée{multiSource > 1 ? "s" : ""} par plusieurs
+                                        sources, fusionnée{multiSource > 1 ? "s" : ""} en une seule ligne.
+                                    </p>
+                                ) : (
+                                    <span />
+                                )}
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                        setImportAll(true);
+                                        setImportOpen(true);
+                                    }}
+                                >
+                                    <ListPlus className="size-4" /> Créer une liste
+                                </Button>
+                            </div>
                             <ResultsTable leads={s.leads} matches={s.matches} selected={selected} onSelectedChange={setSelected} />
                         </>
                     )}
@@ -156,7 +171,13 @@ export default function SourcingPage() {
                         >
                             <X className="size-4" />
                         </button>
-                        <Button variant="accent" onClick={() => setImportOpen(true)}>
+                        <Button
+                            variant="accent"
+                            onClick={() => {
+                                setImportAll(false);
+                                setImportOpen(true);
+                            }}
+                        >
                             <ListPlus className="size-4" /> Ajouter à une liste
                         </Button>
                     </div>
@@ -165,8 +186,11 @@ export default function SourcingPage() {
 
             <ImportDrawer
                 open={importOpen}
-                onClose={() => setImportOpen(false)}
-                leads={selectedLeads}
+                onClose={() => {
+                    setImportOpen(false);
+                    setImportAll(false);
+                }}
+                leads={importAll ? s.leads : selectedLeads}
                 matches={s.matches}
                 query={s.ranQuery}
                 onImported={(_, ids) => {

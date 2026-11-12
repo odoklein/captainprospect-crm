@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { errorResponse, requireRole, successResponse, validateRequest, withErrorHandler } from "@/lib/api-utils";
-import { calculateCompanyCompleteness, calculateContactCompleteness } from "@/lib/scoring";
+import { calculateCompanyCompleteness, calculateContactCompleteness, type CompletenessStatus } from "@/lib/scoring";
 import { applyActiveExclusionsToList } from "@/lib/exclusions/service";
 import { SOURCE_BY_ID } from "@/lib/sourcing/catalog";
 import { normalizeCompanyName } from "@/lib/sourcing/merge";
@@ -26,7 +26,8 @@ const bodySchema = z
                 type: z.enum(["SUZALI", "CLIENT", "MIXED"]).default("SUZALI"),
             })
             .optional(),
-        leads: z.array(leadSchema).min(1, "Aucune société sélectionnée").max(2000),
+        // The UI sends the selection in batches; this only guards an abusive payload.
+        leads: z.array(leadSchema).min(1, "Aucune société sélectionnée").max(10000, "Maximum 10 000 sociétés par requête"),
         query: querySchema.partial().optional(),
     })
     .refine((b) => !!b.listId !== !!b.newList, "Choisissez une liste existante ou créez-en une");
@@ -72,10 +73,34 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     const existing = await prisma.company.findMany({ where: { listId: list.id }, select: { name: true } });
     const seen = new Set(existing.map((c) => normalizeCompanyName(c.name)));
 
-    let created = 0;
+    type ContactRow = {
+        firstName: string | null;
+        lastName: string | null;
+        title: string | null;
+        email: string | null;
+        phone: string | null;
+        linkedin: string | null;
+        status: CompletenessStatus;
+    };
+    type PendingCompany = {
+        company: {
+            name: string;
+            industry: string | null;
+            country: string | null;
+            website: string | null;
+            size: string | null;
+            phone: string | null;
+            customData: Record<string, string | number>;
+            listId: string;
+            status: CompletenessStatus;
+        };
+        contacts: ContactRow[];
+    };
+
     let skipped = 0;
     let contacts = 0;
     let phones = 0;
+    const pending: PendingCompany[] = [];
 
     for (const lead of body.leads) {
         const key = normalizeCompanyName(lead.name);
@@ -85,7 +110,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         }
         seen.add(key);
 
-        const contactRows = lead.contacts
+        const contactRows: ContactRow[] = lead.contacts
             .filter((c) => c.firstName || c.lastName || c.email || c.phone)
             .map((c) => ({
                 firstName: c.firstName || null,
@@ -111,7 +136,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 linkedin: lead.linkedin,
                 sourcing: lead.sources.map((s) => SOURCE_BY_ID[s].label).join(" + "),
             }).filter(([, v]) => v !== undefined && v !== null && v !== ""),
-        );
+        ) as Record<string, string | number>;
 
         const companyData = {
             name: lead.name,
@@ -121,22 +146,51 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             size: lead.headcount || null,
         };
 
-        await prisma.company.create({
-            data: {
+        pending.push({
+            company: {
                 ...companyData,
                 phone: lead.phone || null,
                 customData,
                 listId: list.id,
                 status: calculateCompanyCompleteness({ ...companyData, contacts: contactRows }),
-                contacts: contactRows.length ? { create: contactRows } : undefined,
             },
-            select: { id: true },
+            contacts: contactRows,
         });
-
-        created++;
         contacts += contactRows.length;
         if (lead.phone) phones++;
     }
+
+    // Bulk insert in bounded transactions: 1 000 sequential creates per request
+    // is slow on a hosted database, and the old per-row loop blocked large imports.
+    const WRITE_CHUNK = 500;
+    for (let offset = 0; offset < pending.length; offset += WRITE_CHUNK) {
+        const chunk = pending.slice(offset, offset + WRITE_CHUNK);
+        await prisma.$transaction(
+            async (tx) => {
+                await tx.company.createMany({ data: chunk.map((p) => p.company) });
+                const createdRows = await tx.company.findMany({
+                    where: { listId: list.id, name: { in: chunk.map((p) => p.company.name) } },
+                    select: { id: true, name: true },
+                });
+                const idByName = new Map<string, string>();
+                for (const row of createdRows) {
+                    const key = normalizeCompanyName(row.name);
+                    if (!idByName.has(key)) idByName.set(key, row.id);
+                }
+                const contactData = chunk.flatMap((p) => {
+                    const companyId = idByName.get(normalizeCompanyName(p.company.name));
+                    if (!companyId) return [];
+                    return p.contacts.map((c) => ({ ...c, companyId }));
+                });
+                if (contactData.length > 0) {
+                    await tx.contact.createMany({ data: contactData });
+                }
+            },
+            { timeout: 30000 },
+        );
+    }
+
+    const created = pending.length;
 
     if (created > 0) {
         try {
