@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { engines } from "@/content/home";
 import { tools } from "@/content/brands";
 import { BrandMark } from "@/components/ui/BrandMark";
@@ -18,7 +19,7 @@ const tones = {
   light: "border border-line bg-white text-ink",
 };
 
-/** 6. "Une plateforme, trois moteurs": three stacked full-width cards (sticky stack on desktop). */
+/** 6. "Une plateforme, trois moteurs": a wide execution card above two complementary feature cards. */
 export function Engines() {
   return (
     <section id="produit" aria-labelledby="engines-title" className="py-24 sm:py-32">
@@ -34,7 +35,7 @@ export function Engines() {
           />
         </Reveal>
 
-        <ol className="mt-16 flex flex-col gap-6 sm:mt-20 lg:gap-10">
+        <ol className="mt-12 grid gap-5 sm:mt-16 lg:grid-cols-2">
           {engines.items.map((item, i) => {
             const Mockup = mockups[item.id];
             const dark = item.tone !== "light";
@@ -42,13 +43,13 @@ export function Engines() {
               <li
                 key={item.id}
                 id={item.id}
-                className="scroll-mt-24 lg:sticky"
-                style={{ top: `calc(96px + ${i * 20}px)` }}
+                className={cx("min-w-0", i === 0 && "lg:col-span-2")}
               >
                 <article
                   aria-labelledby={`${item.id}-title`}
                   className={cx(
-                    "relative grid gap-10 overflow-hidden rounded-[24px] p-6 sm:p-10 lg:min-h-[560px] lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-14 lg:p-14",
+                    "relative grid h-full gap-8 overflow-hidden rounded-[24px] p-6 sm:p-8 lg:p-10",
+                    i === 0 && "lg:grid-cols-2 lg:items-center lg:gap-12",
                     tones[item.tone],
                   )}
                 >
@@ -66,6 +67,7 @@ export function Engines() {
                   ) : null}
 
                   <div className="relative flex flex-col gap-5">
+                    <Image src={`/creative/${item.id}.svg`} width={64} height={64} alt="" className="size-16" />
                     <p className={cx("eyebrow flex items-center gap-3", dark ? "text-white/70" : "text-muted")}>
                       <span className="font-mono">{item.index}</span>
                       <span aria-hidden className={cx("h-px w-8", dark ? "bg-white/30" : "bg-ink/20")} />
@@ -106,7 +108,7 @@ export function Engines() {
                     ) : null}
                   </div>
 
-                  <div className="animate-float relative" style={{ animationDelay: `${i * -2}s` }}>
+                  <div className="relative min-w-0 self-end">
                     <Mockup label={item.mockupLabel} />
                   </div>
                 </article>

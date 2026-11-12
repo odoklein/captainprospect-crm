@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { site } from "@/content/site";
 import { Logo } from "@/components/brand/Logo";
@@ -9,17 +10,28 @@ import { ButtonLink, cx } from "@/components/ui/primitives";
 
 /** 2. Sticky navigation with a disclosure menu on small screens. */
 export function SiteHeader() {
+  const pathname = usePathname();
+  const [activeSection, setActiveSection] = useState("");
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
+    let frame = 0;
+    const update = () => {
+      setScrolled(window.scrollY > 8);
+      const sections = site.nav.map(item => document.getElementById(item.href.split("#")[1]))
+        .filter((section): section is HTMLElement => Boolean(section))
+        .sort((a, b) => a.offsetTop - b.offsetTop);
+      const current = sections.filter(section => section.getBoundingClientRect().top <= 160).at(-1);
+      setActiveSection(current?.id ?? "");
+    };
+    const onScroll = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("scroll", onScroll); };
+  }, [pathname]);
 
   useEffect(() => {
     if (!open) return;
@@ -56,7 +68,8 @@ export function SiteHeader() {
               <li key={item.href}>
                 <Link
                   href={item.href}
-                  className="rounded-full px-3.5 py-2 text-[15px] text-ink/80 transition-colors hover:bg-ink/[.04] hover:text-ink"
+                  aria-current={activeSection === item.href.split("#")[1] ? "location" : undefined}
+                  className="rounded-full px-3.5 py-2 text-[15px] text-ink/80 transition-colors hover:bg-ink/[.04] hover:text-ink aria-[current=location]:bg-mint/60 aria-[current=location]:text-navy"
                 >
                   {item.label}
                 </Link>
@@ -95,7 +108,8 @@ export function SiteHeader() {
                 <Link
                   href={item.href}
                   onClick={() => setOpen(false)}
-                  className="font-display-tight block border-b border-line py-3.5 text-2xl font-light"
+                  aria-current={activeSection === item.href.split("#")[1] ? "location" : undefined}
+                  className="font-display-tight block border-b border-line py-3.5 text-2xl font-light aria-[current=location]:text-ok"
                 >
                   {item.label}
                 </Link>

@@ -21,7 +21,7 @@ export function Security() {
           fill
           sizes="100vw"
           loading="lazy"
-          className="pointer-events-none object-cover opacity-40 mix-blend-luminosity"
+          className="pointer-events-none object-cover opacity-35"
         />
       ) : null}
       <div

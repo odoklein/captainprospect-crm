@@ -12,7 +12,7 @@ export function FinalCta() {
         image={resolveImage("ctaLandscape")}
         sizes="100vw"
         className="bg-navy-deep"
-        overlay={<div aria-hidden className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(7,21,24,.55)_0%,rgba(17,47,53,.82)_100%)]" />}
+        overlay={<div aria-hidden className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(7,21,24,.15)_0%,rgba(17,47,53,.35)_100%)]" />}
       >
         <Container className="flex min-h-[560px] flex-col items-center justify-center py-24 text-center text-white sm:min-h-[640px]">
           <Reveal className="flex flex-col items-center gap-6">

@@ -27,7 +27,7 @@ const unsplash = (id: string) => `https://images.unsplash.com/${id}?auto=format&
 export const images = {
   /** 3. Hero : grand cadre derrière la maquette SDR (prompt n°1). */
   heroNature: {
-    file: "/photos/hero-nature",
+    file: "/creative/connection",
     alt: "Collines volcaniques noyées dans la brume au lever du jour",
     fallback: {
       src: unsplash("photo-1470071459604-3b5ec3a7fe05"),
@@ -72,7 +72,7 @@ export const images = {
   },
   /** 13. CTA final : paysage plein cadre sous un voile sombre (prompt n°6). */
   ctaLandscape: {
-    file: "/photos/cta-landscape",
+    file: "/creative/horizon",
     alt: "Sommets enneigés au-dessus d'une mer de nuages, ciel bleu nuit et lueur rose à l'horizon",
     fallback: {
       src: unsplash("photo-1506905925346-21bda4d32df4"),
@@ -81,7 +81,7 @@ export const images = {
   },
   /** 12. Texture de la bande Sécurité (prompt n°7). Décorative : pas de photo de secours. */
   securityTexture: {
-    file: "/photos/security-texture",
+    file: "/creative/vault",
     alt: "",
   },
 } satisfies Record<string, PhotoEntry>;

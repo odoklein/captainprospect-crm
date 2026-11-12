@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { AnimatePresence, m } from "framer-motion";
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { roles } from "@/content/home";
@@ -84,10 +85,11 @@ export function Roles() {
                     onClick={() => setActive(i)}
                     onKeyDown={(e) => onKeyDown(e, i)}
                     className={cx(
-                      "relative rounded-[16px] border px-5 py-4 text-left transition-colors duration-200",
+                      "relative rounded-[16px] border py-4 pr-5 pl-[82px] text-left transition-colors duration-200",
                       selected ? "border-line bg-white" : "border-transparent hover:bg-ink/[.03]",
                     )}
                   >
+                    <Image src={`/creative/${tab.id}.svg`} width={44} height={44} alt="" className="absolute left-5 top-4 size-11" />
                     {selected ? <span aria-hidden className="absolute top-4 bottom-4 left-0 w-[3px] rounded-full bg-rose" /> : null}
                     <span className={cx("eyebrow block", selected ? "text-navy" : "text-muted")}>{tab.label}</span>
                     <span className={cx("font-display-tight mt-1 block text-xl", selected ? "text-ink" : "text-ink/75")}>

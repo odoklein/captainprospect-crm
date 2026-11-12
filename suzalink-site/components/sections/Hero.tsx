@@ -11,7 +11,7 @@ import { HeroCards } from "./HeroCards";
 export function Hero() {
   const [line1, line2] = hero.titleLines;
   return (
-    <section aria-labelledby="hero-title" className="relative overflow-hidden pt-10 pb-20 sm:pt-14 lg:pt-16 lg:pb-28">
+    <section aria-labelledby="hero-title" className="relative overflow-hidden pt-7 pb-16 sm:pt-9 lg:pt-10 lg:pb-24">
       {/* Dotted grid fading out, with a soft mint glow behind the icon. */}
       <div
         aria-hidden
@@ -27,7 +27,7 @@ export function Hero() {
           width={112}
           height={112}
           priority
-          className="size-[88px] drop-shadow-[0_18px_30px_rgba(17,47,53,.28)] sm:size-[112px]"
+          className="size-[64px] drop-shadow-[0_18px_30px_rgba(17,47,53,.28)] sm:size-[80px]"
         />
         <p className="mt-6 inline-flex items-center gap-3 rounded-full border border-line bg-white/80 py-1.5 pr-4 pl-4 text-[13px] sm:pl-1.5 sm:text-[14px] text-ink shadow-[0_8px_24px_-18px_rgba(12,31,35,.4)] backdrop-blur">
           <span aria-hidden className="hidden -space-x-2 sm:flex">
@@ -46,7 +46,7 @@ export function Hero() {
         </p>
         <h1
           id="hero-title"
-          className="font-display-tight mt-7 text-[clamp(3rem,8.4vw,6rem)] leading-[0.95] font-light text-ink"
+          className="font-display-tight mt-6 text-[clamp(2.75rem,7vw,5.25rem)] leading-[0.95] font-light text-ink"
         >
           <span className="block">{line1}</span>
           <span className="block text-navy">
@@ -54,8 +54,8 @@ export function Hero() {
             <span className="text-rose">.</span>
           </span>
         </h1>
-        <p className="mt-7 max-w-[40ch] text-lg leading-relaxed text-muted sm:text-xl">{hero.subtitle}</p>
-        <div className="mt-9 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+        <p className="mt-5 max-w-[40ch] text-lg leading-relaxed text-muted sm:text-xl">{hero.subtitle}</p>
+        <div className="mt-7 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
           <ButtonLink href={hero.primary.href} size="lg" arrow className="w-full sm:w-auto">
             {hero.primary.label}
           </ButtonLink>
@@ -65,7 +65,7 @@ export function Hero() {
         </div>
       </Container>
 
-      <Container className="mt-14 sm:mt-20">
+      <Container className="mt-12 sm:mt-14">
         <PhotoFrame
           image={resolveImage("heroNature")}
           priority
