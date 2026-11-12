@@ -4,15 +4,12 @@ import { useEffect, useRef, useState, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
-    Drawer,
     Button,
     Badge,
-    Tabs,
     useToast,
     ConfirmModal,
     Modal,
     DatePicker,
-    DrawerHeader,
 } from "@/components/ui";
 import { CLIENTS_QUERY_KEY, clientDetailQueryKey } from "@/lib/query-keys";
 import {
@@ -81,6 +78,10 @@ import {
     ChevronUp,
     Mic,
     ListChecks,
+    ArrowRight,
+    Folder,
+    Rocket,
+    Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -228,14 +229,16 @@ interface ClientDrawerProps {
      * /manager/missions/[id] links can land straight on a mission.
      */
     openMissionId?: string | null;
-    onOpenMission?: (missionId: string | null) => void;
+    onOpenMission?: (missionId: string | null, tab?: string) => void;
+    clientTab?: string;
+    onClientTabChange?: (tab: string) => void;
     missionTab?: string;
     onMissionTabChange?: (tab: string) => void;
 }
 
 type TabId = "apercu" | "missions" | "onboarding" | "acces" | "activite" | "avis-sdr" | "sessions";
 
-const DRAWER_EXPANDED_KEY = "cp:clientDrawerExpanded";
+const CLIENT_TABS: TabId[] = ["missions", "apercu", "onboarding", "acces", "activite", "avis-sdr", "sessions"];
 
 interface ClientSessionTask {
     id: string;
@@ -474,6 +477,8 @@ export function ClientDrawer({
     onUpdate,
     onDelete,
     openMissionId,
+    clientTab = "missions",
+    onClientTabChange,
     onOpenMission,
     missionTab,
     onMissionTabChange,
@@ -481,7 +486,10 @@ export function ClientDrawer({
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
 
-    const [activeTab, setActiveTab] = useState<TabId>("apercu");
+    const activeTab = CLIENT_TABS.includes(clientTab as TabId) ? clientTab as TabId : "missions";
+    const [missionSearch, setMissionSearch] = useState("");
+    const [showAllTreeMissions, setShowAllTreeMissions] = useState(false);
+    const [showClosedMissions, setShowClosedMissions] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [scriptModalMission, setScriptModalMission] = useState<MissionLite | null>(null);
@@ -492,69 +500,14 @@ export function ClientDrawer({
     const [moreOpen, setMoreOpen] = useState(false);
     const [showNewMission, setShowNewMission] = useState(false);
 
-    // Width preference: 1180px by default, near-full for script/BDD work.
-    const [isExpanded, setIsExpanded] = useState(false);
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        setIsExpanded(window.localStorage.getItem(DRAWER_EXPANDED_KEY) === "1");
-    }, []);
-    const toggleExpanded = () => {
-        setIsExpanded((prev) => {
-            const next = !prev;
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(DRAWER_EXPANDED_KEY, next ? "1" : "0");
-            }
-            return next;
-        });
-    };
-
-    /**
-     * Drill-down state lives here, and the URL mirrors it.
-     *
-     * It used to be the other way round: a click called the parent, which pushed
-     * a new URL, and the drawer only opened once useSearchParams re-rendered.
-     * One broken link in that chain and the click did nothing at all. Owning the
-     * state locally makes the click immediate; the URL still follows so deep
-     * links and the back button keep working, and an external change (a deep
-     * link, the back button) syncs back in through the effect below.
-     */
-    const [activeMissionId, setActiveMissionId] = useState<string | null>(openMissionId ?? null);
-    const [activeMissionTab, setActiveMissionTab] = useState(missionTab ?? "general");
-
-    useEffect(() => {
-        if (openMissionId === undefined) return;
-        setActiveMissionId(openMissionId);
-    }, [openMissionId]);
-
-    useEffect(() => {
-        if (missionTab === undefined) return;
-        setActiveMissionTab(missionTab);
-    }, [missionTab]);
-
-    // A different client means a different mission list: never keep the old one.
-    // Guarded by a ref so this does not fire on mount and wipe out a deep link
-    // (?client=X&mission=Y), which is the one path that has to survive here.
-    const lastClientIdRef = useRef<string | undefined>(client?.id);
-    useEffect(() => {
-        if (lastClientIdRef.current === client?.id) return;
-        lastClientIdRef.current = client?.id;
-        setActiveMissionId(openMissionId ?? null);
-    }, [client?.id, openMissionId]);
-
-    const openMission = (id: string | null, tab: string = "general") => {
-        setActiveMissionId(id);
-        setActiveMissionTab(tab);
-        onOpenMission?.(id);
-        onMissionTabChange?.(tab);
-    };
-
-    const changeMissionTab = (tab: string) => {
-        setActiveMissionTab(tab);
-        onMissionTabChange?.(tab);
-    };
+    const activeMissionId = openMissionId ?? null;
+    const activeMissionTab = missionTab ?? "general";
+    const openMission = (id: string | null, tab = "general") => onOpenMission?.(id, tab);
+    const changeMissionTab = (tab: string) => onMissionTabChange?.(tab);
+    const setActiveTab = (tab: TabId) => onClientTabChange?.(tab);
 
     // React Query: full client detail
-    const { data: clientDetail } = useQuery({
+    const { data: clientDetail, isLoading: isLoadingClient, isError: isClientError, refetch: refetchClient } = useQuery({
         queryKey: clientDetailQueryKey(client?.id ?? null),
         queryFn: () => fetchClientDetail(client!.id),
         enabled: isOpen && !!client?.id,
@@ -594,11 +547,6 @@ export function ClientDrawer({
         },
         enabled: isOpen && !!client?.id,
     });
-
-    // Reset tab when switching clients
-    useEffect(() => {
-        if (client) setActiveTab("apercu");
-    }, [client?.id]);
 
     // ─── save helper (single-field PATCH) ────────────────────────────────────
     const saveField = async (patch: Record<string, unknown>) => {
@@ -731,30 +679,20 @@ export function ClientDrawer({
     // HEADER (hero)
     // ───────────────────────────────────────────────────────────────────────
 
-    const Header = (
-        <DrawerHeader
-            className="!px-4 sm:!px-6"
-            onClose={onClose}
-            title={
-                <InlineText
-                    value={client.name}
-                    onSave={(v) => saveField({ name: v })}
-                    valueClassName="text-center text-base font-semibold !text-slate-900"
-                    className="!mb-0 [&_button]:!mx-0"
-                />
-            }
-            subtitle={
-                <>
-                    {client.industry || "Secteur non spécifié"} · Client depuis{" "}
-                    {new Date(client.createdAt).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
-                </>
-            }
-            left={<>
-            {/* Monogram */}
-            <div className="hidden sm:flex w-10 h-10 flex-shrink-0 rounded-lg bg-slate-100 items-center justify-center text-slate-500 text-base font-semibold">
-                {client.name[0]?.toUpperCase() || "?"}
+    const ClientHeading = (
+        <div className="cw-pagehead">
+            <div className="cw-client-identity">
+                <span className="cw-monogram cw-monogram-large">{client.name[0]?.toUpperCase() || "?"}</span>
+                <div><h1>{client.name}</h1><p>{client.industry || "Espace client"}</p></div>
             </div>
+            <div className="cw-actions">
+                <button className="cw-button cw-primary" onClick={() => setShowNewMission(true)}><Plus /> Nouvelle mission</button>
+            </div>
+        </div>
+    );
 
+    const ClientActions = (
+        <div className="cw-actions">
             {/* Client status pill */}
             <div className="relative flex-shrink-0">
                 <button
@@ -788,8 +726,6 @@ export function ClientDrawer({
                     </>
                 )}
             </div>
-            </>}
-            right={<>
             {/* Overflow menu */}
             <button
                 ref={moreBtnRef}
@@ -821,8 +757,7 @@ export function ClientDrawer({
                     </button>
                 </div>
             </PopoverPanel>
-            </>}
-        />
+        </div>
     );
 
     // ───────────────────────────────────────────────────────────────────────
@@ -1000,46 +935,37 @@ export function ClientDrawer({
     // TAB: MISSIONS
     // ───────────────────────────────────────────────────────────────────────
 
-    const MissionsTab = (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-base font-bold text-slate-900">Missions</h3>
-                    <p className="text-sm text-slate-500 mt-0.5">
-                        {missions.length} mission{missions.length > 1 ? "s" : ""} · {activeMissionsCount} active
-                        {activeMissionsCount > 1 ? "s" : ""}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setShowNewMission(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
-                >
-                    <Plus className="w-4 h-4" /> Nouvelle mission
-                </button>
-            </div>
+    const closedMissions = missions.filter((mission) => mission.status === "COMPLETED" || mission.status === "ARCHIVED");
+    const openMissions = missions.filter((mission) => !closedMissions.includes(mission));
+    const query = missionSearch.trim().toLocaleLowerCase("fr");
+    const shownMissions = query
+        ? missions.filter((mission) => mission.name.toLocaleLowerCase("fr").includes(query))
+        : showClosedMissions ? [...openMissions, ...closedMissions] : openMissions;
+    const activeMission = missions.find((mission) => mission.id === activeMissionId);
+    const treeMissions = showAllTreeMissions ? [...openMissions, ...closedMissions] : openMissions.slice(0, 6);
+    if (activeMission && !treeMissions.includes(activeMission)) treeMissions.push(activeMission);
+    const draftMissions = missions.filter((mission) => mission.status === "DRAFT");
+    const onboardingProgress = onboardingChecklist?.progress;
+    const mainContact = interlocuteurs[0];
 
-            {missions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
-                    <div className="w-12 h-12 mx-auto rounded-xl bg-white border border-slate-200 flex items-center justify-center mb-3">
-                        <Target className="w-5 h-5 text-slate-400" />
-                    </div>
-                    <p className="text-sm font-medium text-slate-700">Aucune mission</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                        Créez la première mission pour ce client.
-                    </p>
-                </div>
-            ) : (
-                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                    {missions.map((m, idx) => (
+    const MissionsTab = (
+        <div className="cw-columns">
+            <section className="cw-panel cw-mission-list">
+                <header className="cw-panel-toolbar">
+                    <div><h2>Missions</h2><small>{missions.length} mission{missions.length > 1 ? "s" : ""} · {activeMissionsCount} en cours</small></div>
+                    {missions.length > 0 && <label className="cw-search"><Search /><input type="search" aria-label="Rechercher une mission" placeholder="Rechercher une mission…" value={missionSearch} onChange={(event) => setMissionSearch(event.target.value)} /></label>}
+                </header>
+                {isLoadingClient ? <div className="cw-empty">Chargement des missions…</div>
+                    : isClientError ? <div className="cw-empty"><p>Impossible de charger les missions.</p><button className="cw-button" onClick={() => refetchClient()}>Réessayer</button></div>
+                    : shownMissions.length ? shownMissions.map((mission, index) => (
                         <MissionRow
-                            key={m.id}
-                            mission={m}
-                            isLast={idx === missions.length - 1}
-                            onOpen={(tab) => openMission(m.id, tab)}
-                            onScriptClick={() => setScriptModalMission(m)}
+                            key={mission.id}
+                            mission={mission}
+                            isLast={index === shownMissions.length - 1}
+                            onOpen={(tab) => openMission(mission.id, tab)}
+                            onScriptClick={() => setScriptModalMission(mission)}
                             onStatusChange={async (next) => {
-                                const res = await fetch(`/api/missions/${m.id}`, {
+                                const res = await fetch(`/api/missions/${mission.id}`, {
                                     method: "PATCH",
                                     headers: { "Content-Type": "application/json" },
                                     body: JSON.stringify({ status: next }),
@@ -1050,14 +976,36 @@ export function ClientDrawer({
                                     throw new Error(json.error);
                                 }
                                 success("Statut mis à jour", MISSION_STATUS_CONFIG[next].label);
-                                queryClient.invalidateQueries({
-                                    queryKey: clientDetailQueryKey(client.id),
-                                });
+                                queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
+                                queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
                             }}
                         />
-                    ))}
-                </div>
-            )}
+                    )) : <div className="cw-empty"><Target /><strong>{query ? "Aucune mission trouvée" : "Aucune mission en cours de suivi"}</strong></div>}
+                {!query && closedMissions.length > 0 && <div className="cw-panel-footer">
+                    <button className="cw-text-button" onClick={() => setShowClosedMissions((value) => !value)} aria-expanded={showClosedMissions}>
+                        <Archive /> {showClosedMissions ? "Masquer les missions clôturées" : `Afficher les missions clôturées (${closedMissions.length})`}
+                    </button>
+                </div>}
+            </section>
+            <aside className="cw-context" aria-label="Contexte client">
+                <section className="cw-panel cw-side">
+                    <div className="cw-side-heading"><Building2 /><h2>Contexte partagé</h2></div>
+                    {mainContact && <div className="cw-contact">
+                        <span className="cw-monogram">{mainContact.firstName[0]}{mainContact.lastName[0]}</span>
+                        <div><strong>{mainContact.firstName} {mainContact.lastName}</strong><small>{mainContact.jobTitle || "Interlocuteur client"}</small></div>
+                    </div>}
+                    <button className="cw-side-row" onClick={() => setActiveTab("apercu")}><span className="cw-side-icon"><Building2 /></span><span><strong>Informations client</strong><small>Coordonnées, ciblage et paramètres</small></span><ChevronRight /></button>
+                    <button className="cw-side-row" onClick={() => setActiveTab("acces")}><span className="cw-side-icon"><Users /></span><span><strong>Interlocuteurs et accès</strong><small>Contacts et portail client</small></span><ChevronRight /></button>
+                </section>
+                <section className="cw-panel cw-side">
+                    <div className="cw-side-heading"><ListChecks /><h2>Intégration client</h2></div>
+                    {onboardingProgress?.total ? <div className="cw-side-progress">
+                        <span>{onboardingProgress.done} / {onboardingProgress.total} étapes terminées</span>
+                        <progress value={onboardingProgress.done} max={onboardingProgress.total} />
+                    </div> : null}
+                    <button className="cw-text-button" onClick={() => setActiveTab("onboarding")}>Ouvrir l’intégration <ArrowRight /></button>
+                </section>
+            </aside>
         </div>
     );
 
@@ -1562,7 +1510,7 @@ export function ClientDrawer({
         { id: "missions", label: "Missions", icon: <Target className="w-3.5 h-3.5" />, badge: missions.length || undefined },
         {
             id: "onboarding",
-            label: "Onboarding",
+            label: "Intégration client",
             icon: <ListChecks className="w-3.5 h-3.5" />,
             badge: onboardingChecklist?.progress.total
                 ? `${onboardingChecklist.progress.done}/${onboardingChecklist.progress.total}`
@@ -1576,7 +1524,7 @@ export function ClientDrawer({
         },
         { id: "activite", label: "Activité", icon: <Activity className="w-3.5 h-3.5" /> },
         { id: "avis-sdr", label: "Avis SDR", icon: <MessageSquare className="w-3.5 h-3.5" />, badge: sdrFeedback.length || undefined },
-        { id: "sessions", label: "CR & Sessions", icon: <FileText className="w-3.5 h-3.5" />, badge: sessions.length || undefined },
+        { id: "sessions", label: "Comptes rendus", icon: <FileText className="w-3.5 h-3.5" />, badge: sessions.length || undefined },
     ];
 
     const SessionsTab = (
@@ -1786,80 +1734,96 @@ export function ClientDrawer({
 
     return (
         <>
-            <Drawer
-                isOpen={isOpen}
-                onClose={onClose}
-                size="full"
-                showCloseButton={false}
-                className={isExpanded ? "!max-w-[95vw]" : "!max-w-[1180px]"}
-            >
-                {activeMissionId ? (
-                    /* Drill-down: the mission workspace takes over the drawer body */
-                    <div className="-m-6 flex flex-col h-full">
-                        <DrawerHeader
-                            onClose={onClose}
-                            title={missions.find((m) => m.id === activeMissionId)?.name ?? "Mission"}
-                            left={
-                                <button
-                                    type="button"
-                                    onClick={() => openMission(null)}
-                                    className="inline-flex min-w-0 items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                                >
-                                    <ChevronRight className="h-3.5 w-3.5 shrink-0 rotate-180" />
-                                    <span className="truncate">{client.name}</span>
-                                </button>
-                            }
-                        />
-
-                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
+            {isOpen && <div className="cw-shell">
+                <aside className="cw-tree">
+                    <button className="cw-tree-back" onClick={onClose}><ChevronRight /> Tous les clients</button>
+                    <div className="cw-tree-title"><Folder /><span title={client.name}>{client.name}</span></div>
+                    <nav aria-label="Espace client">
+                        {tabDef.filter((item) => ["missions", "apercu", "onboarding", "acces"].includes(item.id))
+                            .sort((a, b) => CLIENT_TABS.indexOf(a.id as TabId) - CLIENT_TABS.indexOf(b.id as TabId))
+                            .map((item) => (
+                                <div key={item.id}>
+                                    <button className="cw-tree-link" aria-current={!activeMissionId && activeTab === item.id ? "page" : undefined} onClick={() => setActiveTab(item.id as TabId)}>
+                                        {item.icon}<span>{item.id === "apercu" ? "Informations client" : item.label}</span>{item.badge && <small>{item.badge}</small>}
+                                    </button>
+                                    {item.id === "missions" && <div className="cw-tree-children">
+                                        {treeMissions.map((mission) => (
+                                            <button key={mission.id} className="cw-tree-link" title={mission.name} aria-current={activeMissionId === mission.id ? "page" : undefined} onClick={() => openMission(mission.id)}>
+                                                <Target /><span>{mission.name}</span>
+                                            </button>
+                                        ))}
+                                        {missions.length > openMissions.slice(0, 6).length && <button className="cw-tree-link" onClick={() => setShowAllTreeMissions((value) => !value)} aria-expanded={showAllTreeMissions}>
+                                            <ChevronDown /><span>{showAllTreeMissions ? "Réduire la liste" : "Toutes les missions"}</span>
+                                        </button>}
+                                    </div>}
+                                </div>
+                            ))}
+                    </nav>
+                    <div className="cw-tree-label">Suivi du client</div>
+                    <nav aria-label="Suivi du client">
+                        {tabDef.filter((item) => ["activite", "avis-sdr", "sessions"].includes(item.id)).map((item) => (
+                            <button key={item.id} className="cw-tree-link" aria-current={!activeMissionId && activeTab === item.id ? "page" : undefined} onClick={() => setActiveTab(item.id as TabId)}>
+                                {item.icon}<span>{item.label}</span>{item.badge && <small>{item.badge}</small>}
+                            </button>
+                        ))}
+                    </nav>
+                </aside>
+                <div className="cw-work">
+                    <nav className="cw-crumb" aria-label="Fil d’Ariane">
+                        <button onClick={onClose}>Clients</button><ChevronRight />
+                        {activeMissionId || activeTab !== "missions" ? <button onClick={() => setActiveTab("missions")}>{client.name}</button> : <strong aria-current="page">{client.name}</strong>}
+                        {activeMissionId && <><ChevronRight /><strong aria-current={activeMissionTab === "lancement" ? undefined : "page"}>{activeMission?.name ?? "Mission"}</strong></>}
+                        {activeMissionId && activeMissionTab === "lancement" && <><ChevronRight /><strong aria-current="page">Lancement</strong></>}
+                        {!activeMissionId && activeTab !== "missions" && <><ChevronRight /><strong aria-current="page">{tabDef.find((item) => item.id === activeTab)?.label}</strong></>}
+                        {!activeMissionId && <div className="cw-crumb-actions">{ClientActions}</div>}
+                    </nav>
+                    <div className="cw-content">
+                        {activeMissionId ? (
                             <MissionWorkspace
-                                // Remount per mission: the workspace holds a lot of
-                                // per-mission state (strategy drafts, templates).
                                 key={activeMissionId}
                                 missionId={activeMissionId}
                                 onBack={() => openMission(null)}
+                                onClientOnboarding={() => setActiveTab("onboarding")}
                                 onMissionMutated={() => {
-                                    queryClient.invalidateQueries({
-                                        queryKey: clientDetailQueryKey(client.id),
-                                    });
+                                    queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
                                     queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
                                 }}
                                 activeTab={activeMissionTab}
                                 onTabChange={changeMissionTab}
-                                isExpanded={isExpanded}
-                                onToggleExpand={toggleExpanded}
                             />
-                        </div>
+                        ) : (
+                            <>
+                                {activeTab === "missions" ? ClientHeading : <header className="cw-pagehead"><div>
+                                    <h1>{activeTab === "apercu" ? "Informations client" : tabDef.find((item) => item.id === activeTab)?.label}</h1>
+                                    <p>{activeTab === "onboarding" ? "Le suivi de l’intégration du client, de la contractualisation au premier appel." : client.name}</p>
+                                </div></header>}
+                                {activeTab === "apercu" && OverviewTab}
+                                {activeTab === "missions" && MissionsTab}
+                                {activeTab === "acces" && AccessAndContactsTab}
+                                {activeTab === "activite" && ActivityTab}
+                                {activeTab === "avis-sdr" && SdrFeedbackTab}
+                                {activeTab === "sessions" && SessionsTab}
+                                {activeTab === "onboarding" && (
+                                    <div className="cw-columns">
+                                        <OnboardingChecklist clientId={client.id} />
+                                        <aside className="cw-context" aria-label="Accès et lancements">
+                                            <section className="cw-panel cw-side">
+                                                <div className="cw-side-heading"><Rocket /><h2>Lancement des missions</h2></div>
+                                                <p className="cw-side-note">Chaque mission a ses propres bases, sa stratégie et son équipe.</p>
+                                                {draftMissions.slice(0, 4).map((mission) => <button key={mission.id} className="cw-side-row" onClick={() => openMission(mission.id, "lancement")}>
+                                                    <span className="cw-side-icon"><Target /></span><span><strong>{mission.name}</strong><small>Préparer le lancement</small></span><ChevronRight />
+                                                </button>)}
+                                                <button className="cw-text-button" onClick={() => setActiveTab("missions")}>Toutes les missions <ArrowRight /></button>
+                                            </section>
+                                            <AccessLinksCard clientId={client.id} />
+                                        </aside>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
-                ) : (
-                    <div className="-m-6 flex flex-col h-full">
-                        {Header}
-
-                        <div className="sticky top-0 z-10 px-6 bg-white border-b border-slate-100">
-                            <Tabs
-                                tabs={tabDef}
-                                activeTab={activeTab}
-                                onTabChange={(id) => setActiveTab(id as TabId)}
-                            />
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
-                            {activeTab === "apercu" && OverviewTab}
-                            {activeTab === "missions" && MissionsTab}
-                            {activeTab === "acces" && AccessAndContactsTab}
-                            {activeTab === "activite" && ActivityTab}
-                            {activeTab === "avis-sdr" && SdrFeedbackTab}
-                            {activeTab === "sessions" && SessionsTab}
-                            {activeTab === "onboarding" && client && (
-                                <div className="space-y-4">
-                                    <OnboardingChecklist clientId={client.id} />
-                                    <AccessLinksCard clientId={client.id} />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </Drawer>
+                </div>
+            </div>}
 
             <ConfirmModal
                 isOpen={showDeleteConfirm}
@@ -1874,6 +1838,7 @@ export function ClientDrawer({
             />
 
             <NewMissionDialog
+                initialClientId={client.id}
                 isOpen={showNewMission}
                 onClose={() => setShowNewMission(false)}
                 onCreated={(missionId) => {
@@ -1937,14 +1902,14 @@ function MissionRow({
             tabIndex={0}
             onClick={() => onOpen()}
             onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+                if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
                     e.preventDefault();
                     onOpen();
                 }
             }}
             aria-label={`Ouvrir la mission ${mission.name}`}
             className={
-                "group flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50/60 transition-colors " +
+                "cw-mission-row group flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors " +
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 " +
                 (isLast ? "" : "border-b border-slate-100")
             }

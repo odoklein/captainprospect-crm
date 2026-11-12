@@ -38,6 +38,7 @@ interface Props {
     onClose: () => void;
     /** Receives the new mission id so the caller can open it where it lives. */
     onCreated?: (missionId?: string) => void;
+    initialClientId?: string;
 }
 
 const CHANNEL_OPTIONS = [
@@ -92,7 +93,7 @@ const SCRIPT_SECTIONS = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function NewMissionDialog({ isOpen, onClose, onCreated }: Props) {
+export function NewMissionDialog({ isOpen, onClose, onCreated, initialClientId }: Props) {
     const router = useRouter();
     const { success, error: showError } = useToast();
 
@@ -126,12 +127,12 @@ export function NewMissionDialog({ isOpen, onClose, onCreated }: Props) {
         setStep(1);
         setForm({
             name: "", objective: "", channel: "CALL" as Channel, channels: ["CALL"],
-            clientId: "", startDate: "", endDate: "",
+            clientId: initialClientId ?? "", startDate: "", endDate: "",
             icp: "", pitch: "",
             scriptIntro: "", scriptDiscovery: "", scriptObjection: "", scriptClosing: "",
             status: "DRAFT" as MissionStatusValue,
         });
-    }, [isOpen]);
+    }, [isOpen, initialClientId]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -141,14 +142,14 @@ export function NewMissionDialog({ isOpen, onClose, onCreated }: Props) {
             .then(json => {
                 if (json.success) {
                     setClients(json.data);
-                    if (json.data.length === 1) {
+                    if (!initialClientId && json.data.length === 1) {
                         setForm(prev => ({ ...prev, clientId: json.data[0].id }));
                     }
                 }
             })
             .catch(() => { })
             .finally(() => setIsLoadingClients(false));
-    }, [isOpen]);
+    }, [isOpen, initialClientId]);
 
     // ─── Validation ───────────────────────────────────────────────────────────
 
@@ -368,6 +369,7 @@ export function NewMissionDialog({ isOpen, onClose, onCreated }: Props) {
                                     ) : (
                                         <select
                                             value={form.clientId}
+                                            disabled={Boolean(initialClientId)}
                                             onChange={e => setForm(p => ({ ...p, clientId: e.target.value }))}
                                             className="w-full h-11 px-4 border border-slate-200 rounded-xl text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 transition-all"
                                         >

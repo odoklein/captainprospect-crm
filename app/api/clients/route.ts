@@ -108,6 +108,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(['MANAGER', 'CLIENT'], request);
     const { searchParams } = new URL(request.url);
     const { page, limit, skip } = getPaginationParams(searchParams);
+    const workspace = session.user.role === 'MANAGER' && searchParams.get('view') === 'workspace';
 
     const where: Record<string, unknown> = {};
 
@@ -119,6 +120,28 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const search = searchParams.get('search');
     if (search) {
         where.name = { contains: search, mode: 'insensitive' };
+    }
+
+    if (workspace) {
+        const [clients, total] = await Promise.all([
+            prisma.client.findMany({
+                where,
+                select: {
+                    id: true, name: true, industry: true, email: true, phone: true, status: true,
+                    createdAt: true, bookingUrl: true,
+                    _count: { select: { missions: true, users: true } },
+                    missions: {
+                        select: { id: true, name: true, endDate: true, status: true, isActive: true },
+                        orderBy: [{ endDate: 'desc' }, { id: 'asc' }],
+                    },
+                },
+                orderBy: [{ name: 'asc' }, { id: 'asc' }],
+                skip,
+                take: limit,
+            }),
+            prisma.client.count({ where }),
+        ]);
+        return paginatedResponse(clients, total, page, limit);
     }
 
     const [clients, total] = await Promise.all([

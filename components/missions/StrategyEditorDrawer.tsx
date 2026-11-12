@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Drawer, useToast } from "@/components/ui";
 import { Loader2, Save, CheckCircle2, AlertCircle, Target, Users, FileText, MessageSquare } from "lucide-react";
 import { PitchBlockEditor, ScriptBlockEditor } from "@/components/strategy";
@@ -20,6 +20,7 @@ interface StrategyEditorDrawerProps {
     lists: ListSummary[];
     initialAssignToListId?: string | null;
     onSaved?: () => void;
+    focusField?: "icp" | "pitch" | "script";
 }
 
 interface CampaignDetail {
@@ -96,12 +97,14 @@ export function StrategyEditorDrawer({
     lists,
     initialAssignToListId,
     onSaved,
+    focusField,
 }: StrategyEditorDrawerProps) {
     const { success, error: showError } = useToast();
     const isCreate = !campaignId;
 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const focusRef = useRef<HTMLElement | null>(null);
     const [name, setName] = useState("");
     const [icp, setIcp] = useState("");
     const [pitch, setPitch] = useState("");
@@ -150,6 +153,15 @@ export function StrategyEditorDrawer({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, campaignId]);
+
+    useEffect(() => {
+        if (!isOpen || loading || !focusField) return;
+        const frame = requestAnimationFrame(() => {
+            focusRef.current?.scrollIntoView({ block: "start" });
+            focusRef.current?.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [isOpen, loading, focusField]);
 
     const toggleListLink = useCallback((listId: string) => {
         setLinkedListIds((prev) => {
@@ -403,7 +415,7 @@ export function StrategyEditorDrawer({
                     </Step>
 
                     {/* Step 3: ICP */}
-                    <Step number={3} icon={<Target style={{ width: 18, height: 18, color: C.indigo }} />} title="Profil cible (ICP)">
+                    <Step focusRef={focusField === "icp" ? focusRef : undefined} number={3} icon={<Target style={{ width: 18, height: 18, color: C.indigo }} />} title="Profil cible (ICP)">
                         <textarea
                             value={icp}
                             onChange={(e) => setIcp(e.target.value)}
@@ -416,7 +428,7 @@ export function StrategyEditorDrawer({
                     </Step>
 
                     {/* Step 4: Pitch */}
-                    <Step number={4} icon={<MessageSquare style={{ width: 18, height: 18, color: C.indigo }} />} title="Pitch — message à porter">
+                    <Step focusRef={focusField === "pitch" ? focusRef : undefined} number={4} icon={<MessageSquare style={{ width: 18, height: 18, color: C.indigo }} />} title="Pitch — message à porter">
                         <PitchBlockEditor
                             value={pitch}
                             onChange={setPitch}
@@ -426,7 +438,7 @@ export function StrategyEditorDrawer({
                     </Step>
 
                     {/* Step 5: Script */}
-                    <Step number={5} icon={<FileText style={{ width: 18, height: 18, color: C.indigo }} />} title="Script d’appel">
+                    <Step focusRef={focusField === "script" ? focusRef : undefined} number={5} icon={<FileText style={{ width: 18, height: 18, color: C.indigo }} />} title="Script d’appel">
                         <ScriptBlockEditor
                             value={script}
                             onChange={setScript}
@@ -448,7 +460,9 @@ function Step({
     icon,
     title,
     children,
+    focusRef,
 }: {
+    focusRef?: React.Ref<HTMLElement>;
     number: number;
     icon: React.ReactNode;
     title: string;
@@ -456,7 +470,10 @@ function Step({
 }) {
     return (
         <section
+            ref={focusRef}
+            tabIndex={focusRef ? -1 : undefined}
             style={{
+                scrollMarginBlockStart: 12,
                 background: C.bg,
                 border: `1px solid ${C.border}`,
                 borderRadius: 14,
