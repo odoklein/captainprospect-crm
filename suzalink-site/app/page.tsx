@@ -4,6 +4,7 @@ import { AnnouncementBar } from "@/components/sections/AnnouncementBar";
 import { SiteHeader } from "@/components/sections/SiteHeader";
 import { Hero } from "@/components/sections/Hero";
 import { LogoStrip } from "@/components/sections/LogoStrip";
+import { Features } from "@/components/sections/Features";
 import { AiSplit } from "@/components/sections/AiSplit";
 import { Engines } from "@/components/sections/Engines";
 import { Roles } from "@/components/sections/Roles";
@@ -70,6 +71,7 @@ export default function HomePage() {
       <main id="contenu" tabIndex={-1} className="outline-none">
         <Hero />
         <LogoStrip />
+        <Features />
         <AiSplit />
         <Engines />
         <Roles />

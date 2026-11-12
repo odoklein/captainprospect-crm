@@ -33,6 +33,19 @@ export const logos = {
   // La liste des clients et leurs logos : content/brands.ts
 };
 
+export const features = {
+  eyebrow: "Fonctionnalités",
+  title: "Tout ce qu'il faut pour appeler plus.",
+  /** Description of the whole grid for screen readers (the cards are UI illustrations). */
+  label:
+    "Aperçu des fonctionnalités : file d'appels, résultat en une touche, résumé et résultat proposés par l'IA, journal d'appels avec enregistrements, portail client avec les RDV de la semaine.",
+  queue: { title: "File d'appels", body: "Le prochain prospect arrive tout seul." },
+  keys: { title: "Résultat en 1 touche", body: "Qualifiez l'appel sans quitter le clavier." },
+  ai: { title: "Résumé et résultat par l'IA", body: "Un résumé automatique et un résultat suggéré, à confirmer." },
+  journal: { title: "Journal d'appels", body: "Suivez l'activité, écoutez les appels et mesurez la qualité des échanges." },
+  portal: { title: "Portail client", body: "Vos clients voient leurs rendez-vous, à jour, sans vous écrire." },
+};
+
 export const aiSplit = {
   eyebrow: "IA intégrée",
   title: "L'IA au service de vos SDRs, pas l'inverse",
