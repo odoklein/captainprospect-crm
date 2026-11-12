@@ -7,6 +7,8 @@ import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from "@/l
 import { successResponse, requireRole, withErrorHandler } from "@/lib/api-utils";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
 import { getSdrMissionScope } from "@/lib/sdr-today-missions";
+import { COMPANY_PHONE_SQL, COMPANY_REVENUE_SQL, COMPANY_SIZE_SQL } from "@/lib/sdr-queue/company-sql";
+import { applySmartOrder, qualifyQueueRows, smartQueueMode } from "@/lib/qualification/queue";
 
 // ============================================
 // GET /api/sdr/action-queue
@@ -38,16 +40,11 @@ function buildCallbackResultCodes(config: { statuses: Array<{ code: string; labe
     return new Set<string>([...defaults, ...configured]);
 }
 
-const COMPANY_PHONE_SQL = `COALESCE(NULLIF(co.phone, ''), NULLIF(co."customData"->'additionalPhones'->>0, ''))`;
-
 // Headcount and revenue for the SDR filters (#118). Imports put them under free
 // keys of customData (TAILLE, Effectif, CA, Chiffre d'affaires…), so the first
 // matching key is read when the typed column is empty. Parsing into buckets
-// happens in lib/sdr-queue/company-facets.ts.
-const customValueSql = (keyRegex: string) =>
-    `CASE WHEN jsonb_typeof(co."customData"::jsonb) = 'object' THEN (SELECT NULLIF(e.value, '') FROM jsonb_each_text(co."customData"::jsonb) e WHERE e.key ~* '${keyRegex}' ORDER BY e.key LIMIT 1) END`;
-const COMPANY_SIZE_SQL = `COALESCE(NULLIF(co.size, ''), ${customValueSql("^(effectif|taille|tranche|headcount|employees|nb_?salari)")})`;
-const COMPANY_REVENUE_SQL = customValueSql("(chiffre|^ca([ _]|$)|revenu|turnover)");
+// happens in lib/sdr-queue/company-facets.ts. The SQL fragments are shared with
+// the qualification loader (lib/sdr-queue/company-sql.ts).
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["SDR", "BUSINESS_DEVELOPER", "BOOKER"], request);
@@ -365,7 +362,10 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 (b.last_action_callback_date ? new Date(b.last_action_callback_date).getTime() : Infinity) ||
             new Date(a.last_action_created ?? 0).getTime() - new Date(b.last_action_created ?? 0).getTime()
     );
-    const result = sorted;
+    // Explained qualification (lib/qualification). In "shadow" (default) it is only attached to each
+    // row; SMART_QUEUE=on also orders by it. A failure here falls back to the legacy order above.
+    const qualifications = await qualifyQueueRows(sorted, { config });
+    const result = smartQueueMode() === "on" ? applySmartOrder(sorted, qualifications) : sorted;
 
     const sharedPhoneCalls = await findSharedPhoneCalls(
         result.map((row) => ({
@@ -431,6 +431,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         sharedPhoneCall: sharedPhoneCalls.get(sharedPhoneRowKey(row.contact_id, row.company_id)) ?? null,
         priority: row._priorityLabel,
         hasContactInfo: row.has_contact_info,
+        qualification: qualifications.get(row) ?? null,
     }));
 
     return successResponse({ items, paused: summarizePaused(pausedRows) });

@@ -12,6 +12,7 @@ import { findAbsentRdvRecalls } from '@/lib/sdr-queue/absent-rdv';
 import { findSharedPhoneCalls, sharedPhoneRowKey } from '@/lib/sdr-queue/shared-phone';
 import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from '@/lib/sdr-queue/cooldown';
 import { listCommercialIds } from '@/lib/lists/commercials';
+import { applySmartOrder, qualifyQueueRows, smartQueueMode } from '@/lib/qualification/queue';
 
 function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
     const defaults = ["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"];
@@ -352,7 +353,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 (b.last_action_callback_date ? new Date(b.last_action_callback_date).getTime() : Infinity) ||
             new Date(a.last_action_created ?? 0).getTime() - new Date(b.last_action_created ?? 0).getTime()
     );
-    const next = sorted[0];
+    // Explained qualification (lib/qualification). SMART_QUEUE=on ranks the whole pool by it;
+    // in "shadow" (default) only the prospect being served is explained and the order is untouched.
+    // A scoring failure leaves the legacy pick (see qualifyQueueRows).
+    const smartMode = smartQueueMode();
+    const qualifications = await qualifyQueueRows(smartMode === "on" ? sorted : sorted.slice(0, 1), { config });
+    const next = (smartMode === "on" ? applySmartOrder(sorted, qualifications) : sorted)[0];
 
     if (!next) {
         const paused = summarizePaused(pausedRows);
@@ -481,6 +487,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     return successResponse({
         hasNext: true,
         priority: next._priorityLabel,
+        qualification: qualifications.get(next) ?? null,
         missionName: next.mission_name,
         contact: next.contact_id ? {
             id: next.contact_id,
