@@ -278,6 +278,17 @@ export async function onAgentLeg(d: DialerDeps, sessionId: string, agentCallSid:
 
 // ── SDR controls ────────────────────────────────────────────────────────────
 
+/** The SDR hangs up on the prospect but stays in the session (the conference lives on). */
+export async function hangupCurrent(d: DialerDeps, sessionId: string): Promise<boolean> {
+    const session = await getSession(d.db, sessionId);
+    if (!session?.reservedAttemptId) return false;
+    const a = await getAttempt(d.db, session.reservedAttemptId);
+    if (!a?.callSid || a.state !== "CONNECTED") return false;
+    // The provider's "completed" callback then settles it as a conversation → WRAP_UP.
+    await d.twilio.endCall(a.callSid, true);
+    return true;
+}
+
 export async function agentReady(d: DialerDeps, sessionId: string): Promise<boolean> {
     const ok = await setAgentState(d.db, sessionId, ["WRAP_UP"], "READY");
     if (ok) await pump(d, sessionId);

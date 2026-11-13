@@ -3,7 +3,7 @@ import { z } from "zod";
 import { NotFoundError, errorResponse, requireRole, successResponse, validateRequest, withErrorHandler } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
-import { agentReady, endSession, pauseSession, pump, resumeSession, sweep } from "@/lib/dialer/orchestrator";
+import { agentReady, endSession, hangupCurrent, pauseSession, pump, resumeSession, sweep } from "@/lib/dialer/orchestrator";
 import { buildDialerDeps } from "@/lib/dialer/runtime";
 import { touchHeartbeat } from "@/lib/dialer/store";
 import { sessionView } from "@/lib/dialer/view";
@@ -25,7 +25,7 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
     return successResponse(await sessionView(id));
 });
 
-const schema = z.object({ action: z.enum(["heartbeat", "ready", "pause", "resume", "end"]) });
+const schema = z.object({ action: z.enum(["heartbeat", "ready", "hangup", "pause", "resume", "end"]) });
 
 // The sweeper also runs from heartbeats, at most once per instance every few seconds,
 // so timeouts are enforced even where the cron runs only once a minute.
@@ -36,6 +36,7 @@ const g = globalThis as typeof globalThis & { __dialerLastSweep?: number };
  * POST /api/dialer/sessions/[id] { action }
  *   heartbeat  every few seconds from the open tab; keeps the session alive and the lines topped up
  *   ready      the SDR finished qualifying the last conversation
+ *   hangup     ends the current conversation; the SDR stays in the session
  *   pause | resume | end
  */
 export const POST = withErrorHandler(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -65,6 +66,9 @@ export const POST = withErrorHandler(async (request: NextRequest, { params }: { 
         }
         case "ready":
             await agentReady(d, id);
+            break;
+        case "hangup":
+            await hangupCurrent(d, id);
             break;
         case "pause":
             await pauseSession(d, id);

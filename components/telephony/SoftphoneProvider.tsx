@@ -89,7 +89,21 @@ interface SoftphoneContextValue {
     dismiss: () => void;
     /** Keeps the current (ended) call on screen until dismissed. */
     pin: () => void;
+    /** Parallel dialer: the SDR's leg in their session's conference (lib/dialer). Independent of `call`. */
+    dialerLeg: DialerLeg;
+    joinDialer: (sessionId: string) => Promise<boolean>;
+    leaveDialer: () => void;
+    toggleDialerMute: () => void;
 }
+
+export interface DialerLeg {
+    state: "idle" | "connecting" | "connected" | "failed";
+    sessionId: string | null;
+    muted: boolean;
+    error: string | null;
+}
+
+const IDLE_LEG: DialerLeg = { state: "idle", sessionId: null, muted: false, error: null };
 
 const SoftphoneContext = createContext<SoftphoneContextValue | null>(null);
 
@@ -370,8 +384,61 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         }
     }, [finish, getDevice, patch]);
 
+    // ── parallel dialer leg ────────────────────────────────────────────────
+    // One browser call into the session's conference for the whole session: the
+    // server bridges prospects into it. It never goes through `call`, so the
+    // island, Mode Focus and inbound calls keep their own behaviour.
+    const [dialerLeg, setDialerLeg] = useState<DialerLeg>(IDLE_LEG);
+    const dialerCallRef = useRef<Call | null>(null);
+    const dialerLegRef = useRef<DialerLeg>(IDLE_LEG);
+    dialerLegRef.current = dialerLeg;
+
+    const leaveDialer = useCallback(() => {
+        const c = dialerCallRef.current;
+        dialerCallRef.current = null;
+        c?.disconnect();
+        pushLevels(ZERO_LEVELS);
+        setDialerLeg(IDLE_LEG);
+    }, []);
+
+    const joinDialer = useCallback(async (sessionId: string): Promise<boolean> => {
+        if (!enabled || isCallActive(callRef.current)) return false;
+        if (dialerCallRef.current && dialerLegRef.current.sessionId === sessionId) return true;
+        dialerCallRef.current?.disconnect();
+        setDialerLeg({ state: "connecting", sessionId, muted: false, error: null });
+        try {
+            const device = await getDevice();
+            const leg = await device.connect({ params: { dialerSessionId: sessionId } });
+            dialerCallRef.current = leg;
+            leg.on("accept", () => setDialerLeg((l) => (l.sessionId === sessionId ? { ...l, state: "connected" } : l)));
+            leg.on("mute", (muted: boolean) => setDialerLeg((l) => ({ ...l, muted })));
+            leg.on("volume", (input: number, output: number) => pushLevels({ input, output }));
+            const ended = (error: string | null) => () => {
+                if (dialerCallRef.current !== leg) return;
+                dialerCallRef.current = null;
+                pushLevels(ZERO_LEVELS);
+                setDialerLeg(error ? { state: "failed", sessionId, muted: false, error } : IDLE_LEG);
+            };
+            leg.on("disconnect", ended(null));
+            leg.on("cancel", ended(null));
+            leg.on("error", (e: { code?: number; message?: string }) => ended(softphoneErrorMessage(e?.code, e?.message))());
+            return true;
+        } catch (err) {
+            const e = err as { code?: number; message?: string };
+            setDialerLeg({ state: "failed", sessionId, muted: false, error: softphoneErrorMessage(e?.code, e?.message) });
+            return false;
+        }
+    }, [enabled, getDevice]);
+
+    const toggleDialerMute = useCallback(() => {
+        const c = dialerCallRef.current;
+        if (c) c.mute(!c.isMuted());
+    }, []);
+
     const dial = useCallback((target: DialTarget): boolean => {
         if (!enabled || !target.phone?.trim()) return false;
+        // A parallel session owns the line: no second call on top of it (and no tel: fallback either).
+        if (dialerCallRef.current) return true;
         if (isCallActive(callRef.current)) {
             // Keep the SDR on the call they are in; the bar already shows it.
             return true;
@@ -411,7 +478,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     // a call ringing in during another goes to voicemail.
     useEffect(() => {
         incomingRef.current = (incoming: Call) => {
-            if (isCallActive(callRef.current)) {
+            // In a call, or in a parallel session: the caller goes to voicemail.
+            if (isCallActive(callRef.current) || dialerCallRef.current) {
                 incoming.reject();
                 return;
             }
@@ -604,8 +672,12 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             sendDigit,
             dismiss,
             pin,
+            dialerLeg,
+            joinDialer,
+            leaveDialer,
+            toggleDialerMute,
         }),
-        [enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin],
+        [enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
     );
 
     return (
@@ -633,6 +705,10 @@ const DISABLED: SoftphoneContextValue = {
     sendDigit: () => undefined,
     dismiss: () => undefined,
     pin: () => undefined,
+    dialerLeg: IDLE_LEG,
+    joinDialer: async () => false,
+    leaveDialer: () => undefined,
+    toggleDialerMute: () => undefined,
 };
 
 /** Safe outside the provider (portals, public pages): behaves as "softphone off". */

@@ -9,8 +9,8 @@
 
 import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Mic, MicOff, Phone, Play } from "lucide-react";
-import { Kbd } from "@/components/ui";
+import { Check, Crosshair, Mic, MicOff, Phone, Play, Rows3, Zap } from "lucide-react";
+import { Kbd, SegmentedControl } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { queueSummary, type QueueRowSummaryLike } from "@/lib/focus/focus";
 import { displayPhone } from "@/lib/sdr-queue/display";
@@ -49,26 +49,37 @@ function useMicPermission(): MicState {
 
 const nf = new Intl.NumberFormat("fr-FR");
 
+/** Focus: one prospect at a time, the SDR calls · Power: called automatically one after another · Parallèle: several lines, one conversation. */
+export type CallingMode = "focus" | "power" | "parallel";
+
+export interface ParallelAvailability {
+    available: boolean;
+    reason: string | null;
+    maxLines: number | null;
+}
+
 export function FocusLaunch({
     missions,
     missionId,
     onMission,
-    autoDial,
-    onAutoDial,
     autoDialSeconds,
     softphoneOn,
     callerId,
     onStart,
+    mode,
+    onMode,
+    parallel,
 }: {
     missions: FocusMission[] | null;
     missionId: string | null;
     onMission: (id: string) => void;
-    autoDial: boolean;
-    onAutoDial: (v: boolean) => void;
     autoDialSeconds: number;
     softphoneOn: boolean;
     callerId: string | null;
     onStart: () => void;
+    mode: CallingMode;
+    onMode: (m: CallingMode) => void;
+    parallel: ParallelAvailability | null;
 }) {
     const mic = useMicPermission();
     const { data: rows, isLoading: queueLoading, isError: queueError } = useQuery({
@@ -185,36 +196,33 @@ export function FocusLaunch({
                             </ul>
                         )}
 
-                        <div className="flex items-start gap-3 border-t border-line-subtle px-4 py-3.5">
-                            <button
-                                type="button"
-                                role="switch"
-                                aria-checked={autoDial && softphoneOn}
-                                aria-labelledby="focus-autodial"
-                                aria-describedby="focus-autodial-hint"
-                                disabled={!softphoneOn}
-                                onClick={() => onAutoDial(!autoDial)}
-                                className="mt-0.5 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                <span className={cn("relative block h-5 w-9 rounded-full transition-colors duration-200", autoDial && softphoneOn ? "bg-primary" : "bg-surface-3 ring-1 ring-inset ring-line")}>
-                                    <span
-                                        className={cn(
-                                            "absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-                                            autoDial && softphoneOn ? "translate-x-[18px]" : "translate-x-0.5",
-                                        )}
-                                    />
-                                </span>
-                            </button>
-                            <div className="min-w-0">
-                                <p id="focus-autodial" className="text-[13px] font-medium text-ink">
-                                    Appel automatique
-                                </p>
-                                <p id="focus-autodial-hint" className="mt-0.5 text-[12px] leading-relaxed text-ink-3">
-                                    {softphoneOn
-                                        ? `Chaque prospect est appelé ${autoDialSeconds} s après son affichage. Échap annule, P met en pause.`
-                                        : "Nécessite le téléphone intégré : les numéros s'ouvriront dans votre application d'appel."}
-                                </p>
+                        <div className="border-t border-line-subtle px-4 py-3.5">
+                            <div className="flex items-center justify-between gap-3">
+                                <p id="focus-mode" className="text-[13px] font-medium text-ink">Mode d&apos;appel</p>
+                                <SegmentedControl<CallingMode>
+                                    size="sm"
+                                    ariaLabel="Mode d'appel"
+                                    value={mode}
+                                    onChange={onMode}
+                                    options={[
+                                        { value: "focus", label: "Focus", icon: Crosshair },
+                                        { value: "power", label: "Power", icon: Zap, disabled: !softphoneOn },
+                                        { value: "parallel", label: "Parallèle", icon: Rows3, disabled: !softphoneOn || !parallel?.available },
+                                    ]}
+                                />
                             </div>
+                            <p id="focus-mode-hint" className="mt-2 text-[12px] leading-relaxed text-ink-3" aria-live="polite">
+                                {!softphoneOn
+                                    ? "Power et Parallèle nécessitent le téléphone intégré : les numéros s'ouvriront dans votre application d'appel."
+                                    : mode === "focus"
+                                      ? "Vous lancez chaque appel. Le prochain prospect, choisi pour vous, s'affiche dès que vous qualifiez."
+                                      : mode === "power"
+                                        ? `Chaque prospect est appelé ${autoDialSeconds} s après son affichage. Échap annule, P met en pause.`
+                                        : `Jusqu'à ${parallel?.maxLines ?? 2} lignes sonnent en même temps ; seule une vraie conversation vous est transmise, les messageries sont écartées.`}
+                            </p>
+                            {softphoneOn && parallel && !parallel.available && parallel.reason && (
+                                <p className="mt-1 text-[11.5px] text-ink-4">Parallèle indisponible · {parallel.reason}</p>
+                            )}
                         </div>
 
                         <div className="border-t border-line-subtle p-4">

@@ -28,7 +28,10 @@ import { useCallQualified } from "@/components/telephony/PostCallSuggestion";
 import { PrecallBrief } from "@/components/sdr/PrecallBrief";
 import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { DockList } from "@/components/layout/FloatingDock";
-import { FocusLaunch } from "@/components/sdr/focus/FocusLaunch";
+import { FocusLaunch, type CallingMode, type ParallelAvailability } from "@/components/sdr/focus/FocusLaunch";
+import { ParallelSession } from "@/components/sdr/focus/ParallelSession";
+import { QualificationExplain } from "@/components/sdr/focus/QualificationExplain";
+import type { QualificationView } from "@/lib/qualification/types";
 import {
     EMPTY_STATS, callbackPresets, connectRate, dispositionKeys, isTypingTarget, parseLocalCallback, type SessionStats,
 } from "@/lib/focus/focus";
@@ -85,6 +88,8 @@ interface NextProspect {
     lastActionBy: { id: string; name: string | null } | null;
     companyLastAction: (LastAction & { sdrName?: string | null }) | null;
     sharedPhoneCall: { sdrName?: string | null; createdAt?: string; targetName?: string | null } | null;
+    /** Explained qualification (lib/qualification); null when scoring is off or failed. */
+    qualification?: QualificationView | null;
 }
 
 type Phase = "setup" | "loading" | "ready" | "empty" | "error";
@@ -100,6 +105,7 @@ const PRIORITY: Record<string, { label: string; tone: string }> = {
 const AUTO_DIAL_SECONDS = 3;
 const LS_MISSION = "focus_mission";
 const LS_AUTODIAL = "focus_autodial";
+const LS_PARALLEL = "focus_parallel";
 
 function readLS(key: string): string | null {
     try {
@@ -156,6 +162,10 @@ export default function FocusPage() {
     const [missionId, setMissionId] = useState<string | null>(null);
     const [statuses, setStatuses] = useState<Status[]>([]);
     const [autoDial, setAutoDial] = useState(true);
+    // Parallèle: a separate, server-driven session (components/sdr/focus/ParallelSession).
+    const [parallelMode, setParallelMode] = useState(false);
+    const [parallel, setParallel] = useState<ParallelAvailability | null>(null);
+    const [parallelRunning, setParallelRunning] = useState(false);
     const [paused, setPaused] = useState(false);
 
     const [phase, setPhase] = useState<Phase>("setup");
@@ -193,6 +203,7 @@ export default function FocusPage() {
     // ── setup ──────────────────────────────────────────────────────────────
     useEffect(() => {
         setAutoDial(readLS(LS_AUTODIAL) !== "0");
+        setParallelMode(readLS(LS_PARALLEL) === "1");
         getJson<Mission[]>("/api/sdr/missions")
             .then((list) => {
                 const callable = list.filter((m) => (m.channels?.length ? m.channels.includes("CALL") : m.channel === "CALL"));
@@ -213,6 +224,27 @@ export default function FocusPage() {
             .catch(() => { if (!controller.signal.aborted) setStatuses([]); });
         return () => controller.abort();
     }, [missionId]);
+
+    // Parallel availability, and a session left open (reload, second visit) is resumed.
+    useEffect(() => {
+        if (!softphoneOn) return;
+        let cancelled = false;
+        getJson<ParallelAvailability & { session: { missionId: string | null; status: string } | null }>("/api/dialer/sessions")
+            .then((r) => {
+                if (cancelled) return;
+                setParallel({ available: r.available, reason: r.reason, maxLines: r.maxLines });
+                if (!r.available) setParallelMode(false);
+                if (r.session && r.session.status !== "ENDED" && r.session.missionId) {
+                    setMissionId(r.session.missionId);
+                    setParallelMode(true);
+                    setParallelRunning(true);
+                }
+            })
+            .catch(() => !cancelled && setParallel({ available: false, reason: "Statut indisponible", maxLines: null }));
+        return () => {
+            cancelled = true;
+        };
+    }, [softphoneOn]);
 
     useEffect(() => {
         if (!sessionStart) return;
@@ -284,6 +316,10 @@ export default function FocusPage() {
     const start = () => {
         if (!missionId) return;
         writeLS(LS_MISSION, missionId);
+        if (parallelMode && parallel?.available) {
+            setParallelRunning(true);
+            return;
+        }
         setSessionStart(Date.now());
         setStats(EMPTY_STATS);
         setSkipped({ contacts: [], companies: [] });
@@ -491,17 +527,36 @@ export default function FocusPage() {
     // RENDER
     // ════════════════════════════════════════════════════════════════════════
 
+    if (parallelRunning && missionId) {
+        return (
+            <ParallelSession
+                missionId={missionId}
+                missionName={mission?.name ?? "Mission"}
+                onExit={() => {
+                    setParallelRunning(false);
+                    setPhase("setup");
+                }}
+            />
+        );
+    }
+
     if (phase === "setup") {
+        const mode: CallingMode = parallelMode && parallel?.available ? "parallel" : autoDial && softphoneOn ? "power" : "focus";
         return (
             <FocusLaunch
                 missions={missions}
                 missionId={missionId}
                 onMission={setMissionId}
-                autoDial={autoDial}
-                onAutoDial={(v) => {
-                    setAutoDial(v);
-                    writeLS(LS_AUTODIAL, v ? "1" : "0");
+                mode={mode}
+                onMode={(m) => {
+                    setParallelMode(m === "parallel");
+                    writeLS(LS_PARALLEL, m === "parallel" ? "1" : "0");
+                    if (m !== "parallel") {
+                        setAutoDial(m === "power");
+                        writeLS(LS_AUTODIAL, m === "power" ? "1" : "0");
+                    }
                 }}
+                parallel={parallel}
                 autoDialSeconds={AUTO_DIAL_SECONDS}
                 softphoneOn={softphoneOn}
                 callerId={callerId}
@@ -620,7 +675,11 @@ export default function FocusPage() {
                                         <div className="min-w-0 flex-1">
                                             <ProspectIdentity heading name={prospect.contact ? personName(prospect) : null} company={prospect.company.name} role={prospect.contact?.title} website={prospect.company.website} />
                                             <div className="mt-4 flex flex-wrap items-center gap-2">
-                                                {PRIORITY[prospect.priority] && <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", PRIORITY[prospect.priority].tone)}>{PRIORITY[prospect.priority].label}</span>}
+                                                {prospect.qualification ? (
+                                                    <QualificationExplain q={prospect.qualification} />
+                                                ) : (
+                                                    PRIORITY[prospect.priority] && <span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-medium", PRIORITY[prospect.priority].tone)}>{PRIORITY[prospect.priority].label}</span>
+                                                )}
                                                 <span className="text-[11px] text-ink-3">{prospect.sourceListName || prospect.missionName}</span>
                                             </div>
                                         </div>

@@ -18,6 +18,7 @@ import { Check, Pencil, Sparkles, PhoneMissed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CallSuggestion } from "@/lib/telephony/suggestion";
 import type { SoftphoneCall } from "./SoftphoneProvider";
+import { CallFollowUps, type CallInsight, type FollowUpProposal } from "./CallFollowUps";
 
 export const CALL_QUALIFIED_EVENT = "cp:call-qualified";
 
@@ -42,7 +43,7 @@ export function useCallQualified(handler: (detail: CallQualifiedDetail) => void)
 }
 
 type Target = { contactId: string | null; companyId: string | null; campaignId: string | null };
-type Loaded = { callId: string; suggestion: CallSuggestion; target: Target };
+type Loaded = { callId: string; suggestion: CallSuggestion; target: Target; proposals: FollowUpProposal[]; gaps: string[]; insight: CallInsight | null };
 
 const POLL_MS = 2500;
 const POLL_FOR_MS = 4 * 60_000;
@@ -77,7 +78,14 @@ export function PostCallSuggestion({ call, onDone, onEngage }: { call: Softphone
                 const json = await res.json().catch(() => null);
                 if (stop) return;
                 if (json?.success) {
-                    setLoaded({ callId, suggestion: json.data.suggestion, target: json.data.target });
+                    setLoaded({
+                        callId,
+                        suggestion: json.data.suggestion,
+                        target: json.data.target,
+                        proposals: json.data.proposals ?? [],
+                        gaps: json.data.gaps ?? [],
+                        insight: json.data.insight ?? null,
+                    });
                     if (json.data.suggestion.state !== "waiting") return;
                 }
             } catch {
@@ -184,7 +192,12 @@ export function PostCallSuggestion({ call, onDone, onEngage }: { call: Softphone
         );
     }
 
-    if (s.state !== "ready") return null;
+    const followUps = current ? <CallFollowUps proposals={current.proposals} gaps={current.gaps} insight={current.insight} /> : null;
+
+    // No clear result to propose, but the conversation still left follow-ups.
+    if (s.state !== "ready") {
+        return current && (current.proposals.length > 0 || current.insight) ? <Card>{followUps}</Card> : null;
+    }
 
     const ai = s.source === "ai";
     return (
@@ -285,6 +298,7 @@ export function PostCallSuggestion({ call, onDone, onEngage }: { call: Softphone
                     )}
                 </div>
             </div>
+            {followUps}
         </Card>
     );
 }

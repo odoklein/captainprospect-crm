@@ -57,6 +57,8 @@ import { ScriptCompanionContent } from "@/components/sdr/ScriptCompanionDrawer";
 import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/sdr/AlreadyContactedModal";
 import { ActionQueueToolbar } from "@/components/sdr/ActionQueueToolbar";
 import { LastExchangeCell, NextStepCell, OpenCell, PhoneCell, ProspectCell } from "@/components/sdr/queue/QueueCells";
+import { QualificationExplain } from "@/components/sdr/focus/QualificationExplain";
+import type { QualificationView } from "@/lib/qualification/types";
 import { AppelerGuide, AppelerShortcutsSheet, useAppelerGuide, useQuestionMarkKey } from "@/components/sdr/queue/AppelerHelp";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn";
 import { AbsentsToTreatButton, ABSENTS_TO_TREAT_QUERY_KEY, type AbsentToTreat } from "@/components/sdr/AbsentsToTreat";
@@ -190,6 +192,8 @@ interface ListItem {
 }
 
 interface QueueItem {
+    /** Explained qualification (lib/qualification); null when scoring is off or failed. */
+    qualification?: QualificationView | null;
     contactId: string | null;
     companyId: string;
     contact: NextActionData["contact"] | null;
@@ -2273,13 +2277,17 @@ export default function SDRActionPage() {
             },
             {
                 key: "priority",
-                header: "À faire",
-                width: "140px",
+                header: "Priorité",
+                width: "220px",
                 render: (_, row) => (
-                    <NextStepCell
-                        absent={row.priority === "ABSENT_RDV"}
-                        callbackAt={row.lastAction && isCallbackResult(row.lastAction.result) ? row.lastAction.callbackDate ?? null : null}
-                    />
+                    row.qualification ? (
+                        <QualificationExplain q={row.qualification} compact />
+                    ) : (
+                        <NextStepCell
+                            absent={row.priority === "ABSENT_RDV"}
+                            callbackAt={row.lastAction && isCallbackResult(row.lastAction.result) ? row.lastAction.callbackDate ?? null : null}
+                        />
+                    )
                 ),
             },
             {
