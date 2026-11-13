@@ -135,7 +135,7 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
 
     const managerOptions = [{ value: "", label: "Non assignée" }, ...managers.map((m) => ({ value: m.id, label: m.name }))];
 
-    function renderStep(step: ChecklistStepView, index: number) {
+    function renderStep(step: ChecklistStepView, index: number, sectionSize: number) {
         const isEditing = editing === step.id;
         return (
             <li id={`onboarding-step-${step.id}`} tabIndex={-1} key={step.id} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
@@ -198,7 +198,7 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                         icon={ArrowDown}
                         label="Descendre"
                         size="sm"
-                        disabled={index === section.steps.length - 1}
+                        disabled={index === sectionSize - 1}
                         onClick={() => patchStep(step, { move: "down" })}
                     />
                     <IconButton
@@ -356,7 +356,7 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                         </div>
                     </div>
                     <div hidden={!expanded} id={`onboarding-section-${section.id}`}>
-                    <ul className="mt-1 divide-y divide-line">{section.steps.map((step, i) => renderStep(step, i))}</ul>
+                    <ul className="mt-1 divide-y divide-line">{section.steps.map((step, i) => renderStep(step, i, section.steps.length))}</ul>
                     {adding === section.id ? (
                         renderAddForm(section.id)
                     ) : (

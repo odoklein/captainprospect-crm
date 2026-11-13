@@ -3392,15 +3392,15 @@ export function ClientDetailWorkspace({ clientId, sessionsOnly = false }: { clie
                                             {leexiTranscriptions.map((t) => (
                                                 <button
                                                     key={t.id}
-                                                    onClick={() =>
+                                                    onClick={() => {
                                                         setNewSessionForm((p) => ({
                                                             ...p,
                                                             leexiId: t.id,
-                                                        })) ||
+                                                        }));
                                                         setSessionDateInput(
                                                             t.date ? t.date.slice(0, 10) : ""
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                     className={cn(
                                                         "w-full text-left p-3 rounded-xl border transition-all",
                                                         newSessionForm.leexiId === t.id
