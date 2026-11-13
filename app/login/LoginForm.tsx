@@ -12,6 +12,7 @@ import {
     Check,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand/BrandLogo";
+import { BrandAscii, useBrandAscii } from "@/components/brand/BrandAscii";
 import { useBrand } from "@/lib/brand/client";
 
 interface SavedAccount {
@@ -80,6 +81,7 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 export default function LoginForm() {
+    const asciiLookState = useBrandAscii();
     const brand = useBrand();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -385,17 +387,24 @@ export default function LoginForm() {
             className="relative min-h-screen w-full flex flex-col items-center text-ink antialiased overflow-hidden bg-surface-3"
             style={{ fontFamily: "var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif" }}
         >
-            {/* Misty mountains, anchored to the bottom. The image already fades to white
-                at the top; a light wash keeps the card readable on short screens. */}
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-cover bg-bottom"
-                style={{ backgroundImage: "url('/login-bg.webp')" }}
-            />
+            {/* The brand's ASCII field rising from the bottom, in the instance's colours
+                (components/brand/BrandAscii). Browsers without WebGL2 keep the misty
+                mountains. A light wash keeps the logo and the card readable. */}
+            {asciiLookState === "unsupported" ? (
+                <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 bg-cover bg-bottom"
+                    style={{ backgroundImage: "url('/login-bg.webp')" }}
+                />
+            ) : asciiLookState ? (
+                <div aria-hidden="true" className="pointer-events-none absolute inset-0 motion-safe:animate-fadeIn">
+                    <BrandAscii preset="hero" look={asciiLookState} scale={0.72} />
+                </div>
+            ) : null}
             <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0"
-                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.15) 45%, rgba(255,255,255,0) 100%)" }}
+                style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.25) 40%, rgba(255,255,255,0) 70%)" }}
             />
 
             <header className="relative z-10 pt-12 sm:pt-16 flex justify-center">
@@ -566,8 +575,10 @@ export default function LoginForm() {
                 </div>
             </main>
 
-            <footer className="relative z-10 pb-8 text-[12px] text-ink-2">
-                © {new Date().getFullYear()} {brand.name}
+            <footer className="relative z-10 pb-8">
+                <span className="rounded-full bg-white/85 px-3 py-1 text-[12px] text-ink-2 shadow-[0_0_0_1px_rgba(26,29,46,0.06)] backdrop-blur-sm">
+                    © {new Date().getFullYear()} {brand.name}
+                </span>
             </footer>
         </div>
     );
