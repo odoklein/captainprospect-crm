@@ -463,7 +463,7 @@ function CampaignDrawer({ campaign, range, onClose }: { campaign: Campaign | nul
             <div className="mb-4 flex flex-wrap items-center gap-2">
                 <CampaignStatus status={campaign.status} />
                 {campaign.client ? (
-                    <Link href={`/manager/clients/${campaign.client.id}`} className="text-sm font-medium text-link hover:underline">
+                    <Link href={`/manager/clients?client=${campaign.client.id}`} className="text-sm font-medium text-link hover:underline">
                         {campaign.client.name}
                     </Link>
                 ) : (

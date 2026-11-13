@@ -111,7 +111,7 @@ export function FeedbackTab({ meeting, feedbackState, updateMeeting }: FeedbackT
         <button
           className="rdv-btn rdv-btn-ghost"
           style={{ width: "100%", justifyContent: "center", padding: "10px 0", fontSize: 13, marginTop: 4 }}
-          onClick={() => router.push(`/manager/clients/${meeting.client!.id}?tab=sessions`)}
+          onClick={() => router.push(`/manager/clients?client=${meeting.client!.id}&espace=sessions`)}
         >
           <FileText size={14} /> Créer une session depuis ce RDV
         </button>

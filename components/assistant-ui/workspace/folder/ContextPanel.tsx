@@ -82,7 +82,7 @@ function LiveContext({ folderId }: { folderId: string }) {
             <h3 className="font-semibold text-ink">Profil client</h3>
             <p className="text-ink-2">{data.client.name} · {data.client.industry || "Secteur non renseigné"}</p>
             {data.client.email && <p className="break-all text-ink-3">{data.client.email}</p>}
-            <Link href={`/manager/clients/${data.client.id}`} className="inline-flex items-center gap-1.5 text-accent-600 hover:underline">Ouvrir la fiche client<ExternalLink className="size-3.5" aria-hidden /></Link>
+            <Link href={`/manager/clients?client=${data.client.id}`} className="inline-flex items-center gap-1.5 text-accent-600 hover:underline">Ouvrir la fiche client<ExternalLink className="size-3.5" aria-hidden /></Link>
         </section> : <p className="text-ink-3">Ce dossier n’est pas lié à un client. Ses instructions, sa mémoire et ses fichiers constituent son contexte.</p>}
         {data.client && <section className="space-y-3 border-t border-line-subtle pt-5">
             <h3 className="font-semibold text-ink">Missions et objectifs</h3>
@@ -98,7 +98,7 @@ function LiveContext({ folderId }: { folderId: string }) {
                 <div><dt className="text-xs text-ink-3">Jours prévus{data.activity.estimatedPlan ? " (estimation)" : ""}</dt><dd className="mt-1 text-xl font-semibold text-ink">{data.activity.plannedDays ?? "Non renseigné"}</dd></div>
             </dl>
             <p className="text-xs leading-relaxed text-ink-3">Source : actions CRM et planning. Un jour avec appels est compté par mission et par SDR. Les RDV pris ne représentent pas les RDV réalisés.{data.activity.estimatedPlan ? " Planning estimé sur quatre semaines." : ""}</p>
-            <Link href={`/manager/clients/${data.client?.id}`} className="inline-flex items-center gap-1.5 text-accent-600 hover:underline">Consulter l’activité client<ExternalLink className="size-3.5" aria-hidden /></Link>
+            <Link href={`/manager/clients?client=${data.client?.id}&espace=activite`} className="inline-flex items-center gap-1.5 text-accent-600 hover:underline">Consulter l’activité client<ExternalLink className="size-3.5" aria-hidden /></Link>
         </section>}
     </div>;
 }

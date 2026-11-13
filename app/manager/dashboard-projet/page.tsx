@@ -365,7 +365,7 @@ export default function DashboardProjetPage() {
                 const ChannelIcon = CHANNEL_ICON[row.channel];
                 return (
                     <div className="min-w-0">
-                        <Link href={`/manager/clients/${row.clientId}`} className="text-sm font-semibold text-slate-900 hover:text-primary-600 transition-colors">
+                        <Link href={`/manager/clients?client=${row.clientId}`} className="text-sm font-semibold text-slate-900 hover:text-primary-600 transition-colors">
                             {row.clientName}
                         </Link>
                         <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
