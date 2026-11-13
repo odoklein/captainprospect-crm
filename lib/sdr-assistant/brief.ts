@@ -69,7 +69,7 @@ export function normalizeBrief(raw: unknown): PrecallBrief | null {
     };
 }
 
-interface BriefInput {
+export interface BriefInput {
     prospect: Record<string, string | null>;
     history: { date: string; status: string; note: string | null; summary: string | null }[];
     mission: { name: string; objective: string | null; offer: string | null; target: string | null; script: string | null };
@@ -109,7 +109,8 @@ export function briefPrompt(input: BriefInput): string {
         .join("\n");
 }
 
-async function collectInput(args: { contactId: string | null; companyId: string; missionId: string }): Promise<BriefInput | null> {
+/** The CRM data a brief is built from (also read by the SDR assistant's next-call tool). */
+export async function collectBriefInput(args: { contactId: string | null; companyId: string; missionId: string }): Promise<BriefInput | null> {
     const [contact, company, mission] = await Promise.all([
         args.contactId
             ? prisma.contact.findUnique({ where: { id: args.contactId }, select: { firstName: true, lastName: true, title: true, companyId: true } })
@@ -177,7 +178,7 @@ export async function getPrecallBrief(args: {
     userId: string;
     refresh?: boolean;
 }): Promise<BriefResult> {
-    const input = await collectInput(args);
+    const input = await collectBriefInput(args);
     if (!input) return { status: "unavailable", reason: "Prospect ou mission introuvable" };
 
     const targetId = args.contactId ?? args.companyId;

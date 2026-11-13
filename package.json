@@ -45,7 +45,7 @@
     "test:post-call": "tsx --test lib/post-call/post-call.test.ts lib/sales-engine/metrics.pglite.test.ts",
     "test:dialer": "tsx --test lib/dialer/dialer.test.ts lib/dialer/store.pglite.test.ts lib/dialer/orchestrator.pglite.test.ts",
     "test:qualification": "tsx --test lib/qualification/engine.test.ts lib/qualification/queue.pglite.test.ts",
-    "test:sdr-assistant": "tsx --test lib/sdr-assistant/brief.test.ts",
+    "test:sdr-assistant": "tsx --test lib/sdr-assistant/brief.test.ts lib/sdr-assistant/signals.test.ts",
     "test:onboarding": "tsx --test lib/onboarding/checklist-template.test.ts",
     "test:tasks": "tsx --test lib/tasks/access.test.ts lib/tasks/grouping.test.ts",
     "test:client-onboarding": "tsx --test lib/onboarding/client-onboarding.test.ts",

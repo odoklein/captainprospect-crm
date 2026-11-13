@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, Check, KeyRound, Loader2, X } from "lucide-react";
+import { AlertTriangle, Check, KeyRound, Loader2, X, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/shadcn/button";
 import { Card } from "@/components/ui/shadcn/card";
@@ -29,9 +29,21 @@ interface ActionConfirmationCardProps {
     onConfirm: () => void;
     onCancel: () => void;
     className?: string;
+    /** Title icon; the vault key by default (Assistant Projet). */
+    icon?: LucideIcon;
+    /** Shown once the action was refused. */
+    cancelledLabel?: string;
 }
 
-export function ActionConfirmationCard({ action, busy = false, onConfirm, onCancel, className }: ActionConfirmationCardProps) {
+export function ActionConfirmationCard({
+    action,
+    busy = false,
+    onConfirm,
+    onCancel,
+    className,
+    icon: Icon = KeyRound,
+    cancelledLabel = "Action annulée par le manager",
+}: ActionConfirmationCardProps) {
     const [confirming, setConfirming] = useState(false);
     const isPending = action.state === "pending";
     const isConfirmed = action.state === "confirmed";
@@ -54,7 +66,7 @@ export function ActionConfirmationCard({ action, busy = false, onConfirm, onCanc
         >
             <div className="flex items-center gap-2 text-sm font-semibold text-ink">
                 <span className="flex size-6 items-center justify-center rounded-lg border border-line bg-surface shadow-2xs">
-                    <KeyRound className="size-3.5 text-accent-600" aria-hidden />
+                    <Icon className="size-3.5 text-accent-600" aria-hidden />
                 </span>
                 <span>{action.card.title}</span>
             </div>
@@ -104,7 +116,7 @@ export function ActionConfirmationCard({ action, busy = false, onConfirm, onCanc
             {isCancelled && (
                 <div className="mt-2.5 flex items-center gap-1.5 text-xs font-medium text-ink-3">
                     <X className="size-4" aria-hidden />
-                    <span>Action annulée par le manager</span>
+                    <span>{cancelledLabel}</span>
                 </div>
             )}
             {isFailed && (

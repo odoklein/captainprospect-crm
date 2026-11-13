@@ -75,6 +75,7 @@ import { FILE_TOOLS } from "./definitions/files";
 import { createPdf } from "./definitions/pdf";
 import { createPptx, createXlsx } from "./definitions/office";
 import { REPORTING_TOOLS } from "./definitions/reporting";
+import { SDR_TOOLS } from "./definitions/sdr";
 // The index, not tools/resolve.ts: resolve imports this registry.
 import { AGENT_RUN_TOOLS } from "@/lib/agent/tools/index";
 
@@ -131,6 +132,10 @@ export const ASSISTANT_TOOLS: AnyToolDefinition[] = [
     // Données CRM — contacts, appels, transcriptions, RDV, listes, retours SDR.
     // Scoped to the bound project; agency-wide when none is bound.
     ...CRM_DATA_TOOLS,
+    // Assistant SDR — the signed-in SDR's own follow-ups, next call and day.
+    // SDR roles only; the SDR route pins its allowlist to these four. Its one
+    // write (sdr_reschedule_follow_up) is a confirm tool, listed here with them.
+    ...SDR_TOOLS,
 
     // ── SAFE WRITE — automatic, budgeted, logged, undone in one click ────────
     draftEmail,
