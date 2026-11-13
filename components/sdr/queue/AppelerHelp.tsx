@@ -136,7 +136,7 @@ const GROUPS: { title: string; rows: [React.ReactNode, string][] }[] = [
         rows: [
             [<><Kbd>1</Kbd>–<Kbd>6</Kbd></>, "Choisir le résultat de l'appel"],
             [<><Kbd>Ctrl</Kbd> + <Kbd>Entrée</Kbd></>, "Enregistrer et passer au suivant (même depuis la note)"],
-            [<><Kbd>←</Kbd> <Kbd>→</Kbd></>, "Changer d'onglet (Appel, Fiche, Script, SMS) une fois un onglet sélectionné"],
+            [<><Kbd>←</Kbd> <Kbd>→</Kbd></>, "Changer d'onglet (Appel, Script, SMS) une fois un onglet sélectionné"],
             [<Kbd key="esc">Échap</Kbd>, "Fermer le panneau"],
         ],
     },
