@@ -18,6 +18,7 @@ import { Shimmer, StatusPill } from "@/components/accueil/AccueilUI";
 import { Notice, SECONDARY_BUTTON, SettingsCard } from "@/components/settings/SettingsUI";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import type { AccountNumber, PhoneUserRow } from "@/lib/telephony/numbers";
+import { SalesEnginePanel } from "./SalesEnginePanel";
 
 type Payload = { configured: boolean; numbers: AccountNumber[]; users: PhoneUserRow[]; error: string | null };
 
@@ -243,6 +244,8 @@ export function TelephonyPanel() {
                     </ul>
                 )}
             </SettingsCard>
+
+            {data.configured && <SalesEnginePanel />}
         </div>
     );
 }
