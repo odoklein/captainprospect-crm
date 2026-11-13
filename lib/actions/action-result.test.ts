@@ -55,6 +55,13 @@ test('legacy aliases resolve', () => {
     assert.equal(resolveActionResult('NON_INTERESSE'), 'NOT_INTERESTED');
 });
 
+test('Suzalink combined wrong-contact status resolves without classifying the phone as invalid', () => {
+    const status = { code: 'MAUVAIS_FAUX', label: 'Mauvais contact / Faux numéro ' };
+    assert.equal(resolveActionResult(status.code, status), 'BAD_CONTACT');
+    assert.equal(resolveActionResult(status.label), 'BAD_CONTACT');
+    assert.equal(resolveActionResult('FAUX_NUMERO'), 'FAUX_NUMERO');
+});
+
 test('unknown values throw a typed 400 error and preserve the input', () => {
     assert.throws(
         () => resolveActionResult('STATUT_INVENTE'),
