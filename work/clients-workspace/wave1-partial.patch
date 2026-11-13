@@ -1,0 +1,3503 @@
+diff --git a/components/manager/workspace/client/ClientActions.tsx b/components/manager/workspace/client/ClientActions.tsx
+new file mode 100644
+index 0000000..4a7fb33
+--- /dev/null
++++ b/components/manager/workspace/client/ClientActions.tsx
+@@ -0,0 +1,73 @@
++"use client";
++
++import { Building2, FileText, ListChecks, MoreHorizontal, Plus, ShieldCheck, Trash2, Users } from "lucide-react";
++import { ConfirmModal } from "@/components/ui";
++import {
++    DropdownMenu,
++    DropdownMenuContent,
++    DropdownMenuItem,
++    DropdownMenuLabel,
++    DropdownMenuSeparator,
++    DropdownMenuSub,
++    DropdownMenuSubContent,
++    DropdownMenuSubTrigger,
++    DropdownMenuTrigger,
++} from "@/components/ui/shadcn/dropdown-menu";
++import type { ClientManagementSection } from "@/components/manager/ClientManagementDrawer";
++import { useDeleteClient } from "@/lib/manager/workspace/client/mutations";
++import type { Client } from "@/lib/manager/workspace/client/types";
++import { PageTemplateItems, type PageCreation } from "./PageTemplateItems";
++
++/** Crumb actions of the client home and views: « … » menu (manage, new page, delete) and « Nouvelle mission ». */
++export function ClientActions({ client, pages, onManage, onOpenOnboarding, onDelete, onNewMission }: {
++    client: Client;
++    pages: PageCreation;
++    onManage: (section: ClientManagementSection) => void;
++    onOpenOnboarding: () => void;
++    onDelete: () => void;
++    onNewMission: () => void;
++}) {
++    return (
++        <>
++            <DropdownMenu>
++                <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" aria-label={`Actions sur ${client.name}`}><MoreHorizontal /></button></DropdownMenuTrigger>
++                <DropdownMenuContent align="end" className="w-64">
++                    <DropdownMenuLabel>Gérer le client</DropdownMenuLabel>
++                    <DropdownMenuItem onSelect={() => onManage("profile")}><Building2 />Informations du client</DropdownMenuItem>
++                    <DropdownMenuItem onSelect={() => onManage("contacts")}><Users />Interlocuteurs et agendas</DropdownMenuItem>
++                    <DropdownMenuItem onSelect={() => onManage("portal")}><ShieldCheck />Accès au portail</DropdownMenuItem>
++                    <DropdownMenuSeparator />
++                    <DropdownMenuSub>
++                        <DropdownMenuSubTrigger><FileText />Nouvelle page</DropdownMenuSubTrigger>
++                        <DropdownMenuSubContent className="w-56"><PageTemplateItems disabled={pages.pending} onPick={(template) => pages.create(template)} /></DropdownMenuSubContent>
++                    </DropdownMenuSub>
++                    <DropdownMenuItem onSelect={onOpenOnboarding}><ListChecks />Suivre l’intégration</DropdownMenuItem>
++                    <DropdownMenuSeparator />
++                    <DropdownMenuItem variant="destructive" onSelect={onDelete}><Trash2 />Supprimer le client</DropdownMenuItem>
++                </DropdownMenuContent>
++            </DropdownMenu>
++            <button className="cw-button cw-primary" onClick={onNewMission}><Plus /> Nouvelle mission</button>
++        </>
++    );
++}
++
++/** « Supprimer le client » confirmation; on success the shell closes the client. */
++export function DeleteClientConfirm({ client, isOpen, onClose, onDeleted }: { client: Client; isOpen: boolean; onClose: () => void; onDeleted: () => void }) {
++    const remove = useDeleteClient(client, () => {
++        onClose();
++        onDeleted();
++    });
++    return (
++        <ConfirmModal
++            isOpen={isOpen}
++            onClose={() => !remove.isPending && onClose()}
++            onConfirm={() => remove.mutate()}
++            title="Supprimer le client"
++            message={`Êtes-vous sûr de vouloir supprimer "${client.name}" ? Cette action supprimera définitivement le client et toutes les données associées (missions, campagnes, onboarding, utilisateurs liés, etc.) et ne peut pas être annulée.`}
++            confirmText="Supprimer définitivement"
++            cancelText="Annuler"
++            variant="danger"
++            isLoading={remove.isPending}
++        />
++    );
++}
+diff --git a/components/manager/workspace/client/ClientStatusMenu.tsx b/components/manager/workspace/client/ClientStatusMenu.tsx
+new file mode 100644
+index 0000000..f1713f9
+--- /dev/null
++++ b/components/manager/workspace/client/ClientStatusMenu.tsx
+@@ -0,0 +1,38 @@
++"use client";
++
++import { ChevronDown } from "lucide-react";
++import {
++    DropdownMenu,
++    DropdownMenuContent,
++    DropdownMenuLabel,
++    DropdownMenuRadioGroup,
++    DropdownMenuRadioItem,
++    DropdownMenuTrigger,
++} from "@/components/ui/shadcn/dropdown-menu";
++import { useUpdateClient } from "@/lib/manager/workspace/client/mutations";
++import type { Client, ClientStatus } from "@/lib/manager/workspace/client/types";
++import { CLIENT_STATUS_CONFIG } from "./constants";
++
++/** Rail « Statut » (Actif / En pause / Arrêté). Optimistic: the pill changes at once, rolls back on error. */
++export function ClientStatusMenu({ client, status, onUpdate }: { client: Client; status: ClientStatus; onUpdate?: (client: Client) => void }) {
++    const update = useUpdateClient(client, onUpdate);
++    const info = CLIENT_STATUS_CONFIG[status];
++    const tone = status === "ACTIVE" ? "success" : status === "PAUSED" ? "warning" : undefined;
++    return (
++        <DropdownMenu>
++            <DropdownMenuTrigger asChild>
++                <button className="cw-prop-button" disabled={update.isPending} aria-label={`Statut du client : ${info.label}. Changer`}>
++                    <span className="cw-pill" data-tone={tone}><i />{info.label}</span><ChevronDown aria-hidden />
++                </button>
++            </DropdownMenuTrigger>
++            <DropdownMenuContent align="end" className="w-44">
++                <DropdownMenuLabel>Statut du client</DropdownMenuLabel>
++                <DropdownMenuRadioGroup value={status} onValueChange={(value) => update.mutate({ patch: { status: value as ClientStatus }, optimistic: true })}>
++                    {(Object.keys(CLIENT_STATUS_CONFIG) as ClientStatus[]).map((key) => (
++                        <DropdownMenuRadioItem key={key} value={key}>{CLIENT_STATUS_CONFIG[key].label}</DropdownMenuRadioItem>
++                    ))}
++                </DropdownMenuRadioGroup>
++            </DropdownMenuContent>
++        </DropdownMenu>
++    );
++}
+diff --git a/components/manager/workspace/client/HomeView.tsx b/components/manager/workspace/client/HomeView.tsx
+new file mode 100644
+index 0000000..80842ac
+--- /dev/null
++++ b/components/manager/workspace/client/HomeView.tsx
+@@ -0,0 +1,157 @@
++"use client";
++
++import { useState } from "react";
++import { Building2, ChevronRight, FileText, ListChecks, Loader2, MessageSquare, Plus, RefreshCw, Users } from "lucide-react";
++import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
++import { InboxItem, type WorkspaceClient, type WorkspaceLocation } from "@/components/manager/workspace/InboxItem";
++import { useClientPages } from "@/components/manager/workspace/clientPages";
++import type { ClientManagementSection } from "@/components/manager/ClientManagementDrawer";
++import { useClientDetail, useClientSessions, useOnboardingProgress } from "@/lib/manager/workspace/client/queries";
++import { useUpdateMissionStatus } from "@/lib/manager/workspace/client/mutations";
++import type { Client, ClientSdrFeedbackInsight, MissionLite } from "@/lib/manager/workspace/client/types";
++import { cn } from "@/lib/utils";
++import { ClientStatusMenu } from "./ClientStatusMenu";
++import { MissionLine } from "./MissionLine";
++import { PageTemplateItems, type PageCreation } from "./PageTemplateItems";
++import { draftCount, formatRelative } from "./format";
++import { useClientModel } from "./model";
++import type { TabId } from "./constants";
++
++/** Client home (`espace=missions`): À traiter, missions by stage, pages; properties rail. */
++export function HomeView({ client, allClients, onUpdate, go, openMission, setActiveTab, onNewMission, onManage, pages }: {
++    client: Client;
++    allClients: WorkspaceClient[];
++    onUpdate?: (client: Client) => void;
++    go: (location: WorkspaceLocation | null, focus?: string) => void;
++    openMission: (id: string | null, tab?: string) => void;
++    setActiveTab: (tab: TabId) => void;
++    onNewMission: () => void;
++    onManage: (section: ClientManagementSection) => void;
++    pages: PageCreation;
++}) {
++    const [showClosedMissions, setShowClosedMissions] = useState(false);
++    const { data: detail, isLoading, isError, refetch } = useClientDetail(client.id);
++    const { data: onboarding } = useOnboardingProgress(client.id);
++    const { data: pageList = [] } = useClientPages(client.id);
++    const { data: sessions = [] } = useClientSessions(client.id);
++    const missionStatus = useUpdateMissionStatus(client.id);
++    const { missions, closedMissions, usersList, interlocuteurs, clientStatus, workspaceMissions, clientAttention, attentionByMission } = useClientModel(client, detail, allClients);
++
++    const sdrFeedback = (detail?.insights?.sdrFeedback ?? []) as ClientSdrFeedbackInsight[];
++    const activeMissionsCount = missions.filter((m) => m.status === "ACTIVE").length;
++    const onboardingProgress = onboarding?.progress;
++    const mainContact = interlocuteurs[0];
++    const missionGroups = [
++        { id: "ACTIVE", label: "En cours", items: missions.filter((mission) => mission.status === "ACTIVE") },
++        { id: "DRAFT", label: "En préparation", items: missions.filter((mission) => mission.status === "DRAFT") },
++        { id: "PAUSED", label: "En pause", items: missions.filter((mission) => mission.status === "PAUSED") },
++    ].filter((group) => group.items.length);
++
++    const missionLine = (mission: MissionLite) => (
++        <MissionLine
++            key={mission.id}
++            mission={mission}
++            summary={workspaceMissions.get(mission.id)}
++            attention={attentionByMission.get(mission.id)}
++            onOpen={(tab) => openMission(mission.id, tab)}
++            onStatusChange={(next) => missionStatus.mutate({ mission, status: next })}
++        />
++    );
++
++    return (
++        <div className="cw-layout">
++            <main className="cw-doc" aria-labelledby="cw-client-title">
++                <header className="cw-doc-head">
++                    <span className="cw-eyebrow"><Building2 aria-hidden /><span>Client{client.industry ? ` · ${client.industry}` : ""}</span></span>
++                    <div className="cw-client-identity">
++                        <span className="cw-monogram cw-monogram-large" aria-hidden>{client.name[0]?.toUpperCase() || "?"}</span>
++                        <h1 id="cw-client-title" className="cw-doc-title" tabIndex={-1} data-focus-key="heading">{client.name}</h1>
++                    </div>
++                    <p className="cw-doc-lede">
++                        {missions.length} mission{missions.length > 1 ? "s" : ""} · {activeMissionsCount} en cours
++                        {draftCount(missions) > 0 && <> · {draftCount(missions)} en préparation</>}
++                    </p>
++                </header>
++
++                <div className="cw-sections">
++                    {clientAttention.length > 0 && <section className="cw-section" aria-labelledby="cw-client-attention">
++                        <div className="cw-section-head"><h2 id="cw-client-attention">À traiter <small>{clientAttention.length}</small></h2></div>
++                        <div className="cw-inbox">{clientAttention.map((item) => <InboxItem key={item.mission.id} item={item} hideClient onOpen={(location) => go(location)} />)}</div>
++                    </section>}
++
++                    <section className="cw-section cw-mission-list" aria-labelledby="cw-client-missions">
++                        <div className="cw-section-head">
++                            <h2 id="cw-client-missions">Missions <small>{missions.length}</small></h2>
++                            <button className="cw-button" data-size="sm" onClick={onNewMission}><Plus /> Nouvelle mission</button>
++                        </div>
++                        {isLoading ? <div className="cw-empty" role="status"><Loader2 className="animate-spin" />Chargement des missions…</div>
++                            : isError ? <div className="cw-empty" role="alert"><p>Impossible de charger les missions.</p><button className="cw-button" onClick={() => refetch()}><RefreshCw /> Réessayer</button></div>
++                            : missions.length === 0 ? <p className="cw-empty-line"><span>Aucune mission pour ce client.</span><button className="cw-button cw-primary" data-size="sm" onClick={onNewMission}><Plus /> Créer la première mission</button></p>
++                            : <>
++                                {missionGroups.map((group) => <div key={group.id} className="cw-mission-group">
++                                    <h3 className="cw-mission-group-title">{group.label} <span className="cw-count">{group.items.length}</span></h3>
++                                    <div className="cw-rows">{group.items.map(missionLine)}</div>
++                                </div>)}
++                                {closedMissions.length > 0 && <div className="cw-mission-group">
++                                    <button className="cw-mission-group-title" onClick={() => setShowClosedMissions((value) => !value)} aria-expanded={showClosedMissions}>
++                                        <ChevronRight aria-hidden className={cn("h-3.5 w-3.5 transition-transform", showClosedMissions && "rotate-90")} />Clôturées <span className="cw-count">{closedMissions.length}</span>
++                                    </button>
++                                    {showClosedMissions && <div className="cw-rows">{closedMissions.map(missionLine)}</div>}
++                                </div>}
++                            </>}
++                    </section>
++
++                    <section className="cw-section" aria-labelledby="cw-client-pages">
++                        <div className="cw-section-head">
++                            <h2 id="cw-client-pages">Pages <small>{pageList.length}</small></h2>
++                            <DropdownMenu>
++                                <DropdownMenuTrigger asChild><button className="cw-button" data-size="sm" disabled={pages.pending}>{pages.pending ? <Loader2 className="animate-spin" /> : <Plus />} Nouvelle page</button></DropdownMenuTrigger>
++                                <DropdownMenuContent align="end" className="w-56"><DropdownMenuLabel>Partir de</DropdownMenuLabel><PageTemplateItems disabled={pages.pending} onPick={(template) => pages.create(template)} /></DropdownMenuContent>
++                            </DropdownMenu>
++                        </div>
++                        {pageList.length ? <div className="cw-rows">
++                            {pageList.slice(0, 6).map((page) => {
++                                const linked = missions.find((mission) => mission.id === page.missionId);
++                                return <div key={page.id} className="cw-row" data-interactive onClick={() => go({ client: client.id, page: page.id })}>
++                                    <span className="cw-row-icon"><FileText aria-hidden /></span>
++                                    <div className="cw-row-main">
++                                        <button className="cw-row-title" onClick={(event) => { event.stopPropagation(); go({ client: client.id, page: page.id }); }}>{page.title || "Sans titre"}</button>
++                                        <small>{linked ? `${linked.name} · ` : ""}Modifiée {page.updatedBy ? `par ${page.updatedBy.name}, ` : ""}{formatRelative(page.updatedAt).replace(/^\p{Lu}/u, (letter) => letter.toLowerCase())}</small>
++                                    </div>
++                                    <ChevronRight className="cw-row-arrow" aria-hidden />
++                                </div>;
++                            })}
++                        </div> : <p className="cw-empty-line"><span>Briefs, comptes rendus et procédures de l’équipe, rangés avec le client.</span></p>}
++                    </section>
++                </div>
++            </main>
++
++            <aside className="cw-rail" aria-label="Propriétés du client">
++                <section className="cw-rail-section">
++                    <h2 className="cw-rail-title">Propriétés</h2>
++                    <dl className="cw-props">
++                        <div><dt>Statut</dt><dd><ClientStatusMenu client={client} status={clientStatus} onUpdate={onUpdate} /></dd></div>
++                        <div><dt>Secteur</dt><dd>{client.industry || <span className="cw-prop-empty">Non renseigné</span>}</dd></div>
++                        <div><dt>Contact</dt><dd>{mainContact ? <span title={mainContact.jobTitle || undefined}>{mainContact.firstName} {mainContact.lastName}</span> : <button className="cw-prop-button" onClick={() => onManage("contacts")}><span className="cw-prop-empty">Ajouter</span></button>}</dd></div>
++                        <div><dt>Client depuis</dt><dd>{new Date(client.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</dd></div>
++                    </dl>
++                </section>
++                <section className="cw-rail-section">
++                    <h2 className="cw-rail-title">Intégration {onboardingProgress?.total ? <small>{onboardingProgress.done} / {onboardingProgress.total}</small> : null}</h2>
++                    {onboardingProgress?.total ? <div className="cw-progress" data-done={onboardingProgress.done === onboardingProgress.total ? "" : undefined} role="progressbar" aria-label="Étapes d’intégration terminées" aria-valuemin={0} aria-valuemax={onboardingProgress.total} aria-valuenow={onboardingProgress.done}>
++                        <span style={{ width: `${Math.round((onboardingProgress.done / onboardingProgress.total) * 100)}%` }} />
++                    </div> : <p className="cw-hint">Du contrat au premier appel.</p>}
++                    <button className="cw-shortcut" onClick={() => setActiveTab("onboarding")}><ListChecks /><span>Ouvrir l’intégration</span><ChevronRight /></button>
++                </section>
++                <section className="cw-rail-section">
++                    <h2 className="cw-rail-title">Raccourcis</h2>
++                    <div className="cw-shortcuts">
++                        <button className="cw-shortcut" onClick={() => setActiveTab("acces")}><Users /><span>Contacts et accès</span><small>{usersList.length + interlocuteurs.length || ""}</small><ChevronRight /></button>
++                        <button className="cw-shortcut" onClick={() => setActiveTab("sessions")}><FileText /><span>Comptes rendus</span><small>{sessions.length || ""}</small><ChevronRight /></button>
++                        <button className="cw-shortcut" onClick={() => setActiveTab("avis-sdr")}><MessageSquare /><span>Avis SDR</span><small>{sdrFeedback.length || ""}</small><ChevronRight /></button>
++                    </div>
++                </section>
++            </aside>
++        </div>
++    );
++}
+diff --git a/components/manager/workspace/client/MissionLine.tsx b/components/manager/workspace/client/MissionLine.tsx
+new file mode 100644
+index 0000000..a3ec968
+--- /dev/null
++++ b/components/manager/workspace/client/MissionLine.tsx
+@@ -0,0 +1,84 @@
++"use client";
++
++import { Archive, CircleDashed, Crosshair, FileCheck2, FileText, Inbox, MoreHorizontal, PauseCircle, PlayCircle, Rocket, UserCog } from "lucide-react";
++import {
++    DropdownMenu,
++    DropdownMenuContent,
++    DropdownMenuItem,
++    DropdownMenuLabel,
++    DropdownMenuRadioGroup,
++    DropdownMenuRadioItem,
++    DropdownMenuSeparator,
++    DropdownMenuSub,
++    DropdownMenuSubContent,
++    DropdownMenuSubTrigger,
++    DropdownMenuTrigger,
++} from "@/components/ui/shadcn/dropdown-menu";
++import { MISSION_STATUS_CONFIG, MISSION_STATUS_TRANSITIONS, type MissionStatusValue } from "@/lib/constants/missionStatus";
++import type { AttentionEntry } from "@/lib/manager/attention";
++import type { WorkspaceMission } from "@/components/manager/workspace/InboxItem";
++import type { MissionLite } from "@/lib/manager/workspace/client/types";
++import { cn } from "@/lib/utils";
++import { missionPeriod } from "./format";
++
++/** One mission on the client home: name, facts, what needs doing, quick commands. */
++export function MissionLine({
++    mission,
++    summary,
++    attention,
++    onOpen,
++    onStatusChange,
++}: {
++    mission: MissionLite;
++    summary?: WorkspaceMission;
++    attention?: AttentionEntry<WorkspaceMission>;
++    onOpen: (tab?: string) => void;
++    onStatusChange: (next: MissionStatusValue) => void;
++}) {
++    const cfg = MISSION_STATUS_CONFIG[mission.status];
++    const lists = summary?.readiness?.activeLists ?? mission._count?.lists ?? 0;
++    const sdr = summary?.sdrCount ?? mission._count?.sdrAssignments ?? 0;
++    const period = missionPeriod(mission);
++    const facts = [`${lists} base${lists > 1 ? "s" : ""}`, `${sdr} SDR`, period].filter(Boolean).join(" · ");
++    const tone = attention && attention.tone !== "success" ? attention.tone : undefined;
++    const iconTone = attention?.tone === "danger" ? "danger" : attention?.tone === "warning" ? "todo" : attention?.tone === "success" || mission.status === "ACTIVE" ? "done" : "wait";
++    const Icon = mission.status === "ACTIVE" ? PlayCircle : mission.status === "PAUSED" ? PauseCircle : mission.status === "DRAFT" ? FileText : mission.status === "COMPLETED" ? FileCheck2 : Archive;
++
++    return (
++        <div className="cw-row cw-mission-row" data-interactive onClick={() => onOpen()}>
++            <span className="cw-row-icon" data-tone={iconTone}><Icon aria-hidden /></span>
++            <div className="cw-row-main">
++                <button className="cw-row-title" data-focus-key={`mission:${mission.id}`} title={mission.name} onClick={(event) => { event.stopPropagation(); onOpen(); }}>{mission.name}</button>
++                <small title={mission.objective ?? undefined}>{facts}</small>
++            </div>
++            <div className="cw-row-side" onClick={(event) => event.stopPropagation()}>
++                {attention
++                    ? <button className={cn("cw-pill", "cursor-pointer")} data-tone={tone === "danger" ? "danger" : tone === "warning" ? "warning" : attention.tone === "success" ? "success" : undefined} onClick={() => onOpen(attention.tab)} title={`${attention.detail} — ${attention.action}`}>
++                        <i />{attention.label}
++                    </button>
++                    : <span className="cw-pill" data-tone={mission.status === "ACTIVE" ? "success" : mission.status === "PAUSED" ? "warning" : undefined}><i />{cfg?.label ?? mission.status}</span>}
++                <DropdownMenu>
++                    <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" data-size="sm" aria-label={`Actions : ${mission.name}`}><MoreHorizontal /></button></DropdownMenuTrigger>
++                    <DropdownMenuContent align="end" className="w-60">
++                        <DropdownMenuLabel className="truncate">{mission.name}</DropdownMenuLabel>
++                        <DropdownMenuItem onSelect={() => onOpen("lancement")}><Rocket />Lancement</DropdownMenuItem>
++                        <DropdownMenuItem onSelect={() => onOpen("strategies")}><Crosshair />Ciblage et scripts</DropdownMenuItem>
++                        <DropdownMenuItem onSelect={() => onOpen("audience")}><Inbox />Bases de prospects</DropdownMenuItem>
++                        <DropdownMenuItem onSelect={() => onOpen("equipe")}><UserCog />Équipe</DropdownMenuItem>
++                        <DropdownMenuSeparator />
++                        <DropdownMenuSub>
++                            <DropdownMenuSubTrigger><CircleDashed />Statut : {cfg?.label}</DropdownMenuSubTrigger>
++                            <DropdownMenuSubContent className="w-48">
++                                <DropdownMenuRadioGroup value={mission.status} onValueChange={(value) => onStatusChange(value as MissionStatusValue)}>
++                                    {[mission.status, ...(MISSION_STATUS_TRANSITIONS[mission.status] ?? [])].map((status) => (
++                                        <DropdownMenuRadioItem key={status} value={status} disabled={status === mission.status}>{MISSION_STATUS_CONFIG[status].label}</DropdownMenuRadioItem>
++                                    ))}
++                                </DropdownMenuRadioGroup>
++                            </DropdownMenuSubContent>
++                        </DropdownMenuSub>
++                    </DropdownMenuContent>
++                </DropdownMenu>
++            </div>
++        </div>
++    );
++}
+diff --git a/components/manager/workspace/client/PageTemplateItems.tsx b/components/manager/workspace/client/PageTemplateItems.tsx
+new file mode 100644
+index 0000000..fe16d1e
+--- /dev/null
++++ b/components/manager/workspace/client/PageTemplateItems.tsx
+@@ -0,0 +1,20 @@
++"use client";
++
++import { FileText } from "lucide-react";
++import { DropdownMenuItem } from "@/components/ui/shadcn/dropdown-menu";
++import { PAGE_TEMPLATES, PAGE_TEMPLATE_IDS, type PageTemplate } from "@/lib/client-pages/blocks";
++
++/** « Nouvelle page » menu entries, one per template. */
++export function PageTemplateItems({ disabled, onPick }: { disabled?: boolean; onPick: (template: PageTemplate) => void }) {
++    return <>
++        {PAGE_TEMPLATE_IDS.map((id) => (
++            <DropdownMenuItem key={id} disabled={disabled} onSelect={() => onPick(id)}><FileText />{PAGE_TEMPLATES[id].label}</DropdownMenuItem>
++        ))}
++    </>;
++}
++
++/** Page creation as the shell exposes it to its views. */
++export interface PageCreation {
++    pending: boolean;
++    create: (template: PageTemplate, missionId?: string | null) => void;
++}
+diff --git a/components/manager/workspace/client/cards.tsx b/components/manager/workspace/client/cards.tsx
+new file mode 100644
+index 0000000..e59acf1
+--- /dev/null
++++ b/components/manager/workspace/client/cards.tsx
+@@ -0,0 +1,86 @@
++"use client";
++
++// Card primitives of the client views that have not moved to the document
++// language yet (Phase 4 restyles them). Kept as they were in ClientDrawer.tsx.
++
++import type { ReactNode } from "react";
++
++/** Title + optional action + body (reference image style). */
++export function SectionCard({
++    title,
++    icon,
++    action,
++    children,
++    muted,
++}: {
++    title: string;
++    icon?: ReactNode;
++    action?: ReactNode;
++    children: ReactNode;
++    muted?: boolean;
++}) {
++    return (
++        <div
++            className={
++                "rounded-2xl border border-slate-200/80 " +
++                (muted ? "bg-slate-50/50" : "bg-white")
++            }
++        >
++            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
++                <div className="flex items-center gap-2.5">
++                    {icon && (
++                        <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
++                            {icon}
++                        </div>
++                    )}
++                    <h3 className="text-sm font-bold text-slate-900 tracking-tight">{title}</h3>
++                </div>
++                {action}
++            </div>
++            <div className="p-5">{children}</div>
++        </div>
++    );
++}
++
++/** One figure with icon and label (activity header). */
++export function StatPill({
++    icon,
++    value,
++    label,
++    tone = "indigo",
++}: {
++    icon: ReactNode;
++    value: ReactNode;
++    label: string;
++    tone?: "indigo" | "emerald" | "amber" | "slate";
++}) {
++    const tones: Record<string, string> = {
++        indigo: "bg-primary-50 text-primary-600 border-primary-100",
++        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
++        amber: "bg-amber-50 text-amber-600 border-amber-100",
++        slate: "bg-slate-50 text-slate-600 border-slate-100",
++    };
++    return (
++        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-white border border-slate-200">
++            <div className={`w-9 h-9 rounded-lg border flex items-center justify-center ${tones[tone]}`}>
++                {icon}
++            </div>
++            <div>
++                <div className="text-base font-bold text-slate-900 leading-none">{value}</div>
++                <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mt-1">
++                    {label}
++                </div>
++            </div>
++        </div>
++    );
++}
++
++/** Dashed empty block with an icon. */
++export function DashedEmpty({ icon, title }: { icon: ReactNode; title: string }) {
++    return (
++        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
++            {icon}
++            <p className="text-sm font-medium text-slate-700">{title}</p>
++        </div>
++    );
++}
+diff --git a/components/manager/workspace/client/constants.ts b/components/manager/workspace/client/constants.ts
+new file mode 100644
+index 0000000..9cfa33a
+--- /dev/null
++++ b/components/manager/workspace/client/constants.ts
+@@ -0,0 +1,71 @@
++import { Ban, Pause, PlayCircle } from "lucide-react";
++import type { ClientStatus, EngagementStatut } from "@/lib/manager/workspace/client/types";
++
++/** Client views (`?espace=`). `missions` is the client home. */
++export type TabId = "apercu" | "missions" | "onboarding" | "acces" | "activite" | "avis-sdr" | "sessions";
++export const CLIENT_TABS: TabId[] = ["missions", "apercu", "onboarding", "acces", "activite", "avis-sdr", "sessions"];
++
++/** Crumb / view title of each client view. */
++export const TAB_LABELS: Record<TabId, string> = {
++    apercu: "Informations client",
++    missions: "Missions",
++    onboarding: "Intégration client",
++    acces: "Contacts et accès",
++    activite: "Activité",
++    "avis-sdr": "Avis SDR",
++    sessions: "Comptes rendus",
++};
++
++/** Mission sections listed under an open mission in the tree. `general` is the brief itself. */
++export const MISSION_SECTIONS = [
++    { tab: "general", label: "Brief" },
++    { tab: "lancement", label: "Lancement" },
++    { tab: "audience", label: "Bases de prospects" },
++    { tab: "strategies", label: "Ciblage et scripts" },
++    { tab: "equipe", label: "Équipe" },
++] as const;
++
++/** Crumb label of a mission panel (`?tab=`). */
++export const MISSION_PANEL_LABELS: Record<string, string> = {
++    lancement: "Lancement",
++    audience: "Bases de prospects",
++    strategies: "Ciblage et scripts",
++    strategy: "Stratégie avancée",
++    equipe: "Équipe",
++    feedback: "Avis SDR",
++    reglages: "Administration",
++};
++
++export const MISSION_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = { ACTIVE: "success", DRAFT: "neutral", PAUSED: "warning", COMPLETED: "neutral", ARCHIVED: "neutral" };
++
++export const ROLE_TONE: Record<string, { label: string; variant: "primary" | "success" | "warning" | "danger" | "default" }> = {
++    MANAGER: { label: "Manager", variant: "primary" },
++    SDR: { label: "SDR", variant: "success" },
++    BOOKER: { label: "Booker", variant: "warning" },
++    CLIENT: { label: "Client", variant: "default" },
++    COMMERCIAL: { label: "Commercial", variant: "default" },
++    DEVELOPER: { label: "Dev", variant: "default" },
++    BUSINESS_DEVELOPER: { label: "BizDev", variant: "default" },
++};
++
++export const CLIENT_STATUS_CONFIG: Record<
++    ClientStatus,
++    { label: string; badge: string; dot: string; icon: typeof PlayCircle }
++> = {
++    ACTIVE: { label: "Actif", badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", icon: PlayCircle },
++    PAUSED: { label: "En pause", badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500", icon: Pause },
++    STOPPED: { label: "Arrêté", badge: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400", icon: Ban },
++};
++
++export const ENGAGEMENT_STATUT_OPTIONS: Array<{
++    value: EngagementStatut;
++    label: string;
++    tone: "default" | "success" | "warning" | "danger" | "info";
++}> = [
++    { value: "BROUILLON", label: "Brouillon", tone: "default" },
++    { value: "ACTIF", label: "Actif", tone: "success" },
++    { value: "RENOUVELE", label: "Renouvelé", tone: "info" },
++    { value: "EXPIRE", label: "Expiré", tone: "warning" },
++    { value: "RESILIE", label: "Résilié", tone: "danger" },
++    { value: "ARCHIVE", label: "Archivé", tone: "default" },
++];
+diff --git a/components/manager/workspace/client/format.ts b/components/manager/workspace/client/format.ts
+new file mode 100644
+index 0000000..1e6ea2e
+--- /dev/null
++++ b/components/manager/workspace/client/format.ts
+@@ -0,0 +1,56 @@
++// Display helpers of the client workspace (French formats).
++
++const shortDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
++
++export function draftCount(missions: { status: string }[]) {
++    return missions.filter((mission) => mission.status === "DRAFT").length;
++}
++
++export function missionPeriod(mission: { startDate?: string | null; endDate?: string | null }) {
++    if (!mission.startDate && !mission.endDate) return null;
++    const start = mission.startDate ? shortDate.format(new Date(mission.startDate)) : "…";
++    const end = mission.endDate ? shortDate.format(new Date(mission.endDate)) : "…";
++    return `${start} – ${end}`;
++}
++
++export function formatDate(d?: string | null) {
++    if (!d) return "—";
++    return new Date(d).toLocaleDateString("fr-FR", {
++        year: "numeric",
++        month: "short",
++        day: "numeric",
++    });
++}
++
++export function formatRelative(d?: string | null) {
++    if (!d) return "Jamais";
++    const diff = Date.now() - new Date(d).getTime();
++    const min = Math.floor(diff / 60000);
++    if (min < 1) return "À l’instant";
++    if (min < 60) return `Il y a ${min} min`;
++    const hours = Math.floor(min / 60);
++    if (hours < 24) return `Il y a ${hours}h`;
++    const days = Math.floor(hours / 24);
++    if (days < 30) return `Il y a ${days}j`;
++    return formatDate(d);
++}
++
++export function formatMonth(month?: string) {
++    if (!month) return "Mois en cours";
++    const [year, monthNumber] = month.split("-").map(Number);
++    return new Date(year, monthNumber - 1, 1).toLocaleDateString("fr-FR", {
++        month: "long",
++        year: "numeric",
++    });
++}
++
++export function toNumber(v: number | string | null | undefined): number | null {
++    if (v === null || v === undefined || v === "") return null;
++    const n = Number(v);
++    return Number.isNaN(n) ? null : n;
++}
++
++export function formatEuro(v: number | string | null | undefined): string {
++    const n = toNumber(v);
++    return n === null ? "—" : `${n.toLocaleString("fr-FR")} €`;
++}
+diff --git a/components/manager/workspace/client/model.ts b/components/manager/workspace/client/model.ts
+new file mode 100644
+index 0000000..50bde97
+--- /dev/null
++++ b/components/manager/workspace/client/model.ts
+@@ -0,0 +1,66 @@
++"use client";
++
++// What the client views derive from the detail payload. Pure apart from the
++// hook wrapper, so the shell and each view read the same rules.
++
++import { useMemo } from "react";
++import { missionAttention, type AttentionEntry } from "@/lib/manager/attention";
++import type { WorkspaceClient, WorkspaceMission } from "@/components/manager/workspace/InboxItem";
++import type {
++    Client,
++    ClientDetail,
++    ClientStatus,
++    ClientUserLite,
++    InterlocuteurLite,
++    MissionLite,
++} from "@/lib/manager/workspace/client/types";
++
++export interface ClientModel {
++    missions: MissionLite[];
++    openMissions: MissionLite[];
++    closedMissions: MissionLite[];
++    usersList: ClientUserLite[];
++    interlocuteurs: InterlocuteurLite[];
++    clientStatus: ClientStatus;
++    /** Launch summaries of the directory row, by mission id. */
++    workspaceMissions: Map<string, WorkspaceMission>;
++    clientAttention: AttentionEntry<WorkspaceMission>[];
++    attentionByMission: Map<string, AttentionEntry<WorkspaceMission>>;
++}
++
++/** Primary e-mail / phone and job title, whatever shape the contact came in. */
++export function normalizeInterlocuteurs(list: InterlocuteurLite[]): InterlocuteurLite[] {
++    return list.map((person) => ({
++        ...person,
++        email: person.emails?.find((entry) => entry.isPrimary)?.value ?? person.emails?.[0]?.value ?? person.email,
++        phone: person.phones?.find((entry) => entry.isPrimary)?.value ?? person.phones?.[0]?.value ?? person.phone,
++        jobTitle: person.title ?? person.jobTitle,
++    }));
++}
++
++export function deriveClientModel(client: Client, detail: ClientDetail | undefined, allClients: WorkspaceClient[]): ClientModel {
++    const missions = (detail?.missions ?? []) as MissionLite[];
++    const closedMissions = missions.filter((mission) => mission.status === "COMPLETED" || mission.status === "ARCHIVED");
++    const openMissions = missions.filter((mission) => !closedMissions.includes(mission));
++    const workspaceMissions = new Map((allClients.find((entry) => entry.id === client.id)?.missions ?? []).map((mission) => [mission.id, mission]));
++    const clientAttention: AttentionEntry<WorkspaceMission>[] = missions.flatMap((mission) => {
++        const summary = workspaceMissions.get(mission.id);
++        const item = summary ? missionAttention(summary) : null;
++        return item && summary ? [{ ...item, clientId: client.id, clientName: client.name, mission: summary }] : [];
++    }).sort((a, b) => a.rank - b.rank);
++    return {
++        missions,
++        openMissions,
++        closedMissions,
++        usersList: (detail?.users ?? []) as ClientUserLite[],
++        interlocuteurs: normalizeInterlocuteurs((detail?.interlocuteurs ?? []) as InterlocuteurLite[]),
++        clientStatus: (detail?.status ?? client.status ?? "ACTIVE") as ClientStatus,
++        workspaceMissions,
++        clientAttention,
++        attentionByMission: new Map(clientAttention.map((item) => [item.mission.id, item])),
++    };
++}
++
++export function useClientModel(client: Client, detail: ClientDetail | undefined, allClients: WorkspaceClient[]) {
++    return useMemo(() => deriveClientModel(client, detail, allClients), [client, detail, allClients]);
++}
+diff --git a/components/manager/workspace/mission/MissionCommands.tsx b/components/manager/workspace/mission/MissionCommands.tsx
+new file mode 100644
+index 0000000..910f3f5
+--- /dev/null
++++ b/components/manager/workspace/mission/MissionCommands.tsx
+@@ -0,0 +1,103 @@
++"use client";
++
++// Mission-level dialogs that several places open (header menu, brief, rail,
++// panels): base drawer, CSV import, strategy editor, launch fix, mission
++// options, status workflow, portal launch. This provider owns their open
++// state and renders them; callers only get commands.
++
++import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
++import { useQueryClient } from "@tanstack/react-query";
++import { MissionStatusWorkflowDrawer } from "@/components/drawers";
++import { CSVImportDialog } from "@/components/dialogs/CSVImportDialog";
++import { MissionAudienceDrawer } from "@/components/missions/MissionAudienceDrawer";
++import { StrategyEditorDrawer } from "@/components/missions/StrategyEditorDrawer";
++import { EditMissionDialog } from "@/components/missions/EditMissionDialog";
++import type { LaunchList, StrategyField } from "@/components/missions/ReadinessPanel";
++import { invalidateMission } from "@/lib/manager/workspace/mission/mutations";
++import { useMission, useMissionWorkspace } from "./context";
++import { PortalLaunchDialog } from "./dialogs/PortalLaunchDialog";
++
++type AudienceTarget = { id: string; name: string } | "new";
++
++export interface MissionCommands {
++    openAudience: (target: AudienceTarget) => void;
++    openCsvImport: () => void;
++    openStrategyEditor: (campaignId: string | "new") => void;
++    openLaunchFix: (field: StrategyField, list: LaunchList) => void;
++    openEditMission: () => void;
++    openStatusWorkflow: () => void;
++    openPortalLaunch: () => void;
++}
++
++const MissionCommandsContext = createContext<MissionCommands | null>(null);
++
++export function useMissionCommands() {
++    const value = useContext(MissionCommandsContext);
++    if (!value) throw new Error("useMissionCommands outside MissionCommandsProvider");
++    return value;
++}
++
++export function MissionCommandsProvider({ children }: { children: ReactNode }) {
++    const mission = useMission();
++    const { missionId, onTabChange, onMissionMutated } = useMissionWorkspace();
++    const queryClient = useQueryClient();
++    const [audiencePanel, setAudiencePanel] = useState<AudienceTarget | null>(null);
++    const [showCsvImport, setShowCsvImport] = useState(false);
++    const [campaignEditor, setCampaignEditor] = useState<string | "new" | null>(null);
++    const [launchFix, setLaunchFix] = useState<{ field: StrategyField; list: LaunchList } | null>(null);
++    const [showEditMission, setShowEditMission] = useState(false);
++    const [showStatusWorkflow, setShowStatusWorkflow] = useState(false);
++    const [showPortalLaunch, setShowPortalLaunch] = useState(false);
++
++    const commands = useMemo<MissionCommands>(() => ({
++        openAudience: setAudiencePanel,
++        openCsvImport: () => setShowCsvImport(true),
++        openStrategyEditor: setCampaignEditor,
++        openLaunchFix: (field, list) => setLaunchFix({ field, list }),
++        openEditMission: () => setShowEditMission(true),
++        openStatusWorkflow: () => setShowStatusWorkflow(true),
++        openPortalLaunch: () => setShowPortalLaunch(true),
++    }), []);
++
++    const reload = () => {
++        void invalidateMission(queryClient, missionId);
++        onMissionMutated?.();
++    };
++
++    return (
++        <MissionCommandsContext.Provider value={commands}>
++            {children}
++
++            {audiencePanel && <MissionAudienceDrawer key={audiencePanel === "new" ? "new" : audiencePanel.id} missionId={mission.id} missionName={mission.name} list={audiencePanel === "new" ? null : audiencePanel} onClose={() => setAudiencePanel(null)} onCreated={setAudiencePanel} onChanged={reload} />}
++            {showCsvImport && <CSVImportDialog isOpen onClose={() => setShowCsvImport(false)} missions={[{ id: mission.id, name: mission.name }]} onSuccess={() => { setShowCsvImport(false); reload(); onTabChange("audience"); }} />}
++            {campaignEditor && <StrategyEditorDrawer isOpen onClose={() => setCampaignEditor(null)} campaignId={campaignEditor === "new" ? null : campaignEditor} missionId={mission.id} lists={mission.lists} onSaved={reload} />}
++            {launchFix && <StrategyEditorDrawer
++                isOpen
++                onClose={() => setLaunchFix(null)}
++                campaignId={launchFix.list.readiness?.inheritedCampaignId ?? launchFix.list.campaignId ?? null}
++                initialAssignToListId={launchFix.field === "strategy" ? launchFix.list.id : undefined}
++                focusField={launchFix.field === "strategy" ? undefined : launchFix.field}
++                missionId={mission.id}
++                lists={mission.lists}
++                onSaved={reload}
++            />}
++
++            <EditMissionDialog
++                isOpen={showEditMission}
++                onClose={() => setShowEditMission(false)}
++                mission={mission}
++                onSaved={reload}
++            />
++
++            <PortalLaunchDialog isOpen={showPortalLaunch} onClose={() => setShowPortalLaunch(false)} />
++
++            {/* Statuts et workflow drawer */}
++            <MissionStatusWorkflowDrawer
++                isOpen={showStatusWorkflow}
++                onClose={() => setShowStatusWorkflow(false)}
++                missionId={mission.id}
++                missionName={mission.name}
++            />
++        </MissionCommandsContext.Provider>
++    );
++}
+diff --git a/components/manager/workspace/mission/context.tsx b/components/manager/workspace/mission/context.tsx
+new file mode 100644
+index 0000000..d9ae973
+--- /dev/null
++++ b/components/manager/workspace/mission/context.tsx
+@@ -0,0 +1,114 @@
++"use client";
++
++// Mission workspace context: navigation callbacks, the header save state and
++// the framing editor's edit requests. Shared by the shell, the brief and the
++// panels; no panel data lives here (panels read React Query directly).
++
++import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
++import { useQueryClient } from "@tanstack/react-query";
++import { useToast } from "@/components/ui";
++import type { SetupField } from "@/components/missions/MissionSetupPanel";
++import { errorText } from "@/lib/manager/workspace/mission/api";
++import { useUpdateMission } from "@/lib/manager/workspace/mission/mutations";
++import { missionKeys, useMissionBrief } from "@/lib/manager/workspace/mission/queries";
++import type { Mission } from "@/lib/manager/workspace/mission/types";
++
++export type FieldSaveState = "saving" | "saved" | null;
++
++interface MissionWorkspaceContextValue {
++    missionId: string;
++    onTabChange: (tab: string) => void;
++    onBack: () => void;
++    onMissionMutated?: () => void;
++    /** PUT a partial mission, reload it, flash « Enregistré » and offer an undo when possible. */
++    saveField: (patch: Record<string, unknown>, label: string, options?: { silent?: boolean }) => Promise<boolean>;
++    saveState: FieldSaveState;
++    setupDirty: boolean;
++    setSetupDirty: (dirty: boolean) => void;
++    editRequest: { field: SetupField; at: number } | null;
++    requestEdit: (field: SetupField) => void;
++}
++
++const MissionWorkspaceContext = createContext<MissionWorkspaceContextValue | null>(null);
++
++export function useMissionWorkspace() {
++    const value = useContext(MissionWorkspaceContext);
++    if (!value) throw new Error("useMissionWorkspace outside MissionWorkspaceProvider");
++    return value;
++}
++
++/** The loaded mission. Only rendered under the shell, which waits for it. */
++export function useMission(): Mission {
++    const { missionId } = useMissionWorkspace();
++    return useMissionBrief(missionId).data as Mission;
++}
++
++/** Previous values the API accepts back (it rejects null dates), for « Annuler ». */
++function previousValues(mission: Mission, patch: Record<string, unknown>) {
++    const previous: Record<string, unknown> = {};
++    for (const key of Object.keys(patch)) {
++        if (key === "name") previous.name = mission.name;
++        else if (key === "startDate" && mission.startDate) previous.startDate = mission.startDate.slice(0, 10);
++        else if (key === "endDate" && mission.endDate) previous.endDate = mission.endDate.slice(0, 10);
++        else if (key === "defaultInterlocuteurId") previous.defaultInterlocuteurId = mission.defaultInterlocuteur?.id ?? null;
++    }
++    return previous;
++}
++
++export function MissionWorkspaceProvider({ missionId, onTabChange, onBack, onMissionMutated, children }: {
++    missionId: string;
++    onTabChange: (tab: string) => void;
++    onBack: () => void;
++    onMissionMutated?: () => void;
++    children: ReactNode;
++}) {
++    const { error: showError, addToast } = useToast();
++    const queryClient = useQueryClient();
++    const update = useUpdateMission(missionId);
++    const [saveState, setSaveState] = useState<FieldSaveState>(null);
++    const [setupDirty, setSetupDirty] = useState(false);
++    const [editRequest, setEditRequest] = useState<{ field: SetupField; at: number } | null>(null);
++    const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
++
++    useEffect(() => () => {
++        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
++    }, []);
++
++    const saveField = useCallback(async (patch: Record<string, unknown>, label: string, options?: { silent?: boolean }): Promise<boolean> => {
++        const mission = queryClient.getQueryData<Mission>(missionKeys.brief(missionId));
++        if (!mission) return false;
++        const previous = previousValues(mission, patch);
++        setSaveState("saving");
++        try {
++            await update.mutateAsync(patch);
++        } catch (error) {
++            setSaveState(null);
++            showError("Erreur", errorText(error, `Impossible de modifier « ${label} »`));
++            return false;
++        }
++        onMissionMutated?.();
++        setSaveState("saved");
++        if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
++        savedTimerRef.current = setTimeout(() => setSaveState(null), 1800);
++        if (!options?.silent) {
++            const canUndo = Object.keys(previous).length === Object.keys(patch).length;
++            addToast({
++                type: "success",
++                title: `${label} mis à jour`,
++                ...(canUndo ? { action: { label: "Annuler", onClick: () => { void saveField(previous, label, { silent: true }); } } } : {}),
++            });
++        }
++        return true;
++        // `update.mutateAsync` is stable across renders.
++        // eslint-disable-next-line react-hooks/exhaustive-deps
++    }, [missionId, onMissionMutated, queryClient, showError, addToast]);
++
++    const requestEdit = useCallback((field: SetupField) => setEditRequest({ field, at: Date.now() }), []);
++
++    const value = useMemo<MissionWorkspaceContextValue>(() => ({
++        missionId, onTabChange, onBack, onMissionMutated,
++        saveField, saveState, setupDirty, setSetupDirty, editRequest, requestEdit,
++    }), [missionId, onTabChange, onBack, onMissionMutated, saveField, saveState, setupDirty, editRequest, requestEdit]);
++
++    return <MissionWorkspaceContext.Provider value={value}>{children}</MissionWorkspaceContext.Provider>;
++}
+diff --git a/docs/plans/2026-11-13-workspace-action-inventory.md b/docs/plans/2026-11-13-workspace-action-inventory.md
+new file mode 100644
+index 0000000..19e32e4
+--- /dev/null
++++ b/docs/plans/2026-11-13-workspace-action-inventory.md
+@@ -0,0 +1,125 @@
++# Workspace action inventory
++
++Phase 0 checklist for `docs/plans/2026-11-13-clients-missions-workspace-upgrade.md`: every user action in the two big workspace components, the request it sends and what is reloaded afterwards. Each line is ticked in Phases 2, 3 and 4 once it has been checked to still exist and still send the same request.
++
++Notation: `trigger → METHOD url {body keys} → refetch`. "mission" = `GET /api/missions/[id]` (React Query key `["mission", id, "brief"]` since Phase 2). "mutated" = the `onMissionMutated` callback (ClientDrawer invalidates the client detail and the clients list).
++
++## Mission (MissionWorkspace.tsx)
++
++Source before the split: `components/missions/MissionWorkspace.tsx` at `bac8b9b` (4 481 lines). After Phase 2: `components/manager/workspace/mission/**`, data layer in `lib/manager/workspace/mission/**`. Ticked = verified after the Phase 2 split (same trigger, same copy, same request; refetch noted when it changed).
++
++### Loads
++
++- [ ] Open a mission → `GET /api/missions/[id]` (no retry, no refetch on focus). Unsuccessful answer → toast with its error + `onBack()`; network failure → toast « Impossible de charger la mission ».
++- [ ] Mission loaded → `GET /api/email/mailboxes?includeShared=true` (`cache: "no-store"`), for the « Comptes email » block. *(Phase 2: owned by `ProspectingSettings`.)*
++- [ ] Mission loaded → `GET /api/missions/[id]/templates`. *(Phase 2: loaded when the `strategy` panel opens, which is the only place that shows templates.)*
++- [ ] Mission with ≥ 1 campaign → `GET /api/campaigns/[firstCampaignId]` then `GET /api/campaigns/[id]/script-companion` (companion failure → empty variants, default tab `base`). *(Phase 2: loaded when the `strategy` panel opens or the template dialog needs ICP/pitch.)*
++- [ ] `?tab=feedback`, change of « Du » / « Au » → `GET /api/manager/sdr-feedback?missionId&from&to&limit=300` (default range: today − 14 days → today).
++- [ ] First open of « Assigner un SDR » → `GET /api/users?role=SDR,BUSINESS_DEVELOPER&status=active&limit=200`.
++- [ ] « Existant » (email templates) → `GET /api/email/templates?isShared=true`, already-assigned templates filtered out.
++
++### Header menu (crumb « Actions de la mission »)
++
++- [ ] « Modifier le cadrage » → opens the framing editor on `name` (no request).
++- [ ] « Créer une base de prospects » → `MissionAudienceDrawer` (new); `onChanged` → mission + mutated.
++- [ ] « Importer un fichier CSV » → `CSVImportDialog`; `onSuccess` → mission + mutated + `?tab=audience`.
++- [ ] « Créer un ciblage et un script » → `StrategyEditorDrawer` (new); `onSaved` → mission + mutated.
++- [ ] « Stratégie avancée » → `?tab=strategy`.
++- [ ] « Statuts et workflow » → `MissionStatusWorkflowDrawer`.
++- [ ] « Visibilité du portail » (ACTIVE, not launching) → portal-launch dialog.
++- [ ] « Client et options de la mission » → `EditMissionDialog`; `onSaved` → mission + mutated.
++- [ ] « Administration » → `?tab=reglages`.
++
++### Brief
++
++- [ ] Framing editor (`MissionSetupPanel`) save → `PUT /api/missions/[id]` {changed fields} → mission + mutated, header « Enregistré » (silent, no toast).
++- [ ] Checklist / rail « fix » actions → `?tab=audience` or new-base drawer, `?tab=equipe`, framing editor on `startDate`, `StrategyEditorDrawer` on the list's strategy (`onSaved` → mission + mutated).
++- [ ] Pulse next action → assign / lists / launch / resume (`PUT /api/missions/[id]` {status: ACTIVE}, see status) / target / extend / funnel scroll.
++- [ ] Portal callout « Gérer » → portal-launch dialog.
++- [ ] Bases: « Nouvelle base », « Gérer », row title (drawer on that list), « Réactiver une base » / « Ajouter une base », « Voir les N bases ».
++- [ ] Ciblage et scripts: « Nouveau », « Par base » (`?tab=strategies`), campaign title (`StrategyEditorDrawer` on it), « Rédiger le ciblage et le script ».
++- [ ] Équipe (draft): « Gérer l’équipe » / « Affecter des SDR », « Voir les N SDR » → `?tab=equipe`.
++- [ ] Activité (draft): « Avis SDR » → `?tab=feedback`.
++- [ ] Réglages de prospection › Statuts et workflow « Gérer » → `MissionStatusWorkflowDrawer`.
++- [ ] Réglages de prospection › Comptes email « Gérer » / « Connecter » → `MailboxManagerDialog`; on close and on mailbox added → mailboxes.
++- [ ] Réglages de prospection › « Configurer » → mailbox dialog.
++
++### Rail
++
++- [ ] Statut menu → `PUT /api/missions/[id]` {status} → no refetch (cache updated: status, isActive) + mutated; toast with « Annuler » when the reverse transition is allowed (same request with the previous status). *(Phase 2: optimistic, rolled back with a toast on error.)*
++- [ ] Début / Fin / Objectif / Référent → framing editor on that field.
++- [ ] Équipe → `?tab=equipe`.
++- [ ] Lancement: next-step button, « Démarrer la mission » / « Gérer la visibilité » → portal-launch dialog, « Voir la checklist » (scroll + focus).
++- [ ] Pages liées: page → `onOpenPage(id)`; « Nouvelle page liée » › template → `onCreatePage(template)`.
++
++### Portal-launch dialog
++
++- [ ] Day choice 3 / 7 / 14 (local).
++- [ ] « Démarrer pour N jours » → `POST /api/missions/[id]/portal-launch` {days} → response merged into the mission (no refetch).
++- [ ] « Publier maintenant » → `DELETE /api/missions/[id]/portal-launch` → response merged into the mission.
++
++### Mailbox dialog
++
++- [ ] Mailbox select → updates the mission's `defaultMailboxId` locally (the brief line follows before saving).
++- [ ] « Enregistrer » → `PUT /api/missions/[id]` {defaultMailboxId (or "")} → no refetch.
++- [ ] « Connecter une boîte mail » / « Gérer les boîtes mail… » → `MailboxManagerDialog`.
++
++### Panel `audience` (Bases de prospects)
++
++- [ ] « Créer une base » → `MissionAudienceDrawer` (new); « Importer CSV » → `CSVImportDialog`.
++- [ ] « Assigner le premier commercial à toutes les listes » → `PATCH /api/lists/[id]` {commercialInterlocuteurId} for every list, in parallel → mission. *(Phase 2: a list answering `success: false` now shows the error toast instead of the success toast.)*
++- [ ] Row → `MissionAudienceDrawer` on that list.
++- [ ] « Activer » / « Désactiver » → `PATCH /api/lists/[id]` {isActive} → mission. *(Phase 2: optimistic + rollback.)*
++- [ ] « Contacts : Activé/Désactivé » → `PATCH /api/lists/[id]` {contactsViewEnabled} → mission. *(Phase 2: optimistic + rollback.)*
++- [ ] « Pause 24 h » on → confirm « Désactiver la pause 24 h ? » → `PATCH /api/lists/[id]` {queueCooldownEnabled: false}; off → same with `true`, no confirm → mission. *(Phase 2: optimistic + rollback.)*
++- [ ] Commercials picker save → `PATCH /api/lists/[id]` {commercialInterlocuteurIds} → mission.
++- [ ] Right-click › « Supprimer » → confirm → `DELETE /api/lists/[id]` → mission.
++
++### Panel `strategies` (Ciblage et scripts)
++
++- [ ] `StrategyByListTab` (its own requests, unchanged); `onChange` → mission.
++
++### Panel `strategy` (Stratégie avancée)
++
++- [ ] « Créer une stratégie » (local form) → « Créer la stratégie » → `POST /api/campaigns` {name, missionId, icp, pitch, script} → mission.
++- [ ] « Modifier » / « Annuler » (local).
++- [ ] « Enregistrer » → `PUT /api/campaigns/[id]` {icp, pitch, script} → campaign + companion.
++- [ ] « Copier » → clipboard.
++- [ ] « Onglet script par défaut (SDR) » → `PUT /api/campaigns/[id]/script-companion` {defaultTab} → no refetch.
++- [ ] Script editor « all » AI generation → `POST /api/ai/mistral/script` {channel, clientName, missionName, campaignName, campaignDescription, icp, pitch, section, suggestionsCount} → « Suggestions IA » dialog; « Appliquer » sets the base script (local).
++- [ ] Script additionel « Sauvegarder brouillon » → `PUT …/script-companion` {draft, kind: "additional"}; « Partager avec l’équipe » → `POST …/script-companion` {content, kind: "additional"} → campaign + companion.
++- [ ] Script IA « Sauvegarder brouillon » → `PUT` {draft, kind: "ai"}; « Partager » → `POST` {content, kind: "ai"}; « Régénérer via commentaires d’appels » → `PATCH` {force: true, source: "manual"} → campaign + companion.
++- [ ] Templates « Nouveau » / « Créer votre premier template » → template dialog, create mode (form reset); add dialog « Créer un modèle » → create mode without reset.
++- [ ] Templates « Existant » → add dialog; « Ajouter » → `POST /api/missions/[id]/templates` {templateId} → templates.
++- [ ] Template « Prévisualiser » → preview dialog (local).
++- [ ] Template « Modifier » → template dialog, edit mode → « Enregistrer » → `PATCH /api/missions/[id]/templates` {action: "update", templateId, name, subject, bodyHtml, category} → templates.
++- [ ] Template « Dupliquer » → `PATCH …/templates` {action: "duplicate", templateId} → templates.
++- [ ] Template « Retirer » → `DELETE /api/missions/[id]/templates?templateId=` → templates.
++- [ ] Template drag → `PATCH …/templates` {action: "reorder", orders[{missionTemplateId, order}]}, optimistic, failure silent.
++- [ ] Template dialog create « Créer et assigner » → `POST /api/missions/[id]/templates` {createNew, name, subject, bodyHtml, category} → templates.
++- [ ] Template dialog IA « Générer » (or Ctrl/⌘+Entrée) → `POST /api/ai/mistral/email-template` {instruction, subject, category, missionName, clientName, icp, pitch, currentBody}; « Utiliser » / « Aperçu » (local).
++
++### Panel `equipe` (Équipe)
++
++- [ ] « Référent mission » select / « Définir référent » → `PUT /api/missions/[id]` {teamLeadSdrId} → mission + mutated, toast « Référent mission mis à jour ».
++- [ ] « Assigner un SDR » → picker (search local); user → `PATCH /api/missions/[id]/assign` {sdrId} → mission + mutated, picker closed. *(Phase 2: optimistic + rollback.)*
++- [ ] Remove (×) → confirm « Retirer ce SDR de la mission ? » → `DELETE /api/missions/[id]/assign?sdrId=` → mission + mutated. *(Phase 2: optimistic + rollback.)*
++- [ ] Campagnes « Nouvelle campagne » / edit icon → `StrategyEditorDrawer`.
++
++### Panel `feedback` (Avis SDR)
++
++- [ ] « Du » / « Au » / « Actualiser » → `GET /api/manager/sdr-feedback?…` (see Loads).
++
++### Panel `reglages` (Administration)
++
++- [ ] « Modifier la mission » → `EditMissionDialog`; « Statuts et workflow » → `MissionStatusWorkflowDrawer`.
++- [ ] `ProspectCreationSettingsCard` (its own requests, unchanged).
++- [ ] Type the mission name + « Supprimer la mission » → confirm → `DELETE /api/missions/[id]` → toast, mutated, `onBack()`.
++
++### Drawer
++
++- [ ] Close the panel drawer → `?tab=general`.
++
++## Client (ClientDrawer.tsx)
++
++<!-- Written by the client-side agent. -->
+diff --git a/lib/manager/attention.test.ts b/lib/manager/attention.test.ts
+index f6fe676..b2ea846 100644
+--- a/lib/manager/attention.test.ts
++++ b/lib/manager/attention.test.ts
+@@ -1,6 +1,6 @@
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import { collectAttention, missionAttention } from "./attention";
++import { attentionKey, clientAttention, collectAttention, isMissionEntry, missionAttention, workingDaysSince } from "./attention";
+ 
+ const NOW = Date.parse("2026-11-12T10:00:00Z");
+ const ready = { activeLists: 2, readyLists: 2, customStrategyLists: 0, inheritedStrategyLists: 2, missingStrategy: 0, missingIcp: 0, missingPitch: 0, missingScript: 0 };
+@@ -34,7 +34,7 @@ test("an active mission without SDR outranks an ending one", () => {
+         { id: "a", name: "Alpha", status: "ACTIVE", missions: [{ id: "1", name: "Fin", status: "ACTIVE", endDate: "2026-11-20", readiness: ready, openPoints: 0, sdrCount: 2 }] },
+         { id: "b", name: "Beta", status: "ACTIVE", missions: [{ id: "2", name: "Vide", status: "ACTIVE", readiness: ready, openPoints: 0, sdrCount: 0 }] },
+     ], NOW);
+-    assert.deepEqual(items.map((item) => item.mission.id), ["2", "1"]);
++    assert.deepEqual(items.map((item) => item.mission?.id), ["2", "1"]);
+     assert.equal(items[1].label, "Se termine dans 8 jours");
+ });
+ 
+@@ -45,3 +45,94 @@ test("paused clients and healthy missions stay quiet", () => {
+     ], NOW);
+     assert.equal(items.length, 0);
+ });
++
++// ── Extended rules ──────────────────────────────────────────────────────────
++// NOW is Thursday 12 November 2026.
++
++const running = { id: "r", name: "Run", status: "ACTIVE", startDate: "2026-09-01", endDate: "2027-03-01", readiness: ready, openPoints: 0, sdrCount: 2 };
++
++test("working days skip weekends and count only full days", () => {
++    assert.equal(workingDaysSince("2026-11-11T15:00:00Z", NOW), 0); // yesterday
++    assert.equal(workingDaysSince("2026-11-06T15:00:00Z", NOW), 3); // Fri → Mon, Tue, Wed
++    assert.equal(workingDaysSince("2026-11-04T15:00:00Z", NOW), 5);
++});
++
++test("an active mission without calls for 3 working days is flagged", () => {
++    const item = missionAttention({ ...running, lastCallAt: "2026-11-06T15:00:00Z" }, NOW);
++    assert.equal(item?.kind, "calls");
++    assert.equal(item?.tab, "equipe");
++    assert.equal(item?.tone, "warning");
++    assert.equal(item?.rank, 6);
++    assert.equal(item?.label, "Aucun appel depuis 3 jours ouvrés");
++});
++
++test("a full week without calls is urgent; a recent call or an unknown one stays quiet", () => {
++    assert.equal(missionAttention({ ...running, lastCallAt: "2026-11-04T15:00:00Z" }, NOW)?.tone, "danger");
++    assert.equal(missionAttention({ ...running, lastCallAt: "2026-11-10T15:00:00Z" }, NOW), null);
++    assert.equal(missionAttention({ ...running }, NOW), null);
++});
++
++test("a never-called mission counts from its start; e-mail-only missions are not judged on calls", () => {
++    const never = missionAttention({ ...running, startDate: "2026-11-02", lastCallAt: null }, NOW);
++    assert.equal(never?.kind, "calls");
++    assert.match(never?.label ?? "", /Aucun appel en 7 jours ouvrés/);
++    assert.equal(missionAttention({ ...running, startDate: "2026-11-02", lastCallAt: null, channels: ["EMAIL"] }, NOW), null);
++});
++
++test("a mission behind pace points to the brief", () => {
++    // 72 % of the period elapsed: 36 expected of 50, 10 booked.
++    const item = missionAttention({ ...running, targetMeetings: 50, meetings: 10, lastCallAt: "2026-11-11T10:00:00Z" }, NOW);
++    assert.equal(item?.kind, "pace");
++    assert.equal(item?.tab, "general");
++    assert.equal(item?.rank, 14);
++    assert.match(item?.label ?? "", /^En retard de \d+ RDV$/);
++    assert.match(item?.detail ?? "", /10 sur 50 RDV visés/);
++});
++
++test("a mission on pace, or without target, raises nothing about pace", () => {
++    assert.equal(missionAttention({ ...running, targetMeetings: 50, meetings: 40, lastCallAt: "2026-11-11T10:00:00Z" }, NOW), null);
++    assert.equal(missionAttention({ ...running, targetMeetings: null, meetings: 0, lastCallAt: "2026-11-11T10:00:00Z" }, NOW), null);
++});
++
++test("calls outrank incomplete lists, which outrank pace", () => {
++    const base = { ...running, targetMeetings: 50, meetings: 10, readiness: { ...ready, readyLists: 1, missingScript: 1 }, openPoints: 1 };
++    assert.equal(missionAttention({ ...base, lastCallAt: "2026-11-04T10:00:00Z" }, NOW)?.kind, "calls");
++    assert.equal(missionAttention({ ...base, lastCallAt: "2026-11-11T10:00:00Z" }, NOW)?.kind, "setup");
++});
++
++test("engagement ending within 30 days, urgent within 7 or once past", () => {
++    const soon = clientAttention({ engagementEnd: "2026-12-02T00:00:00Z" }, NOW);
++    assert.equal(soon[0]?.kind, "engagement");
++    assert.equal(soon[0]?.espace, "apercu");
++    assert.equal(soon[0]?.tone, "neutral");
++    assert.equal(soon[0]?.rank, 50);
++    assert.equal(soon[0]?.label, "Fin d’engagement dans 20 jours");
++    assert.equal(clientAttention({ engagementEnd: "2026-11-15T00:00:00Z" }, NOW)[0]?.tone, "warning");
++    assert.equal(clientAttention({ engagementEnd: "2026-11-01T00:00:00Z" }, NOW)[0]?.label, "Engagement arrivé à échéance");
++    assert.equal(clientAttention({ engagementEnd: "2027-02-01T00:00:00Z" }, NOW).length, 0);
++});
++
++test("overdue onboarding steps and pending client feedback", () => {
++    const items = clientAttention({
++        onboardingOverdue: { count: 2, oldestDueDay: "2026-11-01", title: "Kick-off" },
++        feedbackPending: { count: 3, urgent: 1 },
++    }, NOW);
++    assert.deepEqual(items.map((item) => [item.kind, item.espace, item.rank]), [["onboarding", "onboarding", 15], ["feedback", "acces", 16]]);
++    assert.equal(items[0].label, "2 étapes d’intégration en retard");
++    assert.match(items[0].detail, /« Kick-off » était attendue le 1er novembre/);
++    assert.equal(items[1].label, "3 RDV sans avis client");
++    assert.equal(clientAttention({ feedbackPending: { count: 1, urgent: 0 } }, NOW)[0]?.tone, "neutral");
++    assert.equal(clientAttention({ feedbackPending: { count: 0, urgent: 0 }, onboardingOverdue: null }, NOW).length, 0);
++});
++
++test("collectAttention mixes client-level items without a mission, sorted by rank", () => {
++    const items = collectAttention([
++        { id: "a", name: "Alpha", status: "ACTIVE", signals: { engagementEnd: "2026-12-02T00:00:00Z" }, missions: [{ ...running, id: "1", lastCallAt: "2026-11-06T10:00:00Z" }] },
++        { id: "b", name: "Beta", status: "ACTIVE", signals: { onboardingOverdue: { count: 1, oldestDueDay: "2026-11-10", title: "Accès CRM" } }, missions: [] },
++        { id: "c", name: "Gamma", status: "PAUSED", signals: { onboardingOverdue: { count: 1, oldestDueDay: "2026-11-10", title: "X" } } },
++    ], NOW);
++    assert.deepEqual(items.map(attentionKey), ["mission:1", "client:b:onboarding", "client:a:engagement"]);
++    assert.equal(isMissionEntry(items[0]), true);
++    assert.equal(isMissionEntry(items[1]), false);
++    assert.equal(items[1].mission, undefined);
++});
+diff --git a/lib/manager/attention.ts b/lib/manager/attention.ts
+index 53384f4..a8e99f6 100644
+--- a/lib/manager/attention.ts
++++ b/lib/manager/attention.ts
+@@ -1,12 +1,37 @@
+-// « À traiter »: what a manager has to act on, mission by mission.
+-// One item per mission (its most urgent problem), each pointing to the exact
+-// place where it is fixed. Pure so the directory, the client home and tests
+-// all read the same rules.
++// « À traiter »: what a manager has to act on.
++//   - per mission: its most urgent problem (setup, launch, calls, pace, end date);
++//   - per client: contract, onboarding and client-feedback signals.
++// Each item points to the exact place where it is fixed (a mission ?tab= or a
++// client ?espace=). Pure so the directory, the client home, the clients API
++// (sort / filter « À traiter ») and the tests all read the same rules.
++//
++// Signals reused from elsewhere in the repo, not reinvented:
++//   pace verdict ............ lib/missions/pulse.ts pace()
++//   working days ............ lib/planning/board-shared.ts (weekend = Sat/Sun, Paris days)
++//   onboarding overdue ...... lib/onboarding/checklist-service.ts (step not DONE, due day < today)
++//   feedback pending ........ lib/meetings/feedbackReminder.ts (confirmed RDV past, no « Mon avis », 14 d lookback, 48 h no-show window)
+ 
+ import type { MissionReadiness } from "@/lib/missions/readiness";
++import { pace, formatRate, dayMonth } from "@/lib/missions/pulse";
++import { addDaysToKey, isWeekendKey } from "@/lib/planning/board-shared";
++import { parisDay } from "@/lib/manager-home/today-rules";
+ 
+ export type AttentionTone = "danger" | "warning" | "success" | "neutral";
+ 
++/** What an item is about; the inbox filters on it. */
++export type AttentionKind = "launch" | "setup" | "calls" | "pace" | "ending" | "engagement" | "onboarding" | "feedback";
++
++export const ATTENTION_KIND_LABELS: Record<AttentionKind, string> = {
++    launch: "Lancements",
++    setup: "Configuration",
++    calls: "Appels",
++    pace: "Rythme",
++    ending: "Fins de mission",
++    engagement: "Contrats",
++    onboarding: "Intégration",
++    feedback: "Avis client",
++};
++
+ export interface AttentionMission {
+     id: string;
+     name: string;
+@@ -16,8 +41,17 @@ export interface AttentionMission {
+     sdrCount?: number;
+     readiness?: MissionReadiness;
+     openPoints?: number;
++    /** « RDV visés » over the mission period; null: no target, no pace verdict. */
++    targetMeetings?: number | null;
++    /** Booked meetings over the whole mission (same count as the mission pulse). */
++    meetings?: number;
++    /** Last CALL action on the mission; null = never called; undefined = unknown (rule skipped). */
++    lastCallAt?: string | null;
++    channels?: string[];
+ }
+ 
++export type MissionAttentionTab = "lancement" | "audience" | "equipe" | "general";
++
+ export interface Attention {
+     tone: AttentionTone;
+     /** Short French label, e.g. « 3 points avant le lancement ». */
+@@ -27,13 +61,43 @@ export interface Attention {
+     /** Button text for the direct fix. */
+     action: string;
+     /** Mission panel that holds the fix (?tab=). */
+-    tab: "lancement" | "audience" | "equipe" | "general";
++    tab: MissionAttentionTab;
+     /** Lower is more urgent. */
+     rank: number;
++    kind: AttentionKind;
++}
++
++/** Client views that hold a client-level fix (?espace=). `apercu` holds the engagement until the « contrat » view ships. */
++export type ClientAttentionView = "apercu" | "onboarding" | "acces";
++
++export interface ClientAttention {
++    tone: AttentionTone;
++    label: string;
++    detail: string;
++    action: string;
++    espace: ClientAttentionView;
++    rank: number;
++    kind: AttentionKind;
++}
++
++/** Client-level inputs, computed by GET /api/clients?view=workspace. */
++export interface ClientAttentionSignals {
++    /** End of the client's current (ACTIF) engagement. */
++    engagementEnd?: string | null;
++    /** Onboarding checklist steps not done whose due day is past. */
++    onboardingOverdue?: { count: number; oldestDueDay: string; title: string } | null;
++    /** Confirmed past RDVs still waiting for the client's « Mon avis »; `urgent` = no-show window still open. */
++    feedbackPending?: { count: number; urgent: number } | null;
+ }
+ 
+ const DAY = 86_400_000;
+ const ENDING_WINDOW_DAYS = 14;
++/** Full working days without a call before an ACTIVE mission is flagged. */
++export const NO_CALL_WORKING_DAYS = 3;
++/** A full working week without calls is urgent. */
++const NO_CALL_DANGER_DAYS = 5;
++export const ENGAGEMENT_WINDOW_DAYS = 30;
++const ENGAGEMENT_URGENT_DAYS = 7;
+ 
+ const dateFr = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
+ 
+@@ -47,6 +111,55 @@ function daysUntil(day: string | null | undefined, now: number) {
+     return Number.isNaN(time) ? null : Math.ceil((time - now) / DAY);
+ }
+ 
++/** Complete working days (Mon–Fri, Paris) strictly between the day of `since` and today. */
++export function workingDaysSince(since: string | Date, now = Date.now()): number {
++    const from = parisDay(new Date(since));
++    const today = parisDay(new Date(now));
++    let count = 0;
++    for (let key = addDaysToKey(from, 1); key < today; key = addDaysToKey(key, 1)) {
++        if (!isWeekendKey(key)) count += 1;
++    }
++    return count;
++}
++
++function noCallAttention(mission: AttentionMission, now: number): Attention | null {
++    if (mission.lastCallAt === undefined) return null;
++    if (mission.channels && mission.channels.length && !mission.channels.includes("CALL")) return null;
++    // Never called: count from the start date (a mission that has not started yet is not late).
++    const since = mission.lastCallAt ?? mission.startDate;
++    if (!since || Date.parse(since) > now) return null;
++    const days = workingDaysSince(since, now);
++    if (days < NO_CALL_WORKING_DAYS) return null;
++    const danger = days >= NO_CALL_DANGER_DAYS;
++    return {
++        tone: danger ? "danger" : "warning",
++        kind: "calls",
++        label: mission.lastCallAt ? `Aucun appel depuis ${days} jours ouvrés` : `Aucun appel en ${days} jours ouvrés`,
++        detail: mission.lastCallAt
++            ? `Dernier appel le ${dateFr.format(new Date(mission.lastCallAt))}. Vérifiez le planning de l’équipe.`
++            : "Aucun appel depuis le démarrage. Vérifiez le planning de l’équipe.",
++        action: "Voir l’équipe",
++        tab: "equipe",
++        rank: danger ? 3 : 6,
++    };
++}
++
++function paceAttention(mission: AttentionMission, now: number): Attention | null {
++    if (!mission.targetMeetings || mission.meetings === undefined) return null;
++    const p = pace({ target: mission.targetMeetings, meetings: mission.meetings, startDate: mission.startDate, endDate: mission.endDate, now });
++    if (p.verdict !== "behind" || p.gap === null) return null;
++    const perWeek = p.neededPerWeek !== null ? ` Il faut ${formatRate(p.neededPerWeek)} RDV par semaine${mission.endDate ? ` jusqu’au ${dayMonth(mission.endDate)}` : ""}.` : "";
++    return {
++        tone: "warning",
++        kind: "pace",
++        label: `En retard de ${plural(Math.abs(p.gap), "RDV", "RDV")}`,
++        detail: `${mission.meetings} sur ${mission.targetMeetings} RDV visés.${perWeek}`,
++        action: "Voir le rythme",
++        tab: "general",
++        rank: 14,
++    };
++}
++
+ export function missionAttention(mission: AttentionMission, now = Date.now()): Attention | null {
+     const readiness = mission.readiness;
+     const points = mission.openPoints ?? 0;
+@@ -59,34 +172,92 @@ export function missionAttention(mission: AttentionMission, now = Date.now()): A
+         const when = mission.startDate ? `Démarrage prévu le ${dateFr.format(new Date(mission.startDate))}` : "Date de démarrage à définir";
+         const detail = late ? `${when}, date dépassée` : when;
+         const rank = late ? 0 : 10;
+-        if (noLists) return { tone: late ? "danger" : "warning", label: "Aucune base de prospects", detail, action: "Ajouter une base", tab: "audience", rank: rank + 1 };
+-        if (points > 0) return { tone: late ? "danger" : "warning", label: `${plural(points, "point", "points")} avant le lancement`, detail, action: "Corriger", tab: "lancement", rank: rank + 2 };
+-        if (noTeam) return { tone: late ? "danger" : "warning", label: "Aucun SDR affecté", detail, action: "Affecter", tab: "equipe", rank: rank + 3 };
+-        if (readiness) return { tone: "success", label: "Prête à lancer", detail, action: "Lancer", tab: "lancement", rank: 20 };
++        const tone = late ? "danger" : "warning";
++        if (noLists) return { tone, kind: "launch", label: "Aucune base de prospects", detail, action: "Ajouter une base", tab: "audience", rank: rank + 1 };
++        if (points > 0) return { tone, kind: "launch", label: `${plural(points, "point", "points")} avant le lancement`, detail, action: "Corriger", tab: "lancement", rank: rank + 2 };
++        if (noTeam) return { tone, kind: "launch", label: "Aucun SDR affecté", detail, action: "Affecter", tab: "equipe", rank: rank + 3 };
++        if (readiness) return { tone: "success", kind: "launch", label: "Prête à lancer", detail, action: "Lancer", tab: "lancement", rank: 20 };
+         return null;
+     }
+ 
+     if (mission.status === "ACTIVE") {
+-        if (noTeam) return { tone: "danger", label: "Mission active sans SDR", detail: "Personne n’appelle sur cette mission.", action: "Affecter", tab: "equipe", rank: 1 };
+-        if (noLists) return { tone: "danger", label: "Aucune base active", detail: "La file d’appels est vide.", action: "Ajouter une base", tab: "audience", rank: 2 };
++        if (noTeam) return { tone: "danger", kind: "setup", label: "Mission active sans SDR", detail: "Personne n’appelle sur cette mission.", action: "Affecter", tab: "equipe", rank: 1 };
++        if (noLists) return { tone: "danger", kind: "setup", label: "Aucune base active", detail: "La file d’appels est vide.", action: "Ajouter une base", tab: "audience", rank: 2 };
++        const noCalls = noCallAttention(mission, now);
++        if (noCalls) return noCalls;
+         if (points > 0 && readiness) {
+             const incomplete = readiness.activeLists - readiness.readyLists;
+-            return { tone: "warning", label: `${plural(incomplete, "base incomplète", "bases incomplètes")}`, detail: `${plural(points, "point", "points")} de ciblage ou de script à compléter.`, action: "Corriger", tab: "lancement", rank: 12 };
++            return { tone: "warning", kind: "setup", label: `${plural(incomplete, "base incomplète", "bases incomplètes")}`, detail: `${plural(points, "point", "points")} de ciblage ou de script à compléter.`, action: "Corriger", tab: "lancement", rank: 12 };
+         }
++        const behind = paceAttention(mission, now);
++        if (behind) return behind;
+         const endIn = daysUntil(mission.endDate, now);
+         if (endIn !== null && endIn >= 0 && endIn <= ENDING_WINDOW_DAYS) {
+             const label = endIn === 0 ? "Se termine aujourd’hui" : `Se termine dans ${plural(endIn, "jour", "jours")}`;
+-            return { tone: "neutral", label, detail: `Fin prévue le ${dateFr.format(new Date(mission.endDate!))}. Prolonger ou clôturer.`, action: "Ouvrir", tab: "general", rank: 30 + endIn };
++            return { tone: "neutral", kind: "ending", label, detail: `Fin prévue le ${dateFr.format(new Date(mission.endDate!))}. Prolonger ou clôturer.`, action: "Ouvrir", tab: "general", rank: 30 + endIn };
+         }
+     }
+     return null;
+ }
+ 
++/** Client-level items (no mission): one per signal that needs a look, most urgent first. */
++export function clientAttention(signals: ClientAttentionSignals | null | undefined, now = Date.now()): ClientAttention[] {
++    if (!signals) return [];
++    const items: ClientAttention[] = [];
++
++    const overdue = signals.onboardingOverdue;
++    if (overdue && overdue.count > 0) {
++        items.push({
++            tone: "warning",
++            kind: "onboarding",
++            label: `${plural(overdue.count, "étape d’intégration en retard", "étapes d’intégration en retard")}`,
++            detail: `« ${overdue.title} » était attendue le ${dayMonth(`${overdue.oldestDueDay}T12:00:00Z`)}.`,
++            action: "Voir l’intégration",
++            espace: "onboarding",
++            rank: 15,
++        });
++    }
++
++    const feedback = signals.feedbackPending;
++    if (feedback && feedback.count > 0) {
++        const urgent = feedback.urgent > 0;
++        items.push({
++            tone: urgent ? "warning" : "neutral",
++            kind: "feedback",
++            label: `${plural(feedback.count, "RDV sans avis client", "RDV sans avis client")}`,
++            detail: urgent
++                ? `${plural(feedback.urgent, "RDV peut", "RDV peuvent")} encore être signalé${feedback.urgent > 1 ? "s" : ""} absent${feedback.urgent > 1 ? "s" : ""} par le client (48 h).`
++                : "Le client n’a pas donné son avis sur des RDV passés.",
++            action: "Relancer le client",
++            espace: "acces",
++            rank: urgent ? 16 : 27,
++        });
++    }
++
++    const endIn = daysUntil(signals.engagementEnd, now);
++    if (endIn !== null && endIn <= ENGAGEMENT_WINDOW_DAYS) {
++        const ended = endIn < 0;
++        const urgent = ended || endIn <= ENGAGEMENT_URGENT_DAYS;
++        items.push({
++            tone: urgent ? "warning" : "neutral",
++            kind: "engagement",
++            label: ended ? "Engagement arrivé à échéance" : endIn === 0 ? "L’engagement se termine aujourd’hui" : `Fin d’engagement dans ${plural(endIn, "jour", "jours")}`,
++            detail: `${ended ? "Terminé" : "Se termine"} le ${dayMonth(signals.engagementEnd!)}. Préparer le renouvellement.`,
++            action: "Voir l’engagement",
++            espace: "apercu",
++            rank: urgent ? 17 : 30 + endIn,
++        });
++    }
++
++    return items.sort((a, b) => a.rank - b.rank);
++}
++
+ export interface AttentionClient<M extends AttentionMission = AttentionMission> {
+     id: string;
+     name: string;
+     status: string;
+     missions?: M[];
++    signals?: ClientAttentionSignals | null;
+ }
+ 
+ export interface AttentionEntry<M extends AttentionMission = AttentionMission> extends Attention {
+@@ -95,13 +266,36 @@ export interface AttentionEntry<M extends AttentionMission = AttentionMission> e
+     mission: M;
+ }
+ 
++export interface ClientAttentionEntry extends ClientAttention {
++    clientId: string;
++    clientName: string;
++    mission?: undefined;
++}
++
++/** One « À traiter » line: about a mission (has `mission` and `tab`) or about the client (has `espace`). */
++export type InboxEntry<M extends AttentionMission = AttentionMission> = AttentionEntry<M> | ClientAttentionEntry;
++
++export function isMissionEntry<M extends AttentionMission>(entry: InboxEntry<M>): entry is AttentionEntry<M> {
++    return entry.mission !== undefined;
++}
++
++/** Stable React key / dedupe key for an inbox line. */
++export function attentionKey(entry: InboxEntry): string {
++    return entry.mission ? `mission:${entry.mission.id}` : `client:${entry.clientId}:${entry.kind}`;
++}
++
+ /** Every open item across clients, most urgent first. Paused or stopped clients are left out. */
+-export function collectAttention<M extends AttentionMission>(clients: AttentionClient<M>[], now = Date.now()): AttentionEntry<M>[] {
++export function collectAttention<M extends AttentionMission>(clients: AttentionClient<M>[], now = Date.now()): InboxEntry<M>[] {
+     return clients
+         .filter((client) => client.status === "ACTIVE")
+-        .flatMap((client) => (client.missions ?? []).flatMap((mission) => {
+-            const item = missionAttention(mission, now);
+-            return item ? [{ ...item, clientId: client.id, clientName: client.name, mission }] : [];
+-        }))
+-        .sort((a, b) => a.rank - b.rank || a.clientName.localeCompare(b.clientName, "fr") || a.mission.name.localeCompare(b.mission.name, "fr"));
++        .flatMap((client): InboxEntry<M>[] => [
++            ...(client.missions ?? []).flatMap((mission) => {
++                const item = missionAttention(mission, now);
++                return item ? [{ ...item, clientId: client.id, clientName: client.name, mission }] : [];
++            }),
++            ...clientAttention(client.signals, now).map((item) => ({ ...item, clientId: client.id, clientName: client.name })),
++        ])
++        .sort((a, b) => a.rank - b.rank
++            || a.clientName.localeCompare(b.clientName, "fr")
++            || (a.mission?.name ?? "").localeCompare(b.mission?.name ?? "", "fr"));
+ }
+diff --git a/lib/manager/workspace/client/api.ts b/lib/manager/workspace/client/api.ts
+new file mode 100644
+index 0000000..f9b62e1
+--- /dev/null
++++ b/lib/manager/workspace/client/api.ts
+@@ -0,0 +1,110 @@
++// Fetchers of the client workspace. Each wraps one existing route through
++// lib/manager/workspace/http (unwraps { success, data, error }, throws the
++// French message). URLs and bodies are the ones ClientDrawer.tsx and the
++// legacy ClientDetailWorkspace sent — see docs/plans/2026-11-13-workspace-action-inventory.md.
++
++import { apiGet, apiSend, ApiError } from "@/lib/manager/workspace/http";
++import type { ChecklistView } from "@/lib/onboarding/checklist-service";
++import type {
++    BillingOffer,
++    ClientDetail,
++    ClientSession,
++    CreateSessionInput,
++    LeexiTranscription,
++    Mailbox,
++    UpdateSessionInput,
++} from "./types";
++
++// ── Client ──────────────────────────────────────────────────────────────────
++
++export const fetchClientDetail = (clientId: string) => apiGet<ClientDetail>(`/api/clients/${clientId}`);
++
++export const fetchOnboardingChecklist = (clientId: string) =>
++    apiGet<ChecklistView | null>(`/api/clients/${clientId}/onboarding-checklist`);
++
++/** Missing or failed list → empty, as before: the select then offers « Aucune ». */
++export async function fetchMailboxes(): Promise<Mailbox[]> {
++    try {
++        const data = await apiGet<unknown>("/api/email/mailboxes?includeShared=true");
++        return Array.isArray(data) ? (data as Mailbox[]) : [];
++    } catch {
++        return [];
++    }
++}
++
++export const updateClient = (clientId: string, patch: Record<string, unknown>) =>
++    apiSend<unknown>(`/api/clients/${clientId}`, "PUT", patch);
++
++export const deleteClient = (clientId: string) => apiSend<unknown>(`/api/clients/${clientId}`, "DELETE");
++
++export const updateMissionPlan = (planId: string, body: { frequency: number; preferredDays: string[] }) =>
++    apiSend<unknown>(`/api/mission-plans/${planId}`, "PUT", body);
++
++export const updateMissionStatus = (missionId: string, status: string) =>
++    apiSend<unknown>(`/api/missions/${missionId}`, "PATCH", { status });
++
++// ── Engagement ──────────────────────────────────────────────────────────────
++
++export const updateEngagement = (engagementId: string, patch: Record<string, unknown>) =>
++    apiSend<unknown>(`/api/billing/engagements/${engagementId}`, "PATCH", patch);
++
++export const createEngagement = (body: { clientId: string; offreTarifId: string; dureeMois: number; debut: string }) =>
++    apiSend<unknown>("/api/billing/engagements", "POST", body);
++
++export async function fetchSelectableOffers(): Promise<BillingOffer[]> {
++    const data = await apiGet<unknown>("/api/billing/offres").catch(() => null);
++    return Array.isArray(data) ? (data as BillingOffer[]) : [];
++}
++
++// ── Sessions & comptes rendus ───────────────────────────────────────────────
++
++export const fetchClientSessions = (clientId: string) => apiGet<ClientSession[]>(`/api/clients/${clientId}/sessions`);
++
++export async function fetchLeexiTranscriptions(clientId: string): Promise<LeexiTranscription[]> {
++    try {
++        return await apiGet<LeexiTranscription[]>(`/api/leexi/transcriptions?clientId=${clientId}`);
++    } catch (cause) {
++        throw new Error(cause instanceof ApiError ? cause.message || "Impossible de charger les transcriptions" : "Erreur de connexion à Leexi");
++    }
++}
++
++export async function fetchLeexiTranscript(leexiId: string): Promise<string> {
++    const data = await apiGet<{ transcript: string }>(`/api/leexi/transcript/${leexiId}`);
++    return data.transcript;
++}
++
++/** POST /api/ai/generate-cr → the model's raw text (CR, separator, e-mail). */
++export async function generateCR(prompt: string): Promise<string> {
++    const data = await apiSend<{ text: string }>("/api/ai/generate-cr", "POST", { prompt });
++    return data.text;
++}
++
++/**
++ * POST /api/clients/:id/sessions. `emailSent` and `projectId` sit next to
++ * `data` in this route's envelope, so it is read here instead of through
++ * apiSend (which keeps only `data`).
++ */
++export async function createClientSession(clientId: string, body: CreateSessionInput): Promise<{ session: ClientSession; emailSent: boolean; projectId: string | null }> {
++    const res = await fetch(`/api/clients/${clientId}/sessions`, {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify(body),
++    });
++    let json: { success?: boolean; data?: ClientSession; error?: string; emailSent?: boolean; projectId?: string | null } | null = null;
++    try {
++        json = await res.json();
++    } catch {
++        // Non-JSON answer.
++    }
++    if (!json?.success) throw new ApiError(json?.error || "Impossible d'enregistrer la session", res.status);
++    return { session: json.data as ClientSession, emailSent: !!json.emailSent, projectId: json.projectId ?? null };
++}
++
++export const updateClientSession = (clientId: string, sessionId: string, body: UpdateSessionInput) =>
++    apiSend<{ projectId?: string | null }>(`/api/clients/${clientId}/sessions/${sessionId}`, "PATCH", body);
++
++export const deleteClientSession = (clientId: string, sessionId: string) =>
++    apiSend<{ deleted: true }>(`/api/clients/${clientId}/sessions/${sessionId}`, "DELETE");
++
++export const toggleSessionTask = (clientId: string, sessionId: string, taskId: string) =>
++    apiSend<{ taskId: string; doneAt: string | null }>(`/api/clients/${clientId}/sessions/${sessionId}`, "PATCH", { toggleTaskId: taskId });
+diff --git a/lib/manager/workspace/client/mutations.ts b/lib/manager/workspace/client/mutations.ts
+new file mode 100644
+index 0000000..72efff5
+--- /dev/null
++++ b/lib/manager/workspace/client/mutations.ts
+@@ -0,0 +1,185 @@
++"use client";
++
++// Writes of the client workspace. Same requests and same toasts as the
++// drawer they come from; invalidation is the client detail + directory list
++// (what every write refetched before). Simple switches (client status, portal
++// permissions, session tasks) are optimistic with rollback + error toast.
++
++import { useMutation, useQueryClient } from "@tanstack/react-query";
++import { useToast } from "@/components/ui";
++import { CLIENTS_QUERY_KEY, clientDetailQueryKey } from "@/lib/query-keys";
++import { MISSION_STATUS_CONFIG, type MissionStatusValue } from "@/lib/constants/missionStatus";
++import { createClientPage, clientPagesKey, type ClientPageSummary } from "@/components/manager/workspace/clientPages";
++import type { PageTemplate } from "@/lib/client-pages/blocks";
++import {
++    createEngagement,
++    deleteClient,
++    updateClient,
++    updateEngagement,
++    updateMissionPlan,
++    updateMissionStatus,
++} from "./api";
++import type { Client, ClientDetail, MissionLite, MissionPlanLite } from "./types";
++
++/** The route's message, or the drawer's own fallback when the API gave none. */
++export function messageOf(error: unknown, fallback: string) {
++    const message = error instanceof Error ? error.message : "";
++    return !message || message === "Erreur réseau, réessayez." || message === "Introuvable" ? fallback : message;
++}
++
++/** Refetch what any client write can change: the detail and the directory row. */
++export function useRefreshClient(clientId: string) {
++    const queryClient = useQueryClient();
++    return () => {
++        void queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(clientId) });
++        void queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
++    };
++}
++
++// Fields the API stores in onboarding.onboardingData rather than on the client.
++const ONBOARDING_FIELDS = new Set(["icp", "defaultMailboxId", "portalAllowExport"]);
++
++function mergeIntoDetail(detail: ClientDetail | undefined, patch: Record<string, unknown>): ClientDetail | undefined {
++    if (!detail) return detail;
++    const top: Record<string, unknown> = {};
++    const onboarding: Record<string, unknown> = {};
++    for (const [key, value] of Object.entries(patch)) (ONBOARDING_FIELDS.has(key) ? onboarding : top)[key] = value;
++    return {
++        ...detail,
++        ...top,
++        onboarding: Object.keys(onboarding).length
++            ? { ...(detail.onboarding ?? {}), onboardingData: { ...(detail.onboarding?.onboardingData ?? {}), ...onboarding } }
++            : detail.onboarding,
++    };
++}
++
++/**
++ * PUT /api/clients/:id with one changed field. `mutateAsync` rejects on error
++ * so inline fields stay in edit mode, as before.
++ */
++export function useUpdateClient(client: Client, onUpdate?: (client: Client) => void) {
++    const queryClient = useQueryClient();
++    const { success, error: showError } = useToast();
++    const refresh = useRefreshClient(client.id);
++    const key = clientDetailQueryKey(client.id);
++    return useMutation({
++        mutationFn: ({ patch }: { patch: Record<string, unknown>; optimistic?: boolean }) => updateClient(client.id, patch),
++        onMutate: async ({ patch, optimistic }) => {
++            if (!optimistic) return undefined;
++            await queryClient.cancelQueries({ queryKey: key });
++            const previous = queryClient.getQueryData<ClientDetail>(key);
++            queryClient.setQueryData<ClientDetail | undefined>(key, (detail) => mergeIntoDetail(detail, patch));
++            const before = Object.fromEntries(Object.keys(patch).map((field) => [field, (client as unknown as Record<string, unknown>)[field]]));
++            onUpdate?.({ ...client, ...patch } as Client);
++            return { previous, before };
++        },
++        onError: (cause, _vars, context) => {
++            if (context) {
++                queryClient.setQueryData(key, context.previous);
++                onUpdate?.({ ...client, ...context.before } as Client);
++            }
++            showError("Erreur", messageOf(cause, "Impossible de mettre à jour"));
++        },
++        onSuccess: (_data, { patch }) => {
++            success("Mis à jour", "Modifications enregistrées");
++            onUpdate?.({ ...client, ...patch } as Client);
++        },
++        onSettled: refresh,
++    });
++}
++
++export function useDeleteClient(client: Client, onDone: () => void) {
++    const { success, error: showError } = useToast();
++    const refresh = useRefreshClient(client.id);
++    return useMutation({
++        mutationFn: () => deleteClient(client.id),
++        onSuccess: () => {
++            success("Client supprimé", `${client.name} et toutes les données associées ont été supprimés`);
++            refresh();
++            onDone();
++        },
++        onError: (cause) => showError("Erreur", messageOf(cause, "Impossible de supprimer le client")),
++    });
++}
++
++const WEEKDAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
++
++/** Days per week of a mission plan; keeps the chosen days, pads with weekdays. */
++export function useUpdatePlanFrequency(clientId: string) {
++    const { success, error: showError } = useToast();
++    const refresh = useRefreshClient(clientId);
++    return useMutation({
++        mutationFn: ({ plan, frequency }: { plan: MissionPlanLite; frequency: number }) => {
++            const currentDays = plan.preferredDays ?? [];
++            const preferredDays = [...currentDays, ...WEEKDAYS.filter((day) => !currentDays.includes(day))].slice(0, frequency);
++            return updateMissionPlan(plan.id, { frequency, preferredDays });
++        },
++        onSuccess: (_data, { frequency }) => {
++            success("Planning mis à jour", `${frequency} jour${frequency > 1 ? "s" : ""} / semaine enregistré`);
++            refresh();
++        },
++        onError: (cause) => showError("Erreur", messageOf(cause, "Impossible de mettre à jour le planning")),
++    });
++}
++
++/** Mission status from the client home (the API enforces canTransitionMissionStatus). */
++export function useUpdateMissionStatus(clientId: string) {
++    const { success, error: showError } = useToast();
++    const refresh = useRefreshClient(clientId);
++    return useMutation({
++        mutationFn: ({ mission, status }: { mission: MissionLite; status: MissionStatusValue }) => updateMissionStatus(mission.id, status),
++        onSuccess: (_data, { mission, status }) => {
++            success("Statut mis à jour", `${mission.name} : ${MISSION_STATUS_CONFIG[status].label}`);
++            refresh();
++        },
++        onError: (cause) => showError("Statut inchangé", messageOf(cause, "Changement de statut refusé")),
++    });
++}
++
++export function useUpdateEngagementField(clientId: string, engagementId: string | null | undefined) {
++    const { success, error: showError } = useToast();
++    const refresh = useRefreshClient(clientId);
++    return useMutation({
++        mutationFn: (patch: Record<string, unknown>) => updateEngagement(engagementId!, patch),
++        onSuccess: () => {
++            success("Engagement mis à jour", "Modifications enregistrées");
++            refresh();
++        },
++        onError: (cause) => showError("Erreur", messageOf(cause, "Impossible de mettre à jour l’engagement")),
++    });
++}
++
++/** « Créer un engagement » / « Renouveler » modal. */
++export function useSaveEngagement(clientId: string, onSaved: () => void) {
++    const { success, error: showError } = useToast();
++    const refresh = useRefreshClient(clientId);
++    return useMutation({
++        mutationFn: (input:
++            | { mode: "create"; offreTarifId: string; dureeMois: number; debut: string }
++            | { mode: "renew"; engagementId: string; dureeMois: number; debut: string }) =>
++            input.mode === "create"
++                ? createEngagement({ clientId, offreTarifId: input.offreTarifId, dureeMois: input.dureeMois, debut: input.debut })
++                : updateEngagement(input.engagementId, { nouveauDebut: input.debut, nouvelleDureeMois: input.dureeMois }),
++        onSuccess: (_data, input) => {
++            if (input.mode === "create") success("Engagement créé", "Le nouvel engagement a été enregistré");
++            else success("Engagement renouvelé", "Les nouvelles dates ont été enregistrées");
++            onSaved();
++            refresh();
++        },
++        onError: (cause, input) => showError("Erreur", messageOf(cause, input.mode === "create" ? "Impossible de créer l’engagement" : "Impossible de renouveler l’engagement")),
++    });
++}
++
++/** New page from a template; appended to the pages cache, then opened. */
++export function useCreateClientPage(clientId: string, onCreated: (page: ClientPageSummary) => void) {
++    const queryClient = useQueryClient();
++    const { error: showError } = useToast();
++    return useMutation({
++        mutationFn: ({ template, missionId }: { template: PageTemplate; missionId?: string | null }) => createClientPage(clientId, { template, missionId }),
++        onSuccess: (page) => {
++            queryClient.setQueryData(clientPagesKey(clientId), (list: ClientPageSummary[] | undefined) => [...(list ?? []), page]);
++            onCreated(page);
++        },
++        onError: (cause) => showError("Page non créée", (cause as Error).message),
++    });
++}
+diff --git a/lib/manager/workspace/client/queries.ts b/lib/manager/workspace/client/queries.ts
+new file mode 100644
+index 0000000..c253222
+--- /dev/null
++++ b/lib/manager/workspace/client/queries.ts
+@@ -0,0 +1,66 @@
++"use client";
++
++// React Query reads of the client workspace. Keys are the ones the drawer
++// already used, so caches shared with other components (OnboardingChecklist,
++// WeeklyBilanModal, the directory page) keep working.
++
++import { useQuery } from "@tanstack/react-query";
++import { clientDetailQueryKey, clientSessionsQueryKey } from "@/lib/query-keys";
++import { onboardingChecklistKey } from "@/components/onboarding/OnboardingChecklist";
++import {
++    fetchClientDetail,
++    fetchClientSessions,
++    fetchLeexiTranscriptions,
++    fetchMailboxes,
++    fetchOnboardingChecklist,
++    fetchSelectableOffers,
++} from "./api";
++
++export const MANAGER_MAILBOXES_KEY = ["manager", "mailboxes"] as const;
++export const SELECTABLE_OFFERS_KEY = ["billing", "offres", "selectable"] as const;
++export const leexiTranscriptionsKey = (clientId: string) => ["leexi", "transcriptions", clientId] as const;
++
++export function useClientDetail(clientId: string | null | undefined, enabled = true) {
++    return useQuery({
++        queryKey: clientDetailQueryKey(clientId ?? null),
++        queryFn: () => fetchClientDetail(clientId!),
++        enabled: enabled && !!clientId,
++    });
++}
++
++/** Onboarding progress (tree badge, home rail) — same cache as the checklist itself. */
++export function useOnboardingProgress(clientId: string | null | undefined, enabled = true) {
++    return useQuery({
++        queryKey: onboardingChecklistKey(clientId ?? ""),
++        queryFn: () => fetchOnboardingChecklist(clientId!),
++        enabled: enabled && !!clientId,
++        staleTime: 30_000,
++    });
++}
++
++export function useMailboxes(enabled = true) {
++    return useQuery({ queryKey: MANAGER_MAILBOXES_KEY, queryFn: fetchMailboxes, enabled, staleTime: 60_000 });
++}
++
++export function useSelectableOffers(enabled: boolean) {
++    return useQuery({ queryKey: SELECTABLE_OFFERS_KEY, queryFn: fetchSelectableOffers, enabled, staleTime: 60_000 });
++}
++
++export function useClientSessions(clientId: string | null | undefined, enabled = true) {
++    return useQuery({
++        queryKey: clientSessionsQueryKey(clientId),
++        queryFn: () => fetchClientSessions(clientId!),
++        enabled: enabled && !!clientId,
++    });
++}
++
++/** Loaded each time the « Nouvelle session » modal opens (staleTime 0), as before. */
++export function useLeexiTranscriptions(clientId: string, enabled: boolean) {
++    return useQuery({
++        queryKey: leexiTranscriptionsKey(clientId),
++        queryFn: () => fetchLeexiTranscriptions(clientId),
++        enabled,
++        staleTime: 0,
++        retry: false,
++    });
++}
+diff --git a/lib/manager/workspace/client/types.ts b/lib/manager/workspace/client/types.ts
+new file mode 100644
+index 0000000..36d0163
+--- /dev/null
++++ b/lib/manager/workspace/client/types.ts
+@@ -0,0 +1,251 @@
++// Response shapes of the client workspace (/manager/clients?client=…).
++// One declaration per shape (plan finding S7): views import from here instead
++// of redeclaring partial copies.
++
++import type { MissionStatusValue } from "@/lib/constants/missionStatus";
++import type { DailyReportLike } from "@/components/sdr/DailyReportView";
++
++export type ClientStatus = "ACTIVE" | "PAUSED" | "STOPPED";
++
++/** The client row the workspace is opened with (directory row, kept in the parent's cache). */
++export interface Client {
++    id: string;
++    name: string;
++    industry?: string;
++    email?: string;
++    phone?: string;
++    status?: ClientStatus;
++    createdAt: string;
++    bookingUrl?: string;
++    _count: {
++        missions: number;
++        users: number;
++    };
++    portalShowCallHistory?: boolean;
++    portalShowDatabase?: boolean;
++    rdvEmailNotificationsEnabled?: boolean;
++}
++
++export interface MissionPlanLite {
++    id: string;
++    frequency: number;
++    preferredDays: string[];
++    timePreference?: string | null;
++    customStartTime?: string | null;
++    customEndTime?: string | null;
++    startDate?: string;
++    endDate?: string | null;
++}
++
++export interface MissionLite {
++    id: string;
++    name: string;
++    objective?: string | null;
++    status: MissionStatusValue;
++    createdAt?: string;
++    startDate?: string | null;
++    endDate?: string | null;
++    channel?: string | null;
++    _count?: { campaigns?: number; lists?: number; sdrAssignments?: number };
++    campaigns?: Array<{ id: string; name: string; icp?: string | null }>;
++    lists?: Array<{ id: string; name: string; type?: string; _count?: { companies?: number } }>;
++    missionPlans?: MissionPlanLite[];
++}
++
++export interface ClientUserLite {
++    id: string;
++    name: string | null;
++    email: string;
++    role: string;
++    isActive: boolean;
++    lastSignInAt: string | null;
++    lastConnectedAt: string | null;
++    createdAt: string;
++}
++
++export interface InterlocuteurLite {
++    id: string;
++    firstName: string;
++    lastName: string;
++    email?: string | null;
++    phone?: string | null;
++    jobTitle?: string | null;
++    title?: string | null;
++    emails?: Array<{ value: string; isPrimary: boolean }>;
++    phones?: Array<{ value: string; isPrimary: boolean }>;
++    createdAt: string;
++    portalUser?: { id: string; email: string; name: string | null; isActive: boolean } | null;
++}
++
++export interface ClientProductionInsights {
++    month: string;
++    firstCallAt?: string | null;
++    plannedMonthDays: number | null;
++    plannedWeekDays: number | null;
++    plannedMonthDaysFromWeekly?: number | null;
++    hasMonthlyPlan?: boolean;
++    executedDays: number;
++    workedCallDays?: number;
++    totalWorkedCallDays?: number;
++    totalActions: number;
++    totalCalls: number;
++    totalMeetings: number;
++}
++
++export type EngagementStatut = "BROUILLON" | "ACTIF" | "EXPIRE" | "RENOUVELE" | "RESILIE" | "ARCHIVE";
++
++export interface ClientEngagementInsights {
++    id: string;
++    offreTarifId: string;
++    dureeMois: number;
++    debut: string;
++    fin: string;
++    statut: EngagementStatut;
++    renouvellement?: string | null;
++    penaliteResiliation?: string | null;
++    fixeOverride?: number | string | null;
++    rdvOverride?: number | string | null;
++    offreTarif: { id: string; nom: string; fixeMensuel: number | string; prixParRdv: number | string };
++}
++
++export interface ClientActionInsight {
++    id: string;
++    createdAt: string;
++    callbackDate?: string | null;
++    result: string;
++    channel: string;
++    note?: string | null;
++    duration?: number | null;
++    sdr: { id: string; name: string | null };
++    company?: { id: string; name: string } | null;
++    contact?: {
++        id: string;
++        firstName?: string | null;
++        lastName?: string | null;
++        title?: string | null;
++        company?: { id: string; name: string } | null;
++    } | null;
++    campaign: {
++        id: string;
++        name: string;
++        mission: { id: string; name: string };
++    };
++}
++
++export interface ClientSdrFeedbackInsight extends DailyReportLike {
++    id: string;
++    submittedAt: string;
++    sdr: { id: string; name: string | null; email: string };
++    mission?: { id: string; name: string } | null;
++    missions: Array<{ mission: { id: string; name: string } }>;
++}
++
++export interface ClientOnboardingData {
++    defaultMailboxId?: string;
++    icp?: string;
++    portalAllowExport?: boolean;
++}
++
++/** GET /api/clients/:id — the fields the workspace reads. */
++export interface ClientDetail {
++    id: string;
++    name: string;
++    email?: string | null;
++    status?: ClientStatus;
++    bookingUrl?: string | null;
++    missions?: MissionLite[];
++    users?: ClientUserLite[];
++    interlocuteurs?: InterlocuteurLite[];
++    insights?: {
++        production?: ClientProductionInsights;
++        engagement?: ClientEngagementInsights | null;
++        recentActions?: ClientActionInsight[];
++        sdrFeedback?: ClientSdrFeedbackInsight[];
++    };
++    onboarding?: { onboardingData?: ClientOnboardingData | null } | null;
++    [key: string]: unknown;
++}
++
++export interface Mailbox {
++    id: string;
++    email: string;
++    displayName: string | null;
++}
++
++export interface BillingOffer {
++    id: string;
++    nom: string;
++    fixeMensuel: number;
++    prixParRdv: number;
++}
++
++// ── Sessions & comptes rendus ───────────────────────────────────────────────
++
++export type SessionType = "Kick-Off" | "Onboarding" | "Validation" | "Reporting" | "Suivi" | "Autre";
++export const SESSION_TYPES: SessionType[] = ["Kick-Off", "Onboarding", "Validation", "Reporting", "Suivi", "Autre"];
++
++export interface SessionTask {
++    id: string;
++    label: string;
++    assignee?: string | null;
++    assigneeRole?: "SDR" | "MANAGER" | "DEV" | "ALWAYS" | null;
++    priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null;
++    dueDate?: string | null;
++    doneAt?: string | null;
++    taskId?: string | null;
++}
++
++export interface ClientSession {
++    id: string;
++    type: SessionType;
++    customTypeLabel?: string | null;
++    date: string;
++    leexiId?: string | null;
++    recordingUrl?: string | null;
++    crMarkdown?: string | null;
++    summaryEmail?: string | null;
++    emailSentAt?: string | null;
++    projectId?: string | null;
++    tasks: SessionTask[];
++    createdAt: string;
++}
++
++export interface LeexiTranscription {
++    id: string;
++    title: string;
++    date: string;
++    duration: number;
++    participants: string[];
++    transcript?: string;
++    recordingUrl?: string;
++}
++
++/** Task as sent to the sessions API (from AITaskExtractor). */
++export interface SessionTaskInput {
++    label: string;
++    assignee?: string;
++    assigneeId?: string;
++    assigneeRole?: string;
++    priority?: string;
++    dueDate?: string;
++}
++
++export interface CreateSessionInput {
++    type: SessionType;
++    leexiId: string;
++    crMarkdown: string;
++    summaryEmail: string;
++    notifyByEmail: boolean;
++    recordingUrl?: string;
++    date: string;
++    customTypeLabel?: string;
++    tasks: SessionTaskInput[];
++}
++
++export interface UpdateSessionInput {
++    type: SessionType;
++    date: string;
++    crMarkdown?: string | null;
++    summaryEmail?: string | null;
++    tasks?: SessionTaskInput[];
++}
+diff --git a/lib/manager/workspace/directory/aggregates.ts b/lib/manager/workspace/directory/aggregates.ts
+new file mode 100644
+index 0000000..56f8a25
+--- /dev/null
++++ b/lib/manager/workspace/directory/aggregates.ts
+@@ -0,0 +1,258 @@
++// Server side of the clients directory (GET /api/clients?view=workspace):
++// every per-mission and per-client figure in a handful of grouped SQL
++// queries, whatever the portfolio size. No campaign text leaves the database:
++// readiness only needs "is there an ICP / pitch / script", computed in SQL.
++//
++// `db` only needs $queryRaw so the SQL runs for real on PGlite in
++// aggregates.pglite.test.ts.
++
++import { Prisma } from "@prisma/client";
++import { DateTime } from "luxon";
++import { computeListReadiness, defaultCampaignOf, openPoints, summarizeReadiness, type ReadinessCampaign } from "@/lib/missions/readiness";
++import { ONBOARDING_LABEL } from "@/lib/onboarding/checklist-template";
++import { reminderDateRange } from "@/lib/meetings/feedbackReminder";
++import { NO_SHOW_REPORT_WINDOW_MS } from "@/lib/meetings/noShowWindow";
++import { parisDay, parisMidnight } from "@/lib/manager-home/today-rules";
++import { worstPace } from "./sort";
++import type { DirectoryClient, DirectoryClientStatus, DirectoryMission } from "./types";
++
++export interface RawDb {
++    $queryRaw<T = unknown>(query: Prisma.Sql): PromiseLike<T>;
++}
++
++/** What Prisma loads for each client before aggregation (no relation rows beyond missions). */
++export interface BaseMissionRow {
++    id: string;
++    name: string;
++    startDate: Date | string | null;
++    endDate: Date | string | null;
++    status: string;
++    isActive: boolean;
++    channels: string[];
++    targetMeetings: number | null;
++    _count: { sdrAssignments: number };
++}
++
++export interface BaseClientRow {
++    id: string;
++    name: string;
++    industry: string | null;
++    email: string | null;
++    phone: string | null;
++    status: string;
++    createdAt: Date | string;
++    bookingUrl: string | null;
++    _count: { missions: number; users: number };
++    missions: BaseMissionRow[];
++}
++
++type CampaignFlags = { id: string; missionId: string; name: string; isActive: boolean; hasIcp: boolean; hasPitch: boolean; hasScript: boolean };
++type ListRow = { missionId: string; isActive: boolean; isArchived: boolean; campaignId: string | null };
++type MissionActivity = { missionId: string; meetings: number; meetingsThisMonth: number; meetingsLastMonth: number; lastActionAt: unknown; lastCallAt: unknown };
++type EngagementRow = { clientId: string; fin: unknown };
++type OverdueRow = { clientId: string; count: number; oldestDue: unknown; title: string };
++type FeedbackRow = { clientId: string; count: number; urgent: number };
++
++function iso(value: unknown): string | null {
++    if (value === null || value === undefined) return null;
++    const date = value instanceof Date ? value : new Date(String(value).replace(" ", "T") + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(value)) ? "" : "Z"));
++    return Number.isNaN(date.getTime()) ? null : date.toISOString();
++}
++
++const num = (value: unknown) => (typeof value === "bigint" ? Number(value) : Number(value ?? 0));
++
++/** Paris calendar months: [lastMonthStart, thisMonthStart) and [thisMonthStart, …). */
++export function monthWindows(now: Date) {
++    const paris = DateTime.fromJSDate(now).setZone("Europe/Paris").startOf("month");
++    return { thisMonthStart: paris.toUTC().toJSDate(), lastMonthStart: paris.minus({ months: 1 }).toUTC().toJSDate() };
++}
++
++/** Readiness flags of the campaigns of these missions, plus any campaign their lists point to. */
++function campaignFlags(db: RawDb, missionIds: string[]) {
++    return db.$queryRaw<CampaignFlags[]>(Prisma.sql`
++        SELECT c.id, c."missionId" AS "missionId", c.name, c."isActive" AS "isActive",
++               COALESCE(c.icp ~ '[^[:space:]]', false) AS "hasIcp",
++               COALESCE(c.pitch ~ '[^[:space:]]', false) AS "hasPitch",
++               COALESCE(c.script ~ '[^[:space:]]', false) AS "hasScript"
++        FROM "Campaign" c
++        WHERE c."missionId" IN (${Prisma.join(missionIds)})
++           OR c.id IN (SELECT l."campaignId" FROM "List" l WHERE l."missionId" IN (${Prisma.join(missionIds)}) AND l."campaignId" IS NOT NULL)
++        ORDER BY c."createdAt" ASC, c.id ASC
++    `);
++}
++
++function listRows(db: RawDb, missionIds: string[]) {
++    return db.$queryRaw<ListRow[]>(Prisma.sql`
++        SELECT l."missionId" AS "missionId", l."isActive" AS "isActive", l."isArchived" AS "isArchived", l."campaignId" AS "campaignId"
++        FROM "List" l
++        WHERE l."missionId" IN (${Prisma.join(missionIds)}) AND l."isArchived" = false
++    `);
++}
++
++/**
++ * Per mission: meetings over the whole mission (distinct prospects, as the
++ * pulse counts them), MEETING_BOOKED actions this and last Paris month (as
++ * lib/client-insights counts « RDV ce mois »), last action and last call.
++ */
++function missionActivity(db: RawDb, missionIds: string[], now: Date) {
++    const { thisMonthStart, lastMonthStart } = monthWindows(now);
++    return db.$queryRaw<MissionActivity[]>(Prisma.sql`
++        SELECT c."missionId" AS "missionId",
++               COUNT(DISTINCT COALESCE(a."contactId", a."companyId")) FILTER (WHERE a."result"::text = 'MEETING_BOOKED')::int AS meetings,
++               COUNT(*) FILTER (WHERE a."result"::text = 'MEETING_BOOKED' AND a."createdAt" >= ${thisMonthStart})::int AS "meetingsThisMonth",
++               COUNT(*) FILTER (WHERE a."result"::text = 'MEETING_BOOKED' AND a."createdAt" >= ${lastMonthStart} AND a."createdAt" < ${thisMonthStart})::int AS "meetingsLastMonth",
++               MAX(a."createdAt") AS "lastActionAt",
++               MAX(a."createdAt") FILTER (WHERE a."channel"::text = 'CALL') AS "lastCallAt"
++        FROM "Action" a
++        JOIN "Campaign" c ON c.id = a."campaignId"
++        WHERE c."missionId" IN (${Prisma.join(missionIds)})
++        GROUP BY c."missionId"
++    `);
++}
++
++/** End of the current engagement: the latest-ending ACTIF one. */
++function engagementEnds(db: RawDb, clientIds: string[]) {
++    return db.$queryRaw<EngagementRow[]>(Prisma.sql`
++        SELECT DISTINCT ON (e."clientId") e."clientId" AS "clientId", e.fin
++        FROM "Engagement" e
++        WHERE e."clientId" IN (${Prisma.join(clientIds)}) AND e.statut::text = 'ACTIF'
++        ORDER BY e."clientId", e.fin DESC
++    `);
++}
++
++/** Onboarding checklist steps (lib/onboarding) not done whose Paris due day is before today. */
++function onboardingOverdue(db: RawDb, clientIds: string[], now: Date) {
++    const todayStart = parisMidnight(parisDay(now));
++    return db.$queryRaw<OverdueRow[]>(Prisma.sql`
++        SELECT p."clientId" AS "clientId", COUNT(*)::int AS count, MIN(t."dueDate") AS "oldestDue",
++               (ARRAY_AGG(t.title ORDER BY t."dueDate" ASC, t.position ASC))[1] AS title
++        FROM "Task" t
++        JOIN "Project" p ON p.id = t."projectId"
++        WHERE p."clientId" IN (${Prisma.join(clientIds)})
++          AND ${ONBOARDING_LABEL} = ANY(t.labels)
++          AND t."parentTaskId" IS NOT NULL
++          AND t.status::text <> 'DONE'
++          AND t."dueDate" < ${todayStart}
++        GROUP BY p."clientId"
++    `);
++}
++
++/**
++ * Confirmed RDVs that took place in the reminder window and still have no
++ * « Mon avis » — the portal's feedback-pending rule (lib/meetings/feedbackReminder),
++ * on missions already visible in the portal. `urgent`: no-show window still open.
++ */
++function feedbackPending(db: RawDb, clientIds: string[], now: Date) {
++    const { from, to } = reminderDateRange(now.getTime());
++    const windowStart = new Date(now.getTime() - NO_SHOW_REPORT_WINDOW_MS);
++    return db.$queryRaw<FeedbackRow[]>(Prisma.sql`
++        SELECT m."clientId" AS "clientId", COUNT(*)::int AS count,
++               COUNT(*) FILTER (WHERE a."callbackDate" >= ${windowStart})::int AS urgent
++        FROM "Action" a
++        JOIN "Campaign" c ON c.id = a."campaignId"
++        JOIN "Mission" m ON m.id = c."missionId"
++        LEFT JOIN "MeetingFeedback" f ON f."actionId" = a.id
++        WHERE m."clientId" IN (${Prisma.join(clientIds)})
++          AND a."result"::text = 'MEETING_BOOKED'
++          AND a."confirmationStatus"::text = 'CONFIRMED'
++          AND a."callbackDate" >= ${from} AND a."callbackDate" <= ${to}
++          AND f.id IS NULL
++          AND (m."portalVisibleAt" IS NULL OR m."portalVisibleAt" <= ${now})
++        GROUP BY m."clientId"
++    `);
++}
++
++/** Base rows → directory clients with readiness, activity, metrics and attention signals. */
++export async function buildDirectoryClients(db: RawDb, clients: BaseClientRow[], now = new Date()): Promise<DirectoryClient[]> {
++    const clientIds = clients.map((client) => client.id);
++    const missionIds = clients.flatMap((client) => client.missions.map((mission) => mission.id));
++    const none = <T,>() => Promise.resolve([] as T[]);
++    const [campaigns, lists, activity, engagements, overdue, feedback] = await Promise.all([
++        missionIds.length ? campaignFlags(db, missionIds) : none<CampaignFlags>(),
++        missionIds.length ? listRows(db, missionIds) : none<ListRow>(),
++        missionIds.length ? missionActivity(db, missionIds, now) : none<MissionActivity>(),
++        clientIds.length ? engagementEnds(db, clientIds) : none<EngagementRow>(),
++        clientIds.length ? onboardingOverdue(db, clientIds, now) : none<OverdueRow>(),
++        clientIds.length ? feedbackPending(db, clientIds, now) : none<FeedbackRow>(),
++    ]);
++
++    // readiness.ts reads text fields; the flags stand in for them ("x" = filled).
++    const asCampaign = (flags: CampaignFlags): NonNullable<ReadinessCampaign> => ({
++        id: flags.id,
++        name: flags.name,
++        isActive: flags.isActive,
++        icp: flags.hasIcp ? "x" : null,
++        pitch: flags.hasPitch ? "x" : null,
++        script: flags.hasScript ? "x" : null,
++    });
++    const campaignById = new Map(campaigns.map((row) => [row.id, asCampaign(row)]));
++    const campaignsByMission = new Map<string, NonNullable<ReadinessCampaign>[]>();
++    for (const row of campaigns) campaignsByMission.set(row.missionId, [...(campaignsByMission.get(row.missionId) ?? []), campaignById.get(row.id)!]);
++    const listsByMission = new Map<string, ListRow[]>();
++    for (const row of lists) listsByMission.set(row.missionId, [...(listsByMission.get(row.missionId) ?? []), row]);
++    const activityByMission = new Map(activity.map((row) => [row.missionId, row]));
++    const engagementByClient = new Map(engagements.map((row) => [row.clientId, iso(row.fin)]));
++    const overdueByClient = new Map(overdue.map((row) => [row.clientId, row]));
++    const feedbackByClient = new Map(feedback.map((row) => [row.clientId, row]));
++    const nowMs = now.getTime();
++
++    return clients.map((client) => {
++        const missions: DirectoryMission[] = client.missions.map((mission) => {
++            const own = campaignsByMission.get(mission.id) ?? [];
++            const fallback = defaultCampaignOf(own);
++            const readiness = summarizeReadiness((listsByMission.get(mission.id) ?? []).map((list) => ({
++                isActive: list.isActive,
++                isArchived: list.isArchived,
++                readiness: computeListReadiness(list.campaignId ? campaignById.get(list.campaignId) ?? null : null, fallback),
++            })));
++            const act = activityByMission.get(mission.id);
++            return {
++                id: mission.id,
++                name: mission.name,
++                startDate: iso(mission.startDate),
++                endDate: iso(mission.endDate),
++                status: mission.status,
++                isActive: mission.isActive,
++                channels: mission.channels,
++                sdrCount: mission._count.sdrAssignments,
++                readiness,
++                openPoints: openPoints(readiness),
++                targetMeetings: mission.targetMeetings,
++                meetings: num(act?.meetings),
++                lastActionAt: iso(act?.lastActionAt),
++                lastCallAt: iso(act?.lastCallAt),
++            };
++        });
++        const lastCallAt = missions.reduce<string | null>((latest, mission) => (mission.lastCallAt && (!latest || mission.lastCallAt > latest) ? mission.lastCallAt : latest), null);
++        const engagementEnd = engagementByClient.get(client.id) ?? null;
++        const late = overdueByClient.get(client.id);
++        const pending = feedbackByClient.get(client.id);
++        const oldestDue = late ? iso(late.oldestDue) : null;
++        return {
++            id: client.id,
++            name: client.name,
++            industry: client.industry ?? undefined,
++            email: client.email ?? undefined,
++            phone: client.phone ?? undefined,
++            status: client.status as DirectoryClientStatus,
++            createdAt: iso(client.createdAt) ?? String(client.createdAt),
++            bookingUrl: client.bookingUrl,
++            _count: client._count,
++            missions,
++            metrics: {
++                meetingsThisMonth: client.missions.reduce((sum, mission) => sum + num(activityByMission.get(mission.id)?.meetingsThisMonth), 0),
++                meetingsLastMonth: client.missions.reduce((sum, mission) => sum + num(activityByMission.get(mission.id)?.meetingsLastMonth), 0),
++                runningMissions: missions.filter((mission) => mission.status === "ACTIVE").length,
++                totalMissions: client._count.missions,
++                worstPace: worstPace(missions, nowMs),
++                engagementEnd,
++                lastCallAt,
++            },
++            signals: {
++                engagementEnd,
++                onboardingOverdue: late && oldestDue ? { count: num(late.count), oldestDueDay: parisDay(new Date(oldestDue)), title: late.title } : null,
++                feedbackPending: pending ? { count: num(pending.count), urgent: num(pending.urgent) } : null,
++            },
++        };
++    });
++}
+diff --git a/lib/manager/workspace/directory/sort.ts b/lib/manager/workspace/directory/sort.ts
+new file mode 100644
+index 0000000..98e9087
+--- /dev/null
++++ b/lib/manager/workspace/directory/sort.ts
+@@ -0,0 +1,94 @@
++// Search, status filter and sort of the clients directory. Pure: the route
++// (GET /api/clients?view=workspace) runs it over the whole portfolio before
++// paginating, and the tests pin the order.
++
++import { collectAttention } from "@/lib/manager/attention";
++import { pace, type PaceVerdict } from "@/lib/missions/pulse";
++import type { DirectoryClient, DirectoryMission, DirectoryParams } from "./types";
++
++/** Lowercase, accents removed: « Société » matches « societe ». */
++export function searchText(value: string) {
++    return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
++}
++
++export function matchesQuery(client: { name: string; industry?: string | null }, q: string) {
++    const query = searchText(q.trim());
++    return !query || searchText(`${client.name} ${client.industry ?? ""}`).includes(query);
++}
++
++/** Worst first: what a manager must look at before anything else. */
++const PACE_SEVERITY: Record<PaceVerdict, number> = {
++    behind: 0,
++    ended: 1,
++    on_track: 2,
++    early: 3,
++    not_started: 4,
++    ahead: 5,
++    reached: 6,
++    no_target: 7,
++};
++
++export function paceSeverity(verdict: PaceVerdict | null): number {
++    return verdict ? PACE_SEVERITY[verdict] : 99;
++}
++
++/** Worst pace() verdict among the ACTIVE missions; null without one. */
++export function worstPace(missions: Pick<DirectoryMission, "status" | "targetMeetings" | "meetings" | "startDate" | "endDate">[], now = Date.now()): PaceVerdict | null {
++    let worst: PaceVerdict | null = null;
++    for (const mission of missions) {
++        if (mission.status !== "ACTIVE") continue;
++        const verdict = pace({ target: mission.targetMeetings, meetings: mission.meetings, startDate: mission.startDate, endDate: mission.endDate, now }).verdict;
++        if (worst === null || PACE_SEVERITY[verdict] < PACE_SEVERITY[worst]) worst = verdict;
++    }
++    return worst;
++}
++
++const STATUS_ORDER: Record<string, number> = { ACTIVE: 0, PAUSED: 1, STOPPED: 2 };
++
++/** Most urgent « À traiter » rank of a client; null when nothing is open. */
++export function topAttentionRank(client: DirectoryClient, now = Date.now()): number | null {
++    return collectAttention([client], now)[0]?.rank ?? null;
++}
++
++/**
++ * Filter + sort the portfolio. Missing values (no engagement, no attention)
++ * stay last whatever the direction; ties fall back to the name.
++ */
++export function applyDirectory(clients: DirectoryClient[], params: Pick<DirectoryParams, "q" | "status" | "sort" | "dir">, now = Date.now()): DirectoryClient[] {
++    const ranks = new Map<string, number | null>();
++    const rankOf = (client: DirectoryClient) => {
++        if (!ranks.has(client.id)) ranks.set(client.id, topAttentionRank(client, now));
++        return ranks.get(client.id)!;
++    };
++    const filtered = clients.filter((client) => {
++        if (!matchesQuery(client, params.q)) return false;
++        if (params.status === "ALL") return true;
++        if (params.status === "ATTENTION") return rankOf(client) !== null;
++        return client.status === params.status;
++    });
++
++    const key = (client: DirectoryClient): number | null => {
++        switch (params.sort) {
++            case "status": return STATUS_ORDER[client.status] ?? 9;
++            case "missions": return client.metrics.runningMissions * 10_000 + client.metrics.totalMissions;
++            case "meetings": return client.metrics.meetingsThisMonth;
++            case "pace": return client.metrics.worstPace ? paceSeverity(client.metrics.worstPace) : null;
++            case "engagementEnd": return client.metrics.engagementEnd ? Date.parse(client.metrics.engagementEnd) : null;
++            case "attention": return rankOf(client);
++            default: return null;
++        }
++    };
++    const sign = params.dir === "desc" ? -1 : 1;
++    const byName = (a: DirectoryClient, b: DirectoryClient) => a.name.localeCompare(b.name, "fr") || a.id.localeCompare(b.id);
++    if (params.sort === "name") return filtered.sort((a, b) => sign * byName(a, b));
++    return filtered
++        .map((client) => ({ client, value: key(client) }))
++        .sort((a, b) => {
++            if (a.value === null || b.value === null) {
++                if (a.value !== b.value) return a.value === null ? 1 : -1;
++                return byName(a.client, b.client);
++            }
++            return sign * (a.value - b.value) || byName(a.client, b.client);
++        })
++        .map(({ client }) => client);
++}
+diff --git a/lib/manager/workspace/directory/types.ts b/lib/manager/workspace/directory/types.ts
+new file mode 100644
+index 0000000..4ba4b0a
+--- /dev/null
++++ b/lib/manager/workspace/directory/types.ts
+@@ -0,0 +1,117 @@
++// Wire types and query parameters of GET /api/clients?view=workspace — the
++// manager « Espace clients » directory. Pure: shared by the route, the
++// fetchers and the views.
++
++import type { PaceVerdict } from "@/lib/missions/pulse";
++import type { MissionReadiness } from "@/lib/missions/readiness";
++import type { ClientAttentionSignals } from "@/lib/manager/attention";
++
++export type DirectoryClientStatus = "ACTIVE" | "PAUSED" | "STOPPED";
++export type DirectoryStatusFilter = "ALL" | DirectoryClientStatus | "ATTENTION";
++export type DirectorySort = "name" | "status" | "missions" | "meetings" | "pace" | "engagementEnd" | "attention";
++export type SortDir = "asc" | "desc";
++
++export const DIRECTORY_STATUS_FILTERS: readonly DirectoryStatusFilter[] = ["ALL", "ATTENTION", "ACTIVE", "PAUSED", "STOPPED"];
++export const DIRECTORY_SORTS: readonly DirectorySort[] = ["name", "status", "missions", "meetings", "pace", "engagementEnd", "attention"];
++/** Enough for any agency's portfolio: the page paints from one request. */
++export const DIRECTORY_PAGE_LIMIT = 500;
++
++export interface DirectoryMission {
++    id: string;
++    name: string;
++    startDate: string | null;
++    endDate: string | null;
++    status: string;
++    isActive: boolean;
++    channels: string[];
++    sdrCount: number;
++    readiness: MissionReadiness;
++    openPoints: number;
++    /** « RDV visés »; null = no numeric target. */
++    targetMeetings: number | null;
++    /** Booked meetings over the whole mission: distinct prospects with a MEETING_BOOKED action (same count as the mission pulse). */
++    meetings: number;
++    lastActionAt: string | null;
++    /** Last CALL action; null = never called. */
++    lastCallAt: string | null;
++}
++
++export interface DirectoryClientMetrics {
++    /** MEETING_BOOKED actions created this calendar month (Paris), same rule as lib/client-insights. */
++    meetingsThisMonth: number;
++    meetingsLastMonth: number;
++    runningMissions: number;
++    totalMissions: number;
++    /** Worst pace() verdict among ACTIVE missions; null without an ACTIVE mission. */
++    worstPace: PaceVerdict | null;
++    /** End of the current ACTIF engagement. */
++    engagementEnd: string | null;
++    lastCallAt: string | null;
++}
++
++export interface DirectoryClient {
++    id: string;
++    name: string;
++    industry?: string;
++    email?: string;
++    phone?: string;
++    status: DirectoryClientStatus;
++    createdAt: string;
++    bookingUrl?: string | null;
++    _count: { missions: number; users: number };
++    missions: DirectoryMission[];
++    metrics: DirectoryClientMetrics;
++    /** Client-level « À traiter » inputs (lib/manager/attention clientAttention). */
++    signals: Required<ClientAttentionSignals>;
++}
++
++export interface DirectoryPagination {
++    total: number;
++    page: number;
++    limit: number;
++    totalPages: number;
++    hasMore: boolean;
++}
++
++export interface DirectoryResponse {
++    data: DirectoryClient[];
++    pagination: DirectoryPagination;
++}
++
++export interface DirectoryParams {
++    q: string;
++    status: DirectoryStatusFilter;
++    sort: DirectorySort;
++    dir: SortDir;
++    page: number;
++    limit: number;
++}
++
++export const DEFAULT_DIRECTORY_PARAMS: DirectoryParams = { q: "", status: "ALL", sort: "name", dir: "asc", page: 1, limit: DIRECTORY_PAGE_LIMIT };
++
++type ParamsLike = { get(name: string): string | null };
++
++/** Unknown values fall back to the defaults: a bad link shows the whole list, never an error. */
++export function parseDirectoryParams(params: ParamsLike): Omit<DirectoryParams, "page" | "limit"> {
++    const status = params.get("status")?.toUpperCase() as DirectoryStatusFilter | undefined;
++    const sort = params.get("sort") as DirectorySort | null;
++    return {
++        q: params.get("q")?.trim().slice(0, 120) ?? "",
++        status: status && DIRECTORY_STATUS_FILTERS.includes(status) ? status : "ALL",
++        sort: sort && DIRECTORY_SORTS.includes(sort) ? sort : "name",
++        dir: params.get("dir") === "desc" ? "desc" : "asc",
++    };
++}
++
++export function directorySearch(params: DirectoryParams): string {
++    const search = new URLSearchParams({ view: "workspace", page: String(params.page), limit: String(params.limit) });
++    if (params.q) search.set("q", params.q);
++    if (params.status !== "ALL") search.set("status", params.status);
++    if (params.sort !== "name") search.set("sort", params.sort);
++    if (params.dir !== "asc") search.set("dir", params.dir);
++    return search.toString();
++}
++
++export function isDefaultDirectoryParams(params: DirectoryParams): boolean {
++    return !params.q && params.status === "ALL" && params.sort === "name" && params.dir === "asc" && params.page === 1;
++}
+diff --git a/lib/manager/workspace/mission/api.ts b/lib/manager/workspace/mission/api.ts
+new file mode 100644
+index 0000000..919c9b4
+--- /dev/null
++++ b/lib/manager/workspace/mission/api.ts
+@@ -0,0 +1,231 @@
++// Fetchers for the mission workspace. Same URLs, methods and body keys as the
++// raw fetches they replace (see docs/plans/2026-11-13-workspace-action-inventory.md).
++
++import { ApiError, apiGet, apiSend } from "@/lib/manager/workspace/http";
++import type {
++    AssignableUser,
++    CampaignData,
++    CampaignStrategy,
++    EmailTemplate,
++    FeedbackRange,
++    InsightsPeriod,
++    Mailbox,
++    Mission,
++    MissionFeedbackItem,
++    MissionInsights,
++    MissionTemplate,
++    ScriptCompanion,
++    ScriptTab,
++    TemplateFields,
++} from "./types";
++
++/** The server's own message when it gave one, else the caller's French fallback. */
++export function errorText(error: unknown, fallback: string): string {
++    if (error instanceof ApiError && error.message && error.message !== "Erreur réseau, réessayez." && error.message !== "Introuvable") {
++        return error.message;
++    }
++    return fallback;
++}
++
++// ── Mission ──────────────────────────────────────────────────────────────────
++
++export const fetchMission = (missionId: string) => apiGet<Mission>(`/api/missions/${missionId}`);
++
++export const fetchMissionInsights = (missionId: string, period: InsightsPeriod) =>
++    apiGet<MissionInsights>(`/api/missions/${missionId}/insights?period=${period}`);
++
++export const updateMission = (missionId: string, patch: Record<string, unknown>) =>
++    apiSend<Partial<Mission>>(`/api/missions/${missionId}`, "PUT", patch);
++
++export const deleteMission = (missionId: string) => apiSend<unknown>(`/api/missions/${missionId}`, "DELETE");
++
++export const startPortalLaunch = (missionId: string, days: number) =>
++    apiSend<Partial<Mission>>(`/api/missions/${missionId}/portal-launch`, "POST", { days });
++
++export const revealPortalActivity = (missionId: string) =>
++    apiSend<Partial<Mission>>(`/api/missions/${missionId}/portal-launch`, "DELETE");
++
++// ── Team ─────────────────────────────────────────────────────────────────────
++
++export const fetchAssignableUsers = async () => {
++    const data = await apiGet<AssignableUser[]>("/api/users?role=SDR,BUSINESS_DEVELOPER&status=active&limit=200");
++    if (!Array.isArray(data)) throw new Error("Impossible de charger les SDR");
++    return data;
++};
++
++export const assignSdr = (missionId: string, sdrId: string) =>
++    apiSend<{ sdr?: { name?: string } }>(`/api/missions/${missionId}/assign`, "PATCH", { sdrId });
++
++export const unassignSdr = (missionId: string, sdrId: string) =>
++    apiSend<unknown>(`/api/missions/${missionId}/assign?sdrId=${sdrId}`, "DELETE");
++
++// ── Lists ────────────────────────────────────────────────────────────────────
++
++export const patchList = (listId: string, patch: Record<string, unknown>) =>
++    apiSend<Record<string, unknown> | null>(`/api/lists/${listId}`, "PATCH", patch);
++
++export const deleteList = (listId: string) => apiSend<unknown>(`/api/lists/${listId}`, "DELETE");
++
++// ── Feedback ─────────────────────────────────────────────────────────────────
++
++export const fetchMissionFeedback = (missionId: string, range: FeedbackRange) => {
++    const params = new URLSearchParams({ missionId, from: range.from, to: range.to, limit: "300" });
++    return apiGet<MissionFeedbackItem[]>(`/api/manager/sdr-feedback?${params.toString()}`);
++};
++
++// ── Mailboxes ────────────────────────────────────────────────────────────────
++
++export const fetchMailboxes = async (): Promise<Mailbox[]> => {
++    const data = await apiGet<Mailbox[]>("/api/email/mailboxes?includeShared=true", { cache: "no-store" });
++    return Array.isArray(data) ? data.map((mb) => ({ id: mb.id, email: mb.email, displayName: mb.displayName })) : [];
++};
++
++// ── Strategy (campaign) ──────────────────────────────────────────────────────
++
++const EMPTY_COMPANION: ScriptCompanion = {
++    additionalDraft: "",
++    additionalShared: "",
++    aiDraft: "",
++    aiShared: "",
++    aiGeneratedAt: null,
++    defaultTab: "base",
++};
++
++/** Campaign, then its script companion; a companion failure leaves the variants empty. */
++export async function fetchCampaignStrategy(campaignId: string): Promise<CampaignStrategy> {
++    const campaign = await apiGet<CampaignData>(`/api/campaigns/${campaignId}`);
++    let companion = EMPTY_COMPANION;
++    try {
++        const data = await apiGet<Partial<ScriptCompanion> | null>(`/api/campaigns/${campaign.id}/script-companion`);
++        companion = {
++            additionalDraft: data?.additionalDraft || "",
++            additionalShared: data?.additionalShared || "",
++            aiDraft: data?.aiDraft || "",
++            aiShared: data?.aiShared || "",
++            aiGeneratedAt: data?.aiGeneratedAt || null,
++            defaultTab: data?.defaultTab || "base",
++        };
++    } catch {
++        // Variants are optional: keep them empty.
++    }
++    return { campaign, companion };
++}
++
++export const createCampaign = (body: { name: string; missionId: string; icp: string; pitch: string; script?: string }) =>
++    apiSend<CampaignData>("/api/campaigns", "POST", body);
++
++export const updateCampaign = (campaignId: string, body: { icp: string; pitch: string; script: string }) =>
++    apiSend<CampaignData>(`/api/campaigns/${campaignId}`, "PUT", body);
++
++const companionUrl = (campaignId: string) => `/api/campaigns/${campaignId}/script-companion`;
++
++export const saveCompanionDraft = (campaignId: string, kind: "additional" | "ai", draft: string) =>
++    apiSend<unknown>(companionUrl(campaignId), "PUT", { draft, kind });
++
++export const shareCompanion = (campaignId: string, kind: "additional" | "ai", content: string) =>
++    apiSend<unknown>(companionUrl(campaignId), "POST", { content, kind });
++
++export const saveCompanionDefaultTab = (campaignId: string, defaultTab: ScriptTab) =>
++    apiSend<unknown>(companionUrl(campaignId), "PUT", { defaultTab });
++
++/**
++ * The route answers `{ success, data: { refreshed, aiScript } }`. The old
++ * component read `json.refreshed` (outside `data`), so it always announced
++ * « Script IA inchangé »; reading `data` fixes that message.
++ */
++export async function refreshAiScript(campaignId: string): Promise<{ refreshed: boolean }> {
++    const data = await apiSend<{ refreshed?: boolean; aiScript?: string | null }>(companionUrl(campaignId), "PATCH", { force: true, source: "manual" });
++    return { refreshed: Boolean(data?.refreshed && data?.aiScript) };
++}
++
++export interface ScriptSuggestionRequest {
++    channel: string;
++    clientName?: string;
++    missionName: string;
++    campaignName: string;
++    campaignDescription?: string;
++    icp: string;
++    pitch: string;
++}
++
++type ScriptParts = Partial<Record<"intro" | "discovery" | "objection" | "closing", unknown>>;
++
++/** POST /api/ai/mistral/script → up to three whole-script suggestions. */
++export async function generateScriptSuggestions(request: ScriptSuggestionRequest): Promise<string[]> {
++    const data = await apiSend<{ suggestions?: Record<string, string[] | undefined>; script?: ScriptParts }>(
++        "/api/ai/mistral/script",
++        "POST",
++        { ...request, section: "all", suggestionsCount: 3 },
++    );
++    if (!data?.suggestions && !data?.script) throw new ApiError("Impossible de générer le script", 200);
++    const suggestions = data.suggestions || {};
++    const fallback: ScriptParts = data.script || {};
++    const toSingleScript = (source: ScriptParts): string =>
++        ([["Introduction", source.intro], ["Decouverte", source.discovery], ["Objections", source.objection], ["Closing", source.closing]] as const)
++            .map(([label, value]) => (typeof value === "string" && value.trim() ? `--- ${label} ---\n${value.trim()}` : null))
++            .filter((v): v is string => Boolean(v))
++            .join("\n\n");
++    const maxLen = Math.max(
++        suggestions.intro?.length ?? 0,
++        suggestions.discovery?.length ?? 0,
++        suggestions.objection?.length ?? 0,
++        suggestions.closing?.length ?? 0,
++    );
++    return maxLen > 0
++        ? Array.from({ length: maxLen }, (_, idx) =>
++            toSingleScript({
++                intro: suggestions.intro?.[idx] ?? fallback.intro ?? "",
++                discovery: suggestions.discovery?.[idx] ?? fallback.discovery ?? "",
++                objection: suggestions.objection?.[idx] ?? fallback.objection ?? "",
++                closing: suggestions.closing?.[idx] ?? fallback.closing ?? "",
++            })).filter((s) => s.trim().length > 0)
++        : [toSingleScript(fallback)].filter((s) => s.trim().length > 0);
++}
++
++// ── Email templates ──────────────────────────────────────────────────────────
++
++const templatesUrl = (missionId: string) => `/api/missions/${missionId}/templates`;
++
++export const fetchMissionTemplates = async (missionId: string) =>
++    (await apiGet<MissionTemplate[] | null>(templatesUrl(missionId))) || [];
++
++export const fetchSharedTemplates = async () =>
++    (await apiGet<EmailTemplate[] | null>("/api/email/templates?isShared=true")) || [];
++
++export const addMissionTemplate = (missionId: string, templateId: string) =>
++    apiSend<unknown>(templatesUrl(missionId), "POST", { templateId });
++
++export const createMissionTemplate = (missionId: string, fields: TemplateFields) =>
++    apiSend<unknown>(templatesUrl(missionId), "POST", { createNew: true, ...fields });
++
++export const updateMissionTemplate = (missionId: string, templateId: string, fields: TemplateFields) =>
++    apiSend<unknown>(templatesUrl(missionId), "PATCH", { action: "update", templateId, ...fields });
++
++export const duplicateMissionTemplate = (missionId: string, templateId: string) =>
++    apiSend<unknown>(templatesUrl(missionId), "PATCH", { action: "duplicate", templateId });
++
++export const removeMissionTemplate = (missionId: string, templateId: string) =>
++    apiSend<unknown>(`${templatesUrl(missionId)}?templateId=${templateId}`, "DELETE");
++
++export const reorderMissionTemplates = (missionId: string, templates: MissionTemplate[]) =>
++    apiSend<unknown>(templatesUrl(missionId), "PATCH", {
++        action: "reorder",
++        orders: templates.map((mt, i) => ({ missionTemplateId: mt.id, order: i + 1 })),
++    });
++
++export interface TemplateAiRequest {
++    instruction: string;
++    subject?: string;
++    category: string;
++    missionName?: string;
++    clientName?: string;
++    icp?: string;
++    pitch?: string;
++    currentBody?: string;
++}
++
++export const generateTemplateBody = async (request: TemplateAiRequest) => {
++    const data = await apiSend<{ bodyHtml?: string; suggestedSubject?: string }>("/api/ai/mistral/email-template", "POST", request);
++    if (!data?.bodyHtml) throw new ApiError("Impossible de générer le template", 200);
++    return { bodyHtml: data.bodyHtml, suggestedSubject: data.suggestedSubject };
++};
+diff --git a/lib/manager/workspace/mission/mutations.ts b/lib/manager/workspace/mission/mutations.ts
+new file mode 100644
+index 0000000..53e3183
+--- /dev/null
++++ b/lib/manager/workspace/mission/mutations.ts
+@@ -0,0 +1,227 @@
++"use client";
++
++// React Query writes for the mission workspace. Each hook owns the cache side
++// (optimistic patch, rollback, invalidation of the narrowest key); the calling
++// component owns the copy (toasts). Switches are optimistic: list active,
++// contacts view, 24 h pause, assign / unassign SDR, status.
++
++import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
++import * as api from "./api";
++import { missionKeys } from "./queries";
++import type { AssignableUser, Mission, MissionList, MissionTemplate, ScriptTab, TemplateFields } from "./types";
++
++type BriefSnapshot = { previous: Mission | undefined };
++
++/** Reload the mission (lists, strategies and team are read from it in Phase 2). */
++export function invalidateMission(queryClient: QueryClient, missionId: string) {
++    return queryClient.invalidateQueries({ queryKey: missionKeys.brief(missionId), exact: true });
++}
++
++function setBrief(queryClient: QueryClient, missionId: string, update: (mission: Mission) => Mission) {
++    queryClient.setQueryData<Mission>(missionKeys.brief(missionId), (mission) => (mission ? update(mission) : mission));
++}
++
++/** Cancel in-flight reads, keep the current mission for rollback, apply the optimistic change. */
++async function optimistic(queryClient: QueryClient, missionId: string, update: (mission: Mission) => Mission): Promise<BriefSnapshot> {
++    await queryClient.cancelQueries({ queryKey: missionKeys.brief(missionId), exact: true });
++    const previous = queryClient.getQueryData<Mission>(missionKeys.brief(missionId));
++    setBrief(queryClient, missionId, update);
++    return { previous };
++}
++
++function rollback(queryClient: QueryClient, missionId: string, context: BriefSnapshot | undefined) {
++    if (context?.previous) queryClient.setQueryData(missionKeys.brief(missionId), context.previous);
++}
++
++// ── Mission ──────────────────────────────────────────────────────────────────
++
++/** PUT a partial mission (framing fields, référent), then reload it. */
++export function useUpdateMission(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (patch: Record<string, unknown>) => api.updateMission(missionId, patch),
++        onSuccess: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++/** Status change: optimistic, no reload (the answer carries nothing the page shows). */
++export function useChangeMissionStatus(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (status: Mission["status"]) => api.updateMission(missionId, { status }),
++        onMutate: (status) => optimistic(queryClient, missionId, (m) => ({ ...m, status, isActive: status === "ACTIVE" })),
++        onError: (_error, _status, context) => rollback(queryClient, missionId, context),
++    });
++}
++
++/** Mission default mailbox; the select already wrote it into the cache. */
++export function useSaveMissionMailbox(missionId: string) {
++    return useMutation({
++        mutationFn: (defaultMailboxId: string) => api.updateMission(missionId, { defaultMailboxId }),
++    });
++}
++
++export function usePortalLaunch(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (input: { action: "start"; days: number } | { action: "reveal" }) =>
++            input.action === "start" ? api.startPortalLaunch(missionId, input.days) : api.revealPortalActivity(missionId),
++        onSuccess: (data) => setBrief(queryClient, missionId, (m) => ({ ...m, ...data })),
++    });
++}
++
++export function useDeleteMission(missionId: string) {
++    return useMutation({ mutationFn: () => api.deleteMission(missionId) });
++}
++
++// ── Team ─────────────────────────────────────────────────────────────────────
++
++export function useAssignSdr(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (user: AssignableUser) => api.assignSdr(missionId, user.id),
++        onMutate: (user) => optimistic(queryClient, missionId, (m) => ({
++            ...m,
++            sdrAssignments: [...m.sdrAssignments, { id: `pending-${user.id}`, sdr: { ...user } }],
++        })),
++        onError: (_error, _user, context) => rollback(queryClient, missionId, context),
++        onSettled: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++export function useUnassignSdr(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (sdrId: string) => api.unassignSdr(missionId, sdrId),
++        onMutate: (sdrId) => optimistic(queryClient, missionId, (m) => ({
++            ...m,
++            sdrAssignments: m.sdrAssignments.filter((a) => a.sdr.id !== sdrId),
++        })),
++        onError: (_error, _sdrId, context) => rollback(queryClient, missionId, context),
++        onSettled: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++// ── Lists ────────────────────────────────────────────────────────────────────
++
++export type ListSwitch = Partial<Pick<MissionList, "isActive" | "contactsViewEnabled" | "queueCooldownEnabled">>;
++
++/** One of a list's switches: optimistic, rolled back on error, mission reloaded after. */
++export function useListSwitch(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: ({ list, patch }: { list: MissionList; patch: ListSwitch }) => api.patchList(list.id, patch),
++        onMutate: ({ list, patch }) => optimistic(queryClient, missionId, (m) => ({
++            ...m,
++            lists: m.lists.map((row) => (row.id === list.id ? { ...row, ...patch } : row)),
++        })),
++        onError: (_error, _vars, context) => rollback(queryClient, missionId, context),
++        onSettled: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++export function useSaveListCommercials(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: ({ listId, ids }: { listId: string; ids: string[] }) => api.patchList(listId, { commercialInterlocuteurIds: ids }),
++        onSuccess: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++export function useAssignCommercialToAllLists(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: ({ listIds, interlocuteurId }: { listIds: string[]; interlocuteurId: string }) =>
++            Promise.all(listIds.map((id) => api.patchList(id, { commercialInterlocuteurId: interlocuteurId }))),
++        onSuccess: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++export function useDeleteList(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (listId: string) => api.deleteList(listId),
++        onSuccess: () => { void invalidateMission(queryClient, missionId); },
++    });
++}
++
++// ── Strategy (campaign) ──────────────────────────────────────────────────────
++
++export function useCreateStrategy(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: api.createCampaign,
++        onSuccess: () => invalidateMission(queryClient, missionId),
++    });
++}
++
++/** Writes on one campaign; `reload` waits for campaign + companion to come back. */
++export function useCampaignWrite<TInput>(
++    missionId: string,
++    campaignId: string | undefined,
++    write: (campaignId: string, input: TInput) => Promise<unknown>,
++    reload: "await" | "background" | "none",
++) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (input: TInput) => {
++            if (!campaignId) return Promise.reject(new Error("Campagne introuvable"));
++            return write(campaignId, input);
++        },
++        onSuccess: () => {
++            if (reload === "none" || !campaignId) return;
++            const done = queryClient.invalidateQueries({ queryKey: missionKeys.strategy(missionId, campaignId) });
++            return reload === "await" ? done : undefined;
++        },
++    });
++}
++
++export const writeCampaign = (campaignId: string, input: { icp: string; pitch: string; script: string }) => api.updateCampaign(campaignId, input);
++export const writeCompanionDraft = (campaignId: string, input: { kind: "additional" | "ai"; text: string }) => api.saveCompanionDraft(campaignId, input.kind, input.text);
++export const writeCompanionShare = (campaignId: string, input: { kind: "additional" | "ai"; text: string }) => api.shareCompanion(campaignId, input.kind, input.text);
++export const writeCompanionDefaultTab = (campaignId: string, tab: ScriptTab) => api.saveCompanionDefaultTab(campaignId, tab);
++export const writeAiRefresh = (campaignId: string) => api.refreshAiScript(campaignId);
++
++export function useGenerateScriptSuggestions() {
++    return useMutation({ mutationFn: api.generateScriptSuggestions });
++}
++
++// ── Email templates ──────────────────────────────────────────────────────────
++
++/** Template writes reload the mission's template list in the background. */
++function useTemplateWrite<TInput>(missionId: string, write: (input: TInput) => Promise<unknown>) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: write,
++        onSuccess: () => { void queryClient.invalidateQueries({ queryKey: missionKeys.templates(missionId), exact: true }); },
++    });
++}
++
++export const useAddTemplate = (missionId: string) =>
++    useTemplateWrite(missionId, (templateId: string) => api.addMissionTemplate(missionId, templateId));
++
++export const useCreateTemplate = (missionId: string) =>
++    useTemplateWrite(missionId, (fields: TemplateFields) => api.createMissionTemplate(missionId, fields));
++
++export const useUpdateTemplate = (missionId: string) =>
++    useTemplateWrite(missionId, ({ templateId, fields }: { templateId: string; fields: TemplateFields }) =>
++        api.updateMissionTemplate(missionId, templateId, fields));
++
++export const useDuplicateTemplate = (missionId: string) =>
++    useTemplateWrite(missionId, (templateId: string) => api.duplicateMissionTemplate(missionId, templateId));
++
++export const useRemoveTemplate = (missionId: string) =>
++    useTemplateWrite(missionId, (templateId: string) => api.removeMissionTemplate(missionId, templateId));
++
++/** Drag reorder: the list moves at once; a failed save stays silent, as before. */
++export function useReorderTemplates(missionId: string) {
++    const queryClient = useQueryClient();
++    return useMutation({
++        mutationFn: (templates: MissionTemplate[]) => api.reorderMissionTemplates(missionId, templates),
++        onMutate: (templates) => { queryClient.setQueryData(missionKeys.templates(missionId), templates); },
++    });
++}
++
++export function useGenerateTemplateBody() {
++    return useMutation({ mutationFn: api.generateTemplateBody });
++}
+diff --git a/lib/manager/workspace/mission/queries.ts b/lib/manager/workspace/mission/queries.ts
+new file mode 100644
+index 0000000..377fc1b
+--- /dev/null
++++ b/lib/manager/workspace/mission/queries.ts
+@@ -0,0 +1,141 @@
++"use client";
++
++// React Query reads for the mission workspace.
++//
++// Phase 2 keeps every view on the full GET /api/missions/[id] (key « brief »):
++// lists, strategies and team are `select`s of it, so a panel reads only its
++// slice and re-renders only when that slice changes. Their own keys are
++// reserved below; Phase 3 moves them to ?view=brief + dedicated reads.
++
++import { useQuery } from "@tanstack/react-query";
++import {
++    fetchAssignableUsers,
++    fetchCampaignStrategy,
++    fetchMailboxes,
++    fetchMission,
++    fetchMissionFeedback,
++    fetchMissionInsights,
++    fetchMissionTemplates,
++    fetchSharedTemplates,
++} from "./api";
++import type { FeedbackRange, InsightsPeriod, Mission } from "./types";
++
++export const missionKeys = {
++    all: (missionId: string) => ["mission", missionId] as const,
++    brief: (missionId: string) => ["mission", missionId, "brief"] as const,
++    lists: (missionId: string) => ["mission", missionId, "lists"] as const,
++    strategies: (missionId: string) => ["mission", missionId, "strategies"] as const,
++    /** Campaign + script companion of one strategy (prefix of strategies). */
++    strategy: (missionId: string, campaignId: string) => ["mission", missionId, "strategies", campaignId] as const,
++    templates: (missionId: string) => ["mission", missionId, "templates"] as const,
++    sharedTemplates: (missionId: string) => ["mission", missionId, "templates", "shared"] as const,
++    team: (missionId: string) => ["mission", missionId, "team"] as const,
++    assignableUsers: (missionId: string) => ["mission", missionId, "team", "assignable"] as const,
++    feedback: (missionId: string, range: FeedbackRange) => ["mission", missionId, "feedback", range] as const,
++    insights: (missionId: string, period: InsightsPeriod) => ["mission", missionId, "insights", period] as const,
++};
++
++/** Mailboxes are per user, not per mission. */
++export const MISSION_MAILBOXES_KEY = ["manager", "workspace", "mailboxes"] as const;
++
++/**
++ * One attempt and no focus refetch: the workspace loaded its data once and
++ * reloaded it after its own writes (a failed mission load sends the user back).
++ */
++const once = { retry: false, refetchOnWindowFocus: false } as const;
++
++const briefOptions = (missionId: string) => ({
++    queryKey: missionKeys.brief(missionId),
++    queryFn: () => fetchMission(missionId),
++    ...once,
++});
++
++export function useMissionBrief(missionId: string) {
++    return useQuery(briefOptions(missionId));
++}
++
++const selectLists = (mission: Mission) => mission.lists;
++const selectStrategies = (mission: Mission) => mission.campaigns;
++const selectTeam = (mission: Mission) => ({
++    assignments: mission.sdrAssignments,
++    teamLeadSdrId: mission.teamLeadSdrId ?? null,
++    teamStats: mission.teamStats ?? [],
++});
++
++export function useMissionLists(missionId: string) {
++    return useQuery({ ...briefOptions(missionId), select: selectLists });
++}
++
++export function useMissionStrategies(missionId: string) {
++    return useQuery({ ...briefOptions(missionId), select: selectStrategies });
++}
++
++export function useMissionTeam(missionId: string) {
++    return useQuery({ ...briefOptions(missionId), select: selectTeam });
++}
++
++export function useMissionInsights(missionId: string, period: InsightsPeriod, enabled = true) {
++    return useQuery({
++        queryKey: missionKeys.insights(missionId, period),
++        queryFn: () => fetchMissionInsights(missionId, period),
++        enabled,
++    });
++}
++
++export function useMissionFeedback(missionId: string, range: FeedbackRange) {
++    return useQuery({
++        queryKey: missionKeys.feedback(missionId, range),
++        queryFn: () => fetchMissionFeedback(missionId, range),
++        // The panel reloads every time it opens, like the old tab did.
++        staleTime: 0,
++        ...once,
++    });
++}
++
++export function useAssignableUsers(missionId: string, enabled: boolean) {
++    return useQuery({
++        queryKey: missionKeys.assignableUsers(missionId),
++        queryFn: fetchAssignableUsers,
++        enabled,
++        staleTime: Infinity,
++        ...once,
++    });
++}
++
++export function useMissionMailboxes(enabled = true) {
++    return useQuery({
++        queryKey: MISSION_MAILBOXES_KEY,
++        queryFn: fetchMailboxes,
++        enabled,
++        staleTime: 0,
++        ...once,
++    });
++}
++
++export function useCampaignStrategy(missionId: string, campaignId: string | null | undefined) {
++    return useQuery({
++        queryKey: missionKeys.strategy(missionId, campaignId ?? ""),
++        queryFn: () => fetchCampaignStrategy(campaignId as string),
++        enabled: Boolean(campaignId),
++        ...once,
++    });
++}
++
++export function useMissionTemplates(missionId: string) {
++    return useQuery({
++        queryKey: missionKeys.templates(missionId),
++        queryFn: () => fetchMissionTemplates(missionId),
++        ...once,
++    });
++}
++
++/** Shared templates for « Existant »: read afresh each time the dialog opens. */
++export function useSharedTemplates(missionId: string, enabled: boolean) {
++    return useQuery({
++        queryKey: missionKeys.sharedTemplates(missionId),
++        queryFn: fetchSharedTemplates,
++        enabled,
++        staleTime: 0,
++        ...once,
++    });
++}
+diff --git a/lib/manager/workspace/mission/types.ts b/lib/manager/workspace/mission/types.ts
+new file mode 100644
+index 0000000..94da663
+--- /dev/null
++++ b/lib/manager/workspace/mission/types.ts
+@@ -0,0 +1,251 @@
++// Response shapes of the mission workspace (manager « Espace clients »).
++// One Mission type for the whole workspace instead of a partial per file.
++// Sources: GET /api/missions/[id], /api/missions/[id]/insights,
++// /api/missions/[id]/templates, /api/campaigns/[id](/script-companion),
++// /api/manager/sdr-feedback, /api/users, /api/email/mailboxes.
++
++import type { PulseData } from "@/components/missions/MissionPulse";
++import type { DailyReportLike } from "@/components/sdr/DailyReportView";
++import type { MissionStatusValue } from "@/lib/constants/missionStatus";
++
++export type MissionChannel = "CALL" | "EMAIL" | "LINKEDIN";
++
++export interface PersonRef {
++    id: string;
++    firstName: string;
++    lastName: string;
++    title?: string | null;
++}
++
++export interface MissionListReadiness {
++    inheritedCampaignId?: string | null;
++    hasStrategy: boolean;
++    hasIcp: boolean;
++    hasPitch: boolean;
++    hasScript: boolean;
++    isReady: boolean;
++}
++
++export interface MissionList {
++    id: string;
++    name: string;
++    type: string;
++    isActive?: boolean;
++    isArchived?: boolean;
++    contactsViewEnabled?: boolean;
++    /** 24 h pause between two calls on this list's rows — on unless a manager switched it off. */
++    queueCooldownEnabled?: boolean;
++    commercialInterlocuteurId?: string | null;
++    secondaryCommercialIds?: string[];
++    commercialInterlocuteur?: PersonRef | null;
++    /** Counted in SQL by the API (no per-company rows any more). */
++    _count?: { companies: number; contacts?: number };
++    /** Companies per status, counted in SQL. */
++    companyStatusCounts?: Record<string, number>;
++    campaignId?: string | null;
++    campaign?: {
++        id: string;
++        name: string;
++        icp: string | null;
++        pitch: string | null;
++        script: string | null;
++        isActive: boolean;
++    } | null;
++    readiness?: MissionListReadiness;
++}
++
++export interface MissionCampaign {
++    id: string;
++    name: string;
++    isActive: boolean;
++}
++
++export interface MissionSdr {
++    id: string;
++    name: string;
++    email: string;
++    role: string;
++    selectedListId?: string | null;
++    selectedMissionId?: string | null;
++}
++
++export interface MissionAssignment {
++    id: string;
++    sdr: MissionSdr;
++}
++
++export interface MissionTeamStat {
++    sdrId: string;
++    name?: string;
++    actions: number;
++    meetings: number;
++    recentActions: number;
++}
++
++export interface MissionSeriesPoint {
++    date: string;
++    actions: number;
++    meetings: number;
++    reached?: number;
++}
++
++export interface MissionTotals {
++    actions: number;
++    meetings: number;
++    opportunities: number;
++}
++
++export interface Mission {
++    id: string;
++    name: string;
++    objective?: string;
++    channel: MissionChannel;
++    channels?: MissionChannel[];
++    status: MissionStatusValue;
++    isActive: boolean;
++    portalLaunchStartedAt?: string | null;
++    portalVisibleAt?: string | null;
++    startDate?: string;
++    endDate?: string;
++    client?: {
++        id: string;
++        name: string;
++        interlocuteurs?: (PersonRef & { isActive: boolean })[];
++    };
++    teamLeadSdrId?: string | null;
++    teamLeadSdr?: { id: string; name: string; email: string } | null;
++    sdrAssignments: MissionAssignment[];
++    campaigns: MissionCampaign[];
++    lists: MissionList[];
++    missionReadiness?: {
++        activeLists: number;
++        readyLists: number;
++        missingStrategy: number;
++        missingIcp: number;
++        missingPitch: number;
++        missingScript: number;
++    };
++    _count: {
++        sdrAssignments: number;
++        campaigns: number;
++        lists: number;
++    };
++    stats?: {
++        totalActions: number;
++        meetingsBooked: number;
++        opportunities: number;
++    };
++    targetMeetings?: number | null;
++    /** Absent with ?view=brief. */
++    pulse?: PulseData;
++    /** Absent with ?view=brief. */
++    teamStats?: MissionTeamStat[];
++    /** Absent with ?view=brief. */
++    insights?: {
++        windowDays: number;
++        series: MissionSeriesPoint[];
++        current: MissionTotals;
++        previous: MissionTotals;
++    };
++    defaultMailboxId?: string | null;
++    defaultInterlocuteur?: PersonRef | null;
++}
++
++export type InsightsPeriod = "7" | "30" | "90" | "all";
++
++/** GET /api/missions/[id]/insights?period= (Phase 3 period selector). */
++export interface MissionInsights {
++    period: InsightsPeriod;
++    windowDays: number;
++    windowStart: string;
++    series: MissionSeriesPoint[];
++    current: MissionTotals;
++    previous: MissionTotals | null;
++    pulse: PulseData & { periodFunnel: PulseData["funnel"] };
++    teamStats: MissionTeamStat[];
++    lists: Array<{
++        listId: string;
++        name: string;
++        called: number;
++        reached: number;
++        meetings: number;
++        companies: number;
++        contacts: number;
++        workedCompanies: number;
++    }>;
++}
++
++export interface AssignableUser {
++    id: string;
++    name: string;
++    email: string;
++    role: string;
++}
++
++export interface EmailTemplate {
++    id: string;
++    name: string;
++    subject: string;
++    bodyHtml: string;
++    category: string;
++    variables: string[];
++    createdBy?: { id: string; name: string };
++}
++
++export interface MissionTemplate {
++    id: string;
++    order: number;
++    template: EmailTemplate;
++}
++
++export interface TemplateFields {
++    name: string;
++    subject: string;
++    bodyHtml: string;
++    category: string;
++}
++
++export interface CampaignData {
++    id: string;
++    name: string;
++    icp: string;
++    pitch: string;
++    script?: string | null;
++    rules?: Record<string, unknown> | null;
++    isActive: boolean;
++}
++
++export type ScriptTab = "base" | "additional" | "ai";
++
++/** GET /api/campaigns/[id]/script-companion, normalised (missing → empty). */
++export interface ScriptCompanion {
++    additionalDraft: string;
++    additionalShared: string;
++    aiDraft: string;
++    aiShared: string;
++    aiGeneratedAt: string | null;
++    defaultTab: ScriptTab;
++}
++
++export interface CampaignStrategy {
++    campaign: CampaignData;
++    companion: ScriptCompanion;
++}
++
++export interface MissionFeedbackItem extends DailyReportLike {
++    id: string;
++    submittedAt: string;
++    sdr: { id: string; name: string; email: string };
++    missions: Array<{ mission: { id: string; name: string } }>;
++}
++
++export interface FeedbackRange {
++    from: string;
++    to: string;
++}
++
++export interface Mailbox {
++    id: string;
++    email: string;
++    displayName: string | null;
++}
+diff --git a/lib/query-keys.ts b/lib/query-keys.ts
+index bdc5619..f647b82 100644
+--- a/lib/query-keys.ts
++++ b/lib/query-keys.ts
+@@ -12,6 +12,11 @@ export function clientDetailQueryKey(clientId: string | null) {
+     return ["manager", "client", clientId] as const;
+ }
+ 
++/** Client sessions & CRs (GET /api/clients/:id/sessions) — also invalidated by WeeklyBilanModal. */
++export function clientSessionsQueryKey(clientId: string | null | undefined) {
++    return ["client-sessions", clientId] as const;
++}
++
+ // SDR action page & unified action drawer
+ export function sdrUnifiedDrawerCompanyKey(companyId: string | null) {
+     return ["sdr", "unified-drawer", "company", companyId] as const;
