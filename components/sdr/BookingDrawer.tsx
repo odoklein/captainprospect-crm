@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useToast, DRAWER_BACKDROP_CLASS, DRAWER_PANEL_SURFACE_CLASS } from "@/components/ui";
 import { DateTimePicker } from "@/components/ui/DateTimePicker";
+import { useDialogPortalTarget } from "@/components/ui/useDialogPortalTarget";
 import {
     Loader2,
     Calendar,
@@ -546,6 +548,7 @@ export function BookingDrawer({
     preferredInterlocuteurId,
     preferredInterlocuteurIds,
 }: BookingDrawerProps) {
+    const portalTarget = useDialogPortalTarget(isOpen);
     const { success, error: showError } = useToast();
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -857,7 +860,7 @@ export function BookingDrawer({
         onClose();
     }, [onBookingSuccess, onClose]);
 
-    if (!isOpen) return null;
+    if (!portalTarget) return null;
 
     // Build display name for typewriter
     const displayName = contactInfo?.firstName || contactInfo?.lastName
@@ -872,18 +875,15 @@ export function BookingDrawer({
     // A physical RDV holds `onBookingSuccess` until the SDR leaves its confirmation.
     const handleDismiss = confirmedBooking?.meetingType === "PHYSIQUE" ? finishBooking : onClose;
 
-    return (
+    return createPortal(
         <>
-            {/* Overlay */}
-            <div className={cn("fixed inset-0 z-[60]", DRAWER_BACKDROP_CLASS)} onClick={handleDismiss} aria-hidden="true" />
-
-            {/* Dialog */}
-            <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4">
+                <div className={cn("absolute inset-0", DRAWER_BACKDROP_CLASS)} onClick={handleDismiss} aria-hidden="true" />
                 <div
                     role="dialog"
                     aria-modal="true"
                     aria-label={`Planifier un RDV avec ${contactName}`}
-                    className={cn("w-full max-w-5xl h-[88vh] min-h-[560px] flex flex-col", DRAWER_PANEL_SURFACE_CLASS)}
+                    className={cn("relative flex h-full max-h-[92dvh] w-full max-w-[1440px] flex-col", DRAWER_PANEL_SURFACE_CLASS)}
                 >
                     {/* Header: icon left, title centered, close right (equal outer columns) */}
                     <div className="grid shrink-0 grid-cols-[minmax(2.5rem,1fr)_minmax(0,auto)_minmax(2.5rem,1fr)] items-center gap-2 px-3 sm:px-4 py-3 border-b border-slate-200 bg-primary-600 text-white">
@@ -915,9 +915,9 @@ export function BookingDrawer({
                         />
                     )}
 
-                    <div className={cn("flex-1 grid grid-cols-1 md:grid-cols-2 min-h-0 overflow-hidden", confirmedBooking && "hidden")}>
+                    <div className={cn("grid min-h-0 flex-1 grid-cols-1 content-start overflow-y-auto lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:content-stretch lg:overflow-hidden", confirmedBooking && "hidden")}>
                         {/* ── LEFT PANEL ── */}
-                        <div className="p-4 border-r border-slate-200 flex flex-col gap-4 overflow-y-auto min-h-0">
+                        <div className="flex min-w-0 flex-col gap-4 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-r lg:border-slate-200">
 
                             {/* ── Contact card with typewriter ── */}
                             <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 space-y-2 text-xs text-slate-700">
@@ -1212,7 +1212,7 @@ export function BookingDrawer({
                         </div>
 
                         {/* ── RIGHT PANEL: calendar selector + iframe ── */}
-                        <div className="relative bg-white min-h-0 flex-1 flex flex-col">
+                        <div className={cn("relative flex min-w-0 flex-col bg-white lg:min-h-0", selectedOption ? "min-h-[420px]" : "min-h-40")}>
                             {!selectedOption ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-50">
                                     <Calendar className="w-8 h-8 text-slate-300" />
@@ -1322,7 +1322,8 @@ export function BookingDrawer({
                     </div>
                 </div>
             </div>
-        </>
+        </>,
+        portalTarget,
     );
 }
 
