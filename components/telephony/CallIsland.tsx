@@ -17,7 +17,7 @@
 // ============================================
 
 import { useEffect, useState } from "react";
-import { Grid3x3, Mic, MicOff, Phone, PhoneIncoming, PhoneOff, Sparkles, X } from "lucide-react";
+import { Grid3x3, Headphones, Mic, MicOff, Phone, PhoneIncoming, PhoneOff, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatClock, formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { TELEPHONY_STATUS_LABELS } from "@/lib/telephony/status";
@@ -183,7 +183,7 @@ function IslandShell({
 }
 
 export function CallIsland({ extra }: { extra: IslandExtra | null }) {
-    const { call, insights, transcription, hangup, answer, decline, toggleMute, sendDigit, dismiss, dial, pin } = useSoftphone();
+    const { call, insights, transcription, hangup, answer, decline, toggleMute, sendDigit, dismiss, dial, pin, openAudioSettings } = useSoftphone();
     const active = isCallActive(call);
     const now = useNow(active);
     const [expanded, setExpanded] = useState(false);
@@ -526,6 +526,15 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                             )}
                         >
                             <Grid3x3 className="h-3.5 w-3.5" /> Clavier
+                        </button>
+                        <button
+                            type="button"
+                            onClick={openAudioSettings}
+                            title="Changer de micro ou de casque"
+                            aria-label="Réglages audio"
+                            className="cp-press flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+                        >
+                            <Headphones className="h-3.5 w-3.5" />
                         </button>
                         <button
                             type="button"

@@ -20,6 +20,8 @@ import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
 import { isFinalStatus, type TelephonyStatus } from "@/lib/telephony/status";
 import { isCurrentAttempt } from "@/lib/telephony/client-state";
 import { CallIsland } from "./CallIsland";
+import { AudioSettingsDialog } from "./AudioSettingsDialog";
+import { AUDIO_PREFS_KEY, EMPTY_AUDIO_PREFS, parseAudioPrefs, resolveDevice, type AudioPrefs, type DeviceLike } from "@/lib/telephony/audio-prefs";
 
 export interface DialTarget {
     phone: string;
@@ -94,6 +96,9 @@ interface SoftphoneContextValue {
     joinDialer: (sessionId: string) => Promise<boolean>;
     leaveDialer: () => void;
     toggleDialerMute: () => void;
+    /** Opens « Réglages audio » (micro, casque, sonnerie, tests). */
+    openAudioSettings: () => void;
+    audioPrefs: AudioPrefs;
 }
 
 export interface DialerLeg {
@@ -176,6 +181,54 @@ export function isCallActive(call: SoftphoneCall | null): boolean {
     return Boolean(call && LIVE_PHASES.has(call.phase));
 }
 
+// ── Audio devices (Réglages audio) ────────────────────────────────────────
+async function listAudioDevices(): Promise<DeviceLike[]> {
+    try {
+        const list = (await navigator.mediaDevices?.enumerateDevices()) ?? [];
+        return list.map((d) => ({ deviceId: d.deviceId, label: d.label, kind: d.kind }));
+    } catch {
+        return [];
+    }
+}
+
+/** Speakers and ringtone: cheap to set, never open the microphone. */
+async function applyOutputs(device: Device, prefs: AudioPrefs): Promise<void> {
+    const audio = device.audio;
+    if (!audio?.isOutputSelectionSupported) return;
+    const devices = await listAudioDevices();
+    const out = resolveDevice(prefs.output, devices, "audiooutput") ?? "default";
+    const ring = resolveDevice(prefs.ringtone, devices, "audiooutput") ?? out;
+    await audio.speakerDevices.set(out).catch(() => undefined);
+    await audio.ringtoneDevices.set(ring).catch(() => undefined);
+}
+
+/**
+ * The chosen microphone for the next (or current) call. setInputDevice keeps the mic
+ * open, so it is only called around calls and released after (releaseInput).
+ * Returns true when a device was set. A device that fails falls back to the default.
+ */
+async function applyInput(device: Device, prefs: AudioPrefs, live: boolean): Promise<boolean> {
+    const audio = device.audio;
+    if (!audio) return false;
+    const devices = await listAudioDevices();
+    const id = resolveDevice(prefs.input, devices, "audioinput") ?? (live && devices.some((d) => d.kind === "audioinput" && d.deviceId === "default") ? "default" : null);
+    if (!id) return false;
+    try {
+        await audio.setInputDevice(id);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function readAudioPrefs(): AudioPrefs {
+    try {
+        return parseAudioPrefs(window.localStorage.getItem(AUDIO_PREFS_KEY));
+    } catch {
+        return EMPTY_AUDIO_PREFS;
+    }
+}
+
 class ApiError extends Error {
     constructor(message: string, public status: number) {
         super(message);
@@ -211,6 +264,17 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const cancelledRef = useRef(new Set<number>());
     const callRef = useRef<SoftphoneCall | null>(null);
     callRef.current = call;
+
+    const [audioPrefs, setAudioPrefs] = useState<AudioPrefs>(EMPTY_AUDIO_PREFS);
+    const [audioOpen, setAudioOpen] = useState(false);
+    const audioPrefsRef = useRef<AudioPrefs>(EMPTY_AUDIO_PREFS);
+    /** setInputDevice was called for the current call / conference leg: release it afterwards. */
+    const inputHeldRef = useRef(false);
+    useEffect(() => {
+        const saved = readAudioPrefs();
+        audioPrefsRef.current = saved;
+        setAudioPrefs(saved);
+    }, []);
 
     // ── config ─────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -273,6 +337,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         });
         device.on("incoming", (incoming: Call) => incomingRef.current?.(incoming));
         deviceRef.current = device;
+        void applyOutputs(device, audioPrefsRef.current);
         return device;
         })();
         devicePromiseRef.current = pending;
@@ -308,6 +373,11 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         twilioCallRef.current = null;
         deviceErrorRef.current = null;
         pushLevels(ZERO_LEVELS);
+        // Give the microphone back (the browser's recording indicator goes off) unless a session still needs it.
+        if (inputHeldRef.current && !dialerCallRef.current) {
+            inputHeldRef.current = false;
+            void deviceRef.current?.audio?.unsetInputDevice().catch(() => undefined);
+        }
         patch(key, (c) => (LIVE_PHASES.has(c.phase) ? { phase, endedAt: Date.now(), error, muted: false } : {}));
         if (callId) settleOutcome(key, callId);
     }, [patch, settleOutcome]);
@@ -355,6 +425,15 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         try {
             const device = await getDevice();
             if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
+            inputHeldRef.current = (await applyInput(device, audioPrefsRef.current, false)) || inputHeldRef.current;
+            if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) {
+                // Hung up while the microphone was being set: give it back.
+                if (inputHeldRef.current && !dialerCallRef.current) {
+                    inputHeldRef.current = false;
+                    void device.audio?.unsetInputDevice().catch(() => undefined);
+                }
+                return;
+            }
             const twilioCall = await device.connect({ params: { callId } });
             if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) {
                 twilioCall.disconnect();
@@ -408,6 +487,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         setDialerLeg({ state: "connecting", sessionId, muted: false, error: null });
         try {
             const device = await getDevice();
+            inputHeldRef.current = (await applyInput(device, audioPrefsRef.current, false)) || inputHeldRef.current;
             const leg = await device.connect({ params: { dialerSessionId: sessionId } });
             dialerCallRef.current = leg;
             leg.on("accept", () => setDialerLeg((l) => (l.sessionId === sessionId ? { ...l, state: "connected" } : l)));
@@ -417,6 +497,10 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
                 if (dialerCallRef.current !== leg) return;
                 dialerCallRef.current = null;
                 pushLevels(ZERO_LEVELS);
+                if (inputHeldRef.current && !isCallActive(callRef.current)) {
+                    inputHeldRef.current = false;
+                    void deviceRef.current?.audio?.unsetInputDevice().catch(() => undefined);
+                }
                 setDialerLeg(error ? { state: "failed", sessionId, muted: false, error } : IDLE_LEG);
             };
             leg.on("disconnect", ended(null));
@@ -580,7 +664,15 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const answer = useCallback(() => {
         const current = callRef.current;
         if (current?.phase !== "incoming") return;
-        twilioCallRef.current?.accept();
+        const incoming = twilioCallRef.current;
+        const device = deviceRef.current;
+        if (!incoming) return;
+        if (!device) return void incoming.accept();
+        // The chosen microphone must be set before accepting (the SDK opens it at accept).
+        void applyInput(device, audioPrefsRef.current, false).then((held) => {
+            inputHeldRef.current = held || inputHeldRef.current;
+            incoming.accept();
+        });
     }, []);
 
     const decline = useCallback(() => {
@@ -656,6 +748,26 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     const [islandExtra, setIslandExtra] = useState<IslandExtra | null>(null);
 
+    const openAudioSettings = useCallback(() => setAudioOpen(true), []);
+    const saveAudioPrefs = useCallback((next: AudioPrefs) => {
+        audioPrefsRef.current = next;
+        setAudioPrefs(next);
+        try {
+            window.localStorage.setItem(AUDIO_PREFS_KEY, JSON.stringify(next));
+        } catch {
+            /* private mode: applies for this tab only */
+        }
+        const device = deviceRef.current;
+        if (!device) return;
+        void applyOutputs(device, next);
+        // In a call or a session: switch the microphone now (the SDK swaps the track live).
+        if (isCallActive(callRef.current) || dialerCallRef.current) {
+            void applyInput(device, next, true).then((held) => {
+                inputHeldRef.current = held || inputHeldRef.current;
+            });
+        }
+    }, []);
+
     const value = useMemo<SoftphoneContextValue>(
         () => ({
             enabled,
@@ -676,8 +788,10 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             joinDialer,
             leaveDialer,
             toggleDialerMute,
+            openAudioSettings,
+            audioPrefs,
         }),
-        [enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
+        [openAudioSettings, audioPrefs, enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
     );
 
     return (
@@ -685,6 +799,15 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             <IslandExtraSetter.Provider value={setIslandExtra}>
                 {children}
                 {(call || islandExtra) && <CallIsland key={call ? `call-${call.key}` : "idle"} extra={islandExtra} />}
+                {enabled && (
+                    <AudioSettingsDialog
+                        open={audioOpen}
+                        onClose={() => setAudioOpen(false)}
+                        prefs={audioPrefs}
+                        onSave={saveAudioPrefs}
+                        inCall={isCallActive(call) || dialerLeg.state === "connected"}
+                    />
+                )}
             </IslandExtraSetter.Provider>
         </SoftphoneContext.Provider>
     );
@@ -709,6 +832,8 @@ const DISABLED: SoftphoneContextValue = {
     joinDialer: async () => false,
     leaveDialer: () => undefined,
     toggleDialerMute: () => undefined,
+    openAudioSettings: () => undefined,
+    audioPrefs: EMPTY_AUDIO_PREFS,
 };
 
 /** Safe outside the provider (portals, public pages): behaves as "softphone off". */

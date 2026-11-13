@@ -39,7 +39,7 @@
     "test:prospection-export": "tsx --test lib/prospection-export/prospection-export.test.ts",
     "test:incoming-calls": "tsx --test lib/incoming-calls/allo-webhook.test.ts",
     "test:messaging": "tsx --test lib/messaging/messaging.test.ts",
-    "test:telephony": "tsx --test lib/telephony/telephony.test.ts lib/telephony/suggestion.test.ts",
+    "test:telephony": "tsx --test lib/telephony/telephony.test.ts lib/telephony/suggestion.test.ts lib/telephony/audio-prefs.test.ts",
     "test:calls-journal": "tsx --test lib/calls-journal/calls-journal.test.ts",
     "test:focus": "tsx --test lib/focus/focus.test.ts",
     "test:post-call": "tsx --test lib/post-call/post-call.test.ts lib/sales-engine/metrics.pglite.test.ts",

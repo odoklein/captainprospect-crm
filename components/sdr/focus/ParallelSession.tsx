@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Loader2, Mic, MicOff, Pause, PhoneOff, Play, Power, Rows3, Sparkles } from "lucide-react";
+import { ArrowRight, Headphones, Loader2, Mic, MicOff, Pause, PhoneOff, Play, Power, Rows3, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
 import { PostCallSuggestion } from "@/components/telephony/PostCallSuggestion";
@@ -52,7 +52,7 @@ function elapsed(iso: string, now: number): string {
 }
 
 export function ParallelSession({ missionId, missionName, onExit }: { missionId: string; missionName: string; onExit: () => void }) {
-    const { dialerLeg, joinDialer, leaveDialer, toggleDialerMute } = useSoftphone();
+    const { dialerLeg, joinDialer, leaveDialer, toggleDialerMute, openAudioSettings } = useSoftphone();
     const [view, setView] = useState<SessionView | null>(null);
     const [decision, setDecision] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -183,6 +183,9 @@ export function ParallelSession({ missionId, missionName, onExit }: { missionId:
                     {paused ? "En pause · aucune nouvelle ligne" : agent.label}
                 </p>
                 <div className="ml-auto flex items-center gap-1.5">
+                    <button type="button" onClick={openAudioSettings} title="Changer de micro ou de casque" aria-label="Réglages audio" className="cp-press flex h-8 w-8 items-center justify-center rounded-full text-ink-2 ring-1 ring-line hover:bg-surface-2">
+                        <Headphones className="h-3.5 w-3.5" />
+                    </button>
                     <button type="button" onClick={toggleDialerMute} disabled={dialerLeg.state !== "connected"} title="Micro (M)" className={cn("cp-press flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium ring-1 ring-line hover:bg-surface-2 disabled:opacity-50", dialerLeg.muted ? "bg-warning-soft text-warning-ink" : "text-ink-2")}>
                         {dialerLeg.muted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
                         {dialerLeg.muted ? "Micro coupé" : "Micro"}

@@ -11,6 +11,8 @@ import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent 
 import { useQuery } from "@tanstack/react-query";
 import { Check, Crosshair, Mic, MicOff, Phone, Play, Rows3, Zap } from "lucide-react";
 import { Kbd, SegmentedControl } from "@/components/ui";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { cleanLabel } from "@/lib/telephony/audio-prefs";
 import { cn } from "@/lib/utils";
 import { queueSummary, type QueueRowSummaryLike } from "@/lib/focus/focus";
 import { displayPhone } from "@/lib/sdr-queue/display";
@@ -82,6 +84,7 @@ export function FocusLaunch({
     parallel: ParallelAvailability | null;
 }) {
     const mic = useMicPermission();
+    const { openAudioSettings, audioPrefs } = useSoftphone();
     const { data: rows, isLoading: queueLoading, isError: queueError } = useQuery({
         queryKey: ["focus-launch-queue", missionId],
         enabled: !!missionId,
@@ -314,11 +317,16 @@ export function FocusLaunch({
                                             </p>
                                             <p className="text-ink-3">
                                                 {mic === "granted"
-                                                    ? "Casque branché, c'est parti."
+                                                    ? audioPrefs.input?.label
+                                                        ? `Micro : ${cleanLabel(audioPrefs.input.label)}`
+                                                        : "Micro par défaut du système."
                                                     : mic === "denied"
                                                       ? "Autorisez-le dans la barre d'adresse (icône cadenas), puis revenez."
                                                       : "Le navigateur le demandera au premier appel."}
                                             </p>
+                                            <button type="button" onClick={openAudioSettings} className="mt-1 text-[12px] font-medium text-primary hover:underline">
+                                                Tester l&apos;audio et choisir le casque
+                                            </button>
                                         </div>
                                     </li>
                                 )}
