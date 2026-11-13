@@ -6,6 +6,7 @@ import { readSummaryState, summarizeCall } from "@/lib/telephony/summary";
 import { suggestCallResult } from "@/lib/telephony/suggestion";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
 import type { TelephonyStatus } from "@/lib/telephony/status";
+import { proposalsForCall } from "@/lib/post-call/service";
 
 export const dynamic = "force-dynamic";
 
@@ -62,8 +63,37 @@ export const GET = withErrorHandler(async (request: NextRequest, { params }: { p
         after(() => summarizeCall(id).catch((e) => console.error("[telephony/suggestion] lazy summary", e)));
     }
 
+    // Follow-ups beyond the outcome (tasks, email draft, facts, meeting, exclusion): additive,
+    // and never allowed to break the card — the outcome above stays the way to qualify the call.
+    let followUps: Awaited<ReturnType<typeof proposalsForCall>> = { proposals: [], gaps: [] };
+    try {
+        const contact = call.contactId
+            ? await prisma.contact.findUnique({ where: { id: call.contactId }, select: { firstName: true, email: true } })
+            : null;
+        followUps = await proposalsForCall({
+            call: { id: call.id, sdrId: call.sdrId, contactId: call.contactId, companyId: call.companyId, campaignId: call.campaignId, aiSummaryStatus: call.aiSummaryStatus },
+            summary: summary.status === "done" ? summary.data : null,
+            disposition: suggestion,
+            contact,
+        });
+    } catch (err) {
+        console.error("[telephony/suggestion] proposals", err);
+    }
+
     return successResponse({
         suggestion,
         target: { contactId: call.contactId, companyId: call.companyId, campaignId: call.campaignId },
+        proposals: followUps.proposals,
+        gaps: followUps.gaps,
+        // What the AI heard vs. what nobody verified, for the « IA / à vérifier » panel.
+        insight: summary.status === "done"
+            ? {
+                  interest: summary.data.interest ?? null,
+                  decisionMakerStatus: summary.data.decisionMakerStatus ?? null,
+                  statedRole: summary.data.statedRole ?? null,
+                  confidence: summary.data.confidence ?? null,
+                  evidence: summary.data.evidence ?? [],
+              }
+            : null,
     });
 });

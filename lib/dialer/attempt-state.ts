@@ -143,8 +143,9 @@ export function fold(f: AttemptFacts, e: AttemptEvent): AttemptPatch | null {
 }
 
 export function applyPatch(f: AttemptFacts, p: AttemptPatch): AttemptFacts {
-    const { errorCode: _ignored, ...facts } = p;
-    return { ...f, ...facts };
+    const facts: AttemptPatch = { ...p };
+    delete facts.errorCode;
+    return { ...f, ...facts } as AttemptFacts;
 }
 
 // ── routing an answered call ────────────────────────────────────────────────

@@ -81,8 +81,8 @@ export async function getAttemptBySid(db: SqlDb, callSid: string): Promise<Attem
 }
 
 const DATE_KEYS = ["placedAt", "ringingAt", "answeredAt", "detectedAt", "reservedAt", "bridgedAt", "endedAt", "createdAt"] as const;
-function normalizeDates<T extends Record<string, unknown>>(row: T): T {
-    const out: Record<string, unknown> = { ...row };
+function normalizeDates<T extends object>(row: T): T {
+    const out: Record<string, unknown> = { ...(row as Record<string, unknown>) };
     for (const k of DATE_KEYS) {
         const v = out[k];
         if (typeof v === "string") out[k] = new Date(v.endsWith("Z") || /[+-]\d\d:?\d\d$/.test(v) ? v : `${v}Z`);
@@ -108,8 +108,9 @@ export async function applyAttemptEvent(db: SqlDb, id: string, event: AttemptEve
         const patch = fold(before, event);
         if (!patch) return { changed: false, before, after: before };
         if (await casAttempt(db, id, before.state, patch)) {
-            const { errorCode: _e, ...facts } = patch;
-            return { changed: true, before, after: { ...before, ...facts } };
+            const facts: AttemptPatch = { ...patch };
+            delete facts.errorCode;
+            return { changed: true, before, after: { ...before, ...facts } as AttemptRow };
         }
     }
     throw new Error(`attempt ${id}: too much contention`);
@@ -155,7 +156,7 @@ export interface SessionRow {
 
 export async function getSession(db: SqlDb, id: string): Promise<SessionRow | null> {
     const rows = await db.$queryRaw<SessionRow[]>(Prisma.sql`SELECT * FROM "DialerSession" WHERE "id" = ${id}`);
-    return rows[0] ? normalizeDates(rows[0] as unknown as Record<string, unknown>) as unknown as SessionRow : null;
+    return rows[0] ? normalizeDates(rows[0]) : null;
 }
 
 /**
@@ -244,4 +245,75 @@ export async function recentStats(db: SqlDb, sdrId: string, sample: number): Pro
 export async function dialsFromNumberSince(db: SqlDb, fromNumber: string, since: Date): Promise<number> {
     const rows = await db.$queryRaw<{ n: number }[]>(Prisma.sql`SELECT count(*)::int AS n FROM "DialAttempt" WHERE "fromNumber" = ${fromNumber} AND "createdAt" >= ${since}`);
     return Number(rows[0]?.n ?? 0);
+}
+
+// ── session lifecycle ───────────────────────────────────────────────────────
+
+export async function setSessionStatus(
+    db: SqlDb,
+    id: string,
+    from: ("OPEN" | "PAUSED" | "ENDED")[],
+    to: "OPEN" | "PAUSED" | "ENDED",
+    reason: string | null = null,
+): Promise<boolean> {
+    const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
+        UPDATE "DialerSession"
+           SET "status" = ${to}::"DialerSessionStatus",
+               "endedAt" = ${to === "ENDED" ? new Date() : null},
+               "endReason" = ${to === "ENDED" ? reason : null},
+               "agentState" = ${to === "ENDED" ? Prisma.sql`'OFFLINE'::"DialerAgentState"` : Prisma.sql`"agentState"`},
+               "reservedAttemptId" = ${to === "ENDED" ? Prisma.sql`NULL` : Prisma.sql`"reservedAttemptId"`},
+               "updatedAt" = now()
+         WHERE "id" = ${id}
+           AND "status" IN (${Prisma.join(from.map((s) => Prisma.sql`${s}::"DialerSessionStatus"`))})
+     RETURNING "id"`);
+    return rows.length === 1;
+}
+
+/** The browser leg that joined the conference; first writer wins (a second tab cannot take over). */
+export async function claimAgentLeg(db: SqlDb, sessionId: string, agentCallSid: string): Promise<boolean> {
+    const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
+        UPDATE "DialerSession" SET "agentCallSid" = ${agentCallSid}, "updatedAt" = now()
+         WHERE "id" = ${sessionId} AND "status" <> 'ENDED' AND ("agentCallSid" IS NULL OR "agentCallSid" = ${agentCallSid})
+     RETURNING "id"`);
+    return rows.length === 1;
+}
+
+export async function touchHeartbeat(db: SqlDb, sessionId: string, sdrId: string): Promise<boolean> {
+    const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
+        UPDATE "DialerSession" SET "lastHeartbeatAt" = now()
+         WHERE "id" = ${sessionId} AND "sdrId" = ${sdrId} AND "status" <> 'ENDED'
+     RETURNING "id"`);
+    return rows.length === 1;
+}
+
+export async function setAttemptTelephonyCall(db: SqlDb, attemptId: string, telephonyCallId: string): Promise<void> {
+    await db.$queryRaw(Prisma.sql`UPDATE "DialAttempt" SET "telephonyCallId" = ${telephonyCallId} WHERE "id" = ${attemptId} AND "telephonyCallId" IS NULL RETURNING "id"`);
+}
+
+export async function allLiveAttempts(db: SqlDb): Promise<AttemptRow[]> {
+    const rows = await db.$queryRaw<AttemptRow[]>(Prisma.sql`SELECT * FROM "DialAttempt" WHERE "state" <> 'ENDED' ORDER BY "createdAt" LIMIT 1000`);
+    return rows.map(normalizeDates);
+}
+
+export async function staleSessions(db: SqlDb, heartbeatBefore: Date): Promise<string[]> {
+    const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT "id" FROM "DialerSession" WHERE "status" <> 'ENDED' AND "lastHeartbeatAt" < ${heartbeatBefore} LIMIT 200`);
+    return rows.map((r) => r.id);
+}
+
+/** Sessions whose SDR is still marked reserved for an attempt that has already ended (a lost callback). */
+export async function orphanReservations(db: SqlDb): Promise<{ sessionId: string; attemptId: string; outcome: string | null }[]> {
+    return db.$queryRaw(Prisma.sql`
+        SELECT s."id" AS "sessionId", a."id" AS "attemptId", a."outcome"::text AS "outcome"
+          FROM "DialerSession" s JOIN "DialAttempt" a ON a."id" = s."reservedAttemptId"
+         WHERE s."agentState" IN ('RESERVED', 'ON_CALL') AND a."state" = 'ENDED'
+         LIMIT 200`);
+}
+
+/** Contacts / companies this session already rang today: never re-dialled in a loop by the pump. */
+export async function attemptedTargets(db: SqlDb, sdrId: string, since: Date): Promise<Set<string>> {
+    const rows = await db.$queryRaw<{ key: string }[]>(Prisma.sql`
+        SELECT DISTINCT COALESCE("contactId", "companyId") AS key FROM "DialAttempt"
+         WHERE "sdrId" = ${sdrId} AND "createdAt" >= ${since} AND COALESCE("contactId", "companyId") IS NOT NULL`);
+    return new Set(rows.map((r) => r.key));
 }
