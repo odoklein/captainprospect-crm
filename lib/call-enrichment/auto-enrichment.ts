@@ -1,235 +1,132 @@
 import { prisma } from "@/lib/prisma";
-import { getAlloNumbersForAction } from "./enrich-action";
-import { callProvider } from "./provider";
 import { acquireAlloSlot } from "./allo-semaphore";
-import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
-import { DateTime } from "luxon";
-import { getBrand } from "@/lib/brand/server";
-import { integrationKey } from "@/lib/integrations/keys";
+import { findCallWithFallback, type CallSourceKey, type SourceAttempt } from "./provider";
+import { loadRdvCallContext } from "./rdv-call-context";
+import { fillRdvFicheIfEmpty } from "./rdv-fiche";
 
-const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? "FR") as Parameters<typeof isValidPhoneNumber>[1];
-const ENRICHMENT_DAY_TZ = process.env.CALL_ENRICHMENT_DAY_TZ ?? "Europe/Paris";
-
-function normalizePhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  try {
-    if (isValidPhoneNumber(raw, DEFAULT_COUNTRY)) return parsePhoneNumber(raw, DEFAULT_COUNTRY).format("E.164");
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function extractPhoneCandidates(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  const text = raw.trim();
-  if (!text) return [];
-  const chunks = text.match(/(?:\+|00)?\d(?:[\d\s()./-]{6,}\d)?/g) ?? [];
-  if (chunks.length === 0) return [text];
-  const candidates = new Set<string>();
-  for (const chunk of chunks) {
-    const cleaned = chunk.replace(/[^\d+]/g, "");
-    if (!cleaned) continue;
-    candidates.add(cleaned);
-    if (cleaned.startsWith("00")) candidates.add(`+${cleaned.slice(2)}`);
-    const d = cleaned.replace(/\D/g, "");
-    if (d.length === 10 && d.startsWith("0")) { candidates.add(d); candidates.add(`+33${d.slice(1)}`); }
-    if (d.length === 11 && d.startsWith("33")) candidates.add(`+${d}`);
-  }
-  return [...candidates];
-}
-
-function normalizePhonesFromField(raw: string | null | undefined): string[] {
-  return [...new Set(
-    extractPhoneCandidates(raw).map(normalizePhone).filter((p): p is string => p !== null),
-  )];
-}
-
-function extractAdditionalPhonesFromJson(data: unknown): string[] {
-  if (!data || typeof data !== "object") return [];
-  const r = data as Record<string, unknown>;
-  const candidates: unknown[] = [];
-  for (const k of ["additionalPhones", "phones", "phoneNumbers"]) {
-    if (k in r) candidates.push(r[k]);
-  }
-  return candidates
-    .flatMap((v) => (Array.isArray(v) ? v : v == null ? [] : [v]))
-    .map((v) => (typeof v === "string" ? v : null))
-    .filter((v): v is string => !!v);
-}
-
-function calendarDayWindow(date: Date) {
-  const local = DateTime.fromJSDate(date, { zone: "utc" }).setZone(ENRICHMENT_DAY_TZ);
-  return { start: local.startOf("day").toUTC().toJSDate(), end: local.endOf("day").toUTC().toJSDate() };
-}
-
-function relativeWindow(date: Date, beforeH: number, afterH: number) {
-  return {
-    start: new Date(date.getTime() - beforeH * 3_600_000),
-    end: new Date(date.getTime() + afterH * 3_600_000),
-  };
-}
-
-async function generateFicheFromTranscription(transcription: string): Promise<Record<string, string> | null> {
-  const apiKey = integrationKey("OPENAI_API_KEY");
-  if (!apiKey || !transcription.trim()) return null;
-  const brand = await getBrand();
-  try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        messages: [
-          {
-            role: "system",
-            content: `Tu es un assistant de compte-rendu commercial (CRM ${brand.name}).\n\nTa tâche: à partir d'une transcription d'échange (appel / RDV), extraire et structurer les informations dans une "fiche RDV".\n\nRetourne UNIQUEMENT un JSON valide avec EXACTEMENT ces clés (toutes présentes, même si vides):\n- "contexte"\n- "besoinsProblemes"\n- "solutionsEnPlace"\n- "objectionsFreins"\n- "notesImportantes"\n\nContraintes:\n- Écris en français.\n- Pas de blabla, pas de Markdown, pas de texte hors JSON.\n- Chaque champ doit être une chaîne de caractères (string).`,
-          },
-          {
-            role: "user",
-            content: `Transcription (source brute) :\n\n${transcription.trim()}\n\nExtrais les sections demandées. Si une section est absente, mets une chaîne vide.`,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 1200,
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content?.trim();
-    if (!content) return null;
-    const parsed = JSON.parse(content);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    const o = parsed as Record<string, unknown>;
-    return {
-      contexte: typeof o.contexte === "string" ? o.contexte.trim() : "",
-      besoinsProblemes: typeof o.besoinsProblemes === "string" ? o.besoinsProblemes.trim() : "",
-      solutionsEnPlace: typeof o.solutionsEnPlace === "string" ? o.solutionsEnPlace.trim() : "",
-      objectionsFreins: typeof o.objectionsFreins === "string" ? o.objectionsFreins.trim() : "",
-      notesImportantes: typeof o.notesImportantes === "string" ? o.notesImportantes.trim() : "",
-    };
-  } catch {
-    return null;
-  }
-}
+/** A linked softphone call this old with no hang-up is treated as lost, not live. */
+const LINKED_CALL_MAX_LIVE_MS = 2 * 60 * 60 * 1000;
+/** Time Twilio gets after the hang-up to deliver the recording before we search elsewhere. */
+const RECORDING_GRACE_MS = 15 * 60 * 1000;
 
 export interface AutoEnrichResult {
   found: boolean;
   ficheGenerated: boolean;
+  /**
+   * A softphone call is linked to the RDV but its audio / transcript are not in yet
+   * (still on the line, or Twilio still processing): they arrive on their own.
+   */
+  pending?: { source: "twilio"; inProgress: boolean };
+  /** Which source the call came from (found only). */
+  source?: CallSourceKey;
+  /** Which time window matched (found only). */
+  window?: string;
+  /** What every source answered, in order — the UI shows the chain. */
+  attempts?: SourceAttempt[];
   callSummary?: string | null;
   callTranscription?: string | null;
   callRecordingUrl?: string | null;
+  /** The fiche written from the transcription (ficheGenerated only). */
+  fiche?: Record<string, string> | null;
   error?: string;
 }
 
+/**
+ * Finds the call an RDV was booked on and brings it onto the RDV: Call Vault, then
+ * the Twilio softphone, then Allo directly (lib/call-enrichment/provider). Fills the
+ * fiche from the transcription when it is still empty. Idempotent: an RDV that
+ * already has call data is returned as is.
+ */
 export async function autoEnrichAction(actionId: string): Promise<AutoEnrichResult> {
-  // Acquire global slot: prevents simultaneous bookings from all hitting Allo at once.
-  // Falls through immediately when ALLO_ENRICH_CONCURRENCY > 1 or on serverless.
+  // Global slot: simultaneous bookings must not all hit the providers at once.
   const release = await acquireAlloSlot();
   try {
-    const action = await prisma.action.findUnique({
+    const existing = await prisma.action.findUnique({
       where: { id: actionId, result: { in: ["MEETING_BOOKED", "MEETING_CANCELLED"] } },
-      select: {
-        id: true,
-        sdrId: true,
-        createdAt: true,
-        callbackDate: true,
-        meetingPhone: true,
-        callSummary: true,
-        callTranscription: true,
-        callRecordingUrl: true,
-        contact: { select: { phone: true, additionalPhones: true } },
-        company: { select: { phone: true, customData: true } },
-      },
+      select: { callSummary: true, callTranscription: true, callRecordingUrl: true },
     });
+    if (!existing) return { found: false, ficheGenerated: false, error: "RDV introuvable" };
 
-    if (!action) return { found: false, ficheGenerated: false, error: "Action not found" };
-
-    // Already enriched — return cached data
-    if (action.callRecordingUrl?.trim() || action.callTranscription?.trim() || action.callSummary?.trim()) {
+    if (existing.callRecordingUrl?.trim() || existing.callTranscription?.trim() || existing.callSummary?.trim()) {
       return {
         found: true,
         ficheGenerated: false,
-        callSummary: action.callSummary,
-        callTranscription: action.callTranscription,
-        callRecordingUrl: action.callRecordingUrl,
+        callSummary: existing.callSummary,
+        callTranscription: existing.callTranscription,
+        callRecordingUrl: existing.callRecordingUrl,
       };
     }
 
-    const { alloNumbers } = await getAlloNumbersForAction(action.sdrId);
-    if (!alloNumbers.length) return { found: false, ficheGenerated: false, error: "No Allo number configured for SDR or ALLO_NUMBERS" };
-
-    const phones = [
-      ...normalizePhonesFromField(action.meetingPhone),
-      ...normalizePhonesFromField(action.contact?.phone),
-      ...normalizePhonesFromField(action.company?.phone),
-      ...extractAdditionalPhonesFromJson(action.contact?.additionalPhones).flatMap((p) => normalizePhonesFromField(p)),
-      ...extractAdditionalPhonesFromJson(action.company?.customData).flatMap((p) => normalizePhonesFromField(p)),
-    ];
-    const dedupedPhones = [...new Set(phones)];
-
-    if (!dedupedPhones.length) return { found: false, ficheGenerated: false, error: "No valid phones" };
-
-    const windows = [
-      ...(action.callbackDate
-        ? [calendarDayWindow(action.callbackDate), relativeWindow(action.callbackDate, 24, 24)]
-        : []),
-      calendarDayWindow(action.createdAt),
-      relativeWindow(action.createdAt, 24, 24),
-    ];
-
-    let matchedRecord: { summary?: string; transcription?: string; recordingUrl?: string } | null = null;
-    for (const w of windows) {
-      const rec = await callProvider.fetchMatchingCallRecord({
-        phones: dedupedPhones,
-        alloNumbers,
-        sdrId: action.sdrId,
-        windowStart: w.start,
-        windowEnd: w.end,
-      });
-      if (rec && (rec.recordingUrl?.trim() || rec.transcription?.trim() || rec.summary?.trim())) {
-        matchedRecord = rec;
-        break;
-      }
+    // Booked from the softphone: the call is already linked, Twilio delivers the rest.
+    const linkedCall = await prisma.telephonyCall.findUnique({
+      where: { actionId },
+      select: { endedAt: true, answeredAt: true, recordingUrl: true, createdAt: true },
+    });
+    const awaitingTwilio =
+      !!linkedCall &&
+      !linkedCall.recordingUrl &&
+      // Still on the line (bounded, in case the hang-up callback was lost)…
+      ((!linkedCall.endedAt && Date.now() - linkedCall.createdAt.getTime() < LINKED_CALL_MAX_LIVE_MS) ||
+        // …or answered and just ended: Twilio is processing the recording.
+        (!!linkedCall.endedAt && !!linkedCall.answeredAt && Date.now() - linkedCall.endedAt.getTime() < RECORDING_GRACE_MS));
+    if (linkedCall && awaitingTwilio) {
+      return { found: false, ficheGenerated: false, pending: { source: "twilio", inProgress: !linkedCall.endedAt } };
     }
 
-    if (!matchedRecord) return { found: false, ficheGenerated: false };
+    const ctx = await loadRdvCallContext(actionId);
+    if (!ctx) return { found: false, ficheGenerated: false, error: "RDV introuvable" };
 
-    await prisma.action.update({
-      where: { id: actionId },
+    const { record, attempts } = await findCallWithFallback({
+      phones: ctx.phones,
+      alloNumbers: ctx.alloNumbers,
+      sdrId: ctx.sdrId,
+      actionId: ctx.actionId,
+      contactId: ctx.contactId,
+      companyId: ctx.companyId,
+      windows: ctx.windows,
+    });
+
+    if (!record) {
+      await prisma.action.update({ where: { id: actionId }, data: { callEnrichmentError: "NO_MATCH" } });
+      return { found: false, ficheGenerated: false, attempts };
+    }
+
+    // Someone (manager pick, upload, softphone link) may have attached a call meanwhile: keep theirs.
+    const updated = await prisma.action.updateMany({
+      where: { id: actionId, callRecordingUrl: null, callTranscription: null, callSummary: null },
       data: {
-        callSummary: matchedRecord.summary ?? null,
-        callTranscription: matchedRecord.transcription ?? null,
-        callRecordingUrl: matchedRecord.recordingUrl ?? null,
+        callSummary: record.summary ?? null,
+        callTranscription: record.transcription ?? null,
+        callRecordingUrl: record.recordingUrl ?? null,
+        ...(record.duration ? { duration: record.duration } : {}),
         callEnrichmentAt: new Date(),
         callEnrichmentError: null,
       },
     });
-
-    let ficheGenerated = false;
-    if (matchedRecord.transcription?.trim()) {
-      const fiche = await generateFicheFromTranscription(matchedRecord.transcription);
-      if (fiche && Object.values(fiche).some((v) => v.trim())) {
-        await prisma.action.update({
-          where: { id: actionId },
-          data: { rdvFiche: fiche, rdvFicheUpdatedAt: new Date() },
-        });
-        ficheGenerated = true;
-      }
+    if (updated.count === 0) {
+      const current = await prisma.action.findUnique({
+        where: { id: actionId },
+        select: { callSummary: true, callTranscription: true, callRecordingUrl: true },
+      });
+      return { found: true, ficheGenerated: false, attempts, ...current };
     }
+
+    const fiche = record.transcription?.trim() ? await fillRdvFicheIfEmpty(actionId) : null;
 
     return {
       found: true,
-      ficheGenerated,
-      callSummary: matchedRecord.summary ?? null,
-      callTranscription: matchedRecord.transcription ?? null,
-      callRecordingUrl: matchedRecord.recordingUrl ?? null,
+      ficheGenerated: Boolean(fiche),
+      fiche: fiche ? { ...fiche } : null,
+      source: record.source,
+      window: record.window,
+      attempts,
+      callSummary: record.summary ?? null,
+      callTranscription: record.transcription ?? null,
+      callRecordingUrl: record.recordingUrl ?? null,
     };
   } catch (e) {
     console.error("[auto-enrichment]", e);
-    return { found: false, ficheGenerated: false, error: String(e) };
+    return { found: false, ficheGenerated: false, error: e instanceof Error ? e.message : String(e) };
   } finally {
     release();
   }

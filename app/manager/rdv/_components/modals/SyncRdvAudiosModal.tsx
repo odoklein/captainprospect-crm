@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import type { Meeting } from "../../_types";
 import { Modal } from "@/components/ui";
+import { ORIGIN_META, type CallSourceKey, type SourceAttempt } from "../DetailPanel/audio/call-model";
+import "../DetailPanel/audio/audio.css";
 import { Loader2, Mic, RefreshCw } from "lucide-react";
 
 interface SyncRdvAudiosModalProps {
@@ -26,6 +28,7 @@ interface PreviewItem {
     hasRecording: boolean;
   };
   match: {
+    source: CallSourceKey;
     windowLabel: string;
     hasSummary: boolean;
     hasTranscription: boolean;
@@ -37,7 +40,20 @@ interface PreviewItem {
     };
   } | null;
   searchWays: string[];
-  windowAttempts: { label: string; found: boolean }[];
+  sourceAttempts: SourceAttempt[];
+}
+
+const ATTEMPT_LABEL: Record<SourceAttempt["status"], string> = {
+  found: "trouvé",
+  empty: "aucun appel",
+  skipped: "non interrogé",
+  error: "indisponible",
+};
+
+function attemptsText(attempts: SourceAttempt[]): string {
+  return attempts
+    .map((a) => `${ORIGIN_META[a.source].label} : ${a.status === "skipped" && a.reason ? a.reason.toLowerCase() : ATTEMPT_LABEL[a.status]}`)
+    .join(" → ");
 }
 
 export function SyncRdvAudiosModal({
@@ -119,7 +135,7 @@ export function SyncRdvAudiosModal({
       const items: PreviewItem[] = json.data.items ?? [];
       setPreview(items);
       setSelectedToSync(new Set(items.filter((i) => !!i.match).map((i) => i.actionId)));
-      setResult(`${json.data.matchedCount ?? 0} correspondance(s) Allo trouvée(s).`);
+      setResult(`${json.data.matchedCount ?? 0} appel(s) trouvé(s) — Call Vault, puis Twilio, puis Allo.`);
     } catch {
       setError("Erreur réseau lors de la prévisualisation.");
     } finally {
@@ -280,23 +296,19 @@ export function SyncRdvAudiosModal({
                   <td style={{ padding: 10, fontSize: 11 }}>
                     {row.match ? (
                       <div style={{ display: "grid", gap: 4 }}>
-                        <div style={{ color: "var(--ink2)" }}>
-                          <strong>TROUVÉ</strong> via <strong>{row.match.windowLabel}</strong> · audio: {row.match.hasRecording ? "oui" : "non"} · transcription:{" "}
-                          {row.match.hasTranscription ? "oui" : "non"} · résumé: {row.match.hasSummary ? "oui" : "non"}
+                        <div style={{ color: "var(--ink2)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                          <span className="rdv-origin" data-origin={row.match.source}>{ORIGIN_META[row.match.source].label}</span>
+                          <span>{row.match.windowLabel.toLowerCase()}</span>
                         </div>
                         <div style={{ color: "var(--ink3)" }}>
-                          Fenêtres testées: {row.windowAttempts.map((w) => `${w.label}${w.found ? " (ok)" : ""}`).join(" · ")}
+                          audio : {row.match.hasRecording ? "oui" : "non"} · transcription : {row.match.hasTranscription ? "oui" : "non"} · résumé :{" "}
+                          {row.match.hasSummary ? "oui" : "non"}
                         </div>
                       </div>
                     ) : (
                       <div style={{ display: "grid", gap: 4 }}>
                         <span style={{ color: "var(--red)", fontWeight: 600 }}>NON TROUVÉ</span>
-                        <div style={{ color: "var(--ink3)" }}>
-                          Sources testées: {row.searchWays.join(" · ")}
-                        </div>
-                        <div style={{ color: "var(--ink3)" }}>
-                          Fenêtres testées: {row.windowAttempts.map((w) => w.label).join(" · ") || "—"}
-                        </div>
+                        <div style={{ color: "var(--ink3)" }}>{attemptsText(row.sourceAttempts) || "—"}</div>
                       </div>
                     )}
                   </td>

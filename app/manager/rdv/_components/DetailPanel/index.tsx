@@ -69,7 +69,7 @@ const TABS: { key: PanelTab; label: string; Icon: typeof FileText }[] = [
   { key: "detail", label: "Détail", Icon: FileText },
   { key: "fiche", label: "Fiche RDV", Icon: FileText },
   { key: "feedback", label: "Feedback", Icon: ThumbsUp },
-  { key: "audio", label: "Audio & IA", Icon: Mic },
+  { key: "audio", label: "Appel & IA", Icon: Mic },
   { key: "history", label: "Historique", Icon: History },
 ];
 
@@ -176,7 +176,11 @@ export function DetailPanel({
     });
   };
 
-  const hasAudio = !!selectedMeeting.callRecordingUrl?.trim();
+  const hasAudio = !!(
+    selectedMeeting.callRecordingUrl?.trim() ||
+    selectedMeeting.callTranscription?.trim() ||
+    selectedMeeting.callSummary?.trim()
+  );
   const hasFiche = !!(
     selectedMeeting.rdvFiche?.contexte ||
     selectedMeeting.rdvFiche?.besoinsProblemes ||
@@ -513,10 +517,12 @@ export function DetailPanel({
           )}
           {panelTab === "audio" && (
             <AudioTab
+              key={selectedMeeting.id}
               meeting={selectedMeeting}
               updateMeeting={updateMeeting}
               setSelectedMeeting={setSelectedMeeting}
               ficheState={ficheState}
+              onOpenFiche={() => setPanelTab("fiche")}
             />
           )}
           {panelTab === "history" && (

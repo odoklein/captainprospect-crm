@@ -1,5 +1,5 @@
 import type { CallProvider, CallProviderInput, CallRecord } from './provider';
-import { fetchVaultCallMatches, vaultRecordingProxyUrl } from '@/lib/call-vault-client';
+import { fetchVaultCallMatches, isVaultConfigured, vaultRecordingProxyUrl } from '@/lib/call-vault-client';
 
 /**
  * CallProvider backed by call-vault instead of WithAllo directly. `alloNumbers`/`sdrId` from
@@ -8,6 +8,7 @@ import { fetchVaultCallMatches, vaultRecordingProxyUrl } from '@/lib/call-vault-
  */
 export class VaultProvider implements CallProvider {
   async fetchMatchingCallRecord(input: CallProviderInput): Promise<CallRecord | null> {
+    if (!isVaultConfigured()) return null;
     const matches = await fetchVaultCallMatches({
       phones: input.phones,
       windowStart: input.windowStart,
@@ -25,6 +26,8 @@ export class VaultProvider implements CallProvider {
       // that one expires in an hour and this field gets persisted (see vaultRecordingProxyUrl).
       recordingUrl: best.recordingUrl?.trim() ? (vaultRecordingProxyUrl(best.callId) ?? undefined) : undefined,
       duration: typeof best.durationSec === 'number' && !Number.isNaN(best.durationSec) ? Math.round(best.durationSec) : undefined,
+      providerCallId: best.callId,
+      startedAt: best.startedAt ?? undefined,
     };
   }
 }

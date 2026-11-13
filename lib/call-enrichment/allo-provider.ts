@@ -158,7 +158,23 @@ function alloCallToRecord(call: AlloCall): CallRecord {
     transcription,
     recordingUrl:   call.recording_url?.trim() || undefined,
     duration:       typeof call.duration === 'number' && !Number.isNaN(call.duration) ? Math.round(call.duration) : undefined,
+    providerCallId: call.id,
+    startedAt:      callTimestamp(call)?.toISOString(),
   };
+}
+
+/** One Allo call as the manager's call picker shows it. */
+export interface AlloCallMatch {
+  id: string;
+  fromNumber: string;
+  toNumber: string;
+  direction: 'INBOUND' | 'OUTBOUND';
+  status: string | null;
+  durationSec: number;
+  startedAt: string | null;
+  summary: string | null;
+  transcription: string | null;
+  recordingUrl: string | null;
 }
 
 function callTimestamp(call: AlloCall): Date | null {
@@ -408,6 +424,47 @@ export class AlloProvider implements CallProvider {
     }
 
     return { call: null, report };
+  }
+
+  /**
+   * Every call of the given phones on the given Allo lines in a window (newest first) —
+   * for the manager's manual picker. Lines are read serially, like the matcher.
+   */
+  async listMatchingCalls(input: { phones: string[]; alloNumbers: string[]; windowStart: Date; windowEnd: Date; limit?: number }): Promise<AlloCallMatch[]> {
+    const variants = input.phones.flatMap(phoneVariants);
+    const limit = input.limit ?? 50;
+    const found = new Map<string, AlloCall>();
+    for (let i = 0; i < input.alloNumbers.length && found.size < limit; i++) {
+      const line = input.alloNumbers[i]!;
+      for (let page = 0; page < MAX_PAGES && found.size < limit; page++) {
+        const { calls, totalPages, httpOk } = await this.fetchPageForLine(line, page);
+        if (!httpOk || calls.length === 0) break;
+        for (const call of calls) {
+          if (callFallsInWindow(call, input.windowStart, input.windowEnd) && phoneMatchesCall(call, variants)) found.set(call.id, call);
+        }
+        const oldest = callTimestamp(calls[calls.length - 1]!);
+        if ((oldest && oldest < input.windowStart) || page + 1 >= totalPages) break;
+      }
+      if (i < input.alloNumbers.length - 1 && LINE_GAP_MS > 0) await sleep(LINE_GAP_MS);
+    }
+    return [...found.values()]
+      .map((call) => {
+        const rec = alloCallToRecord(call);
+        return {
+          id: call.id,
+          fromNumber: call.from,
+          toNumber: call.to,
+          direction: call.direction,
+          status: call.outcome ?? null,
+          durationSec: rec.duration ?? 0,
+          startedAt: rec.startedAt ?? null,
+          summary: rec.summary ?? null,
+          transcription: rec.transcription ?? null,
+          recordingUrl: rec.recordingUrl ?? null,
+        };
+      })
+      .sort((a, b) => (b.startedAt ?? '').localeCompare(a.startedAt ?? ''))
+      .slice(0, limit);
   }
 
   async fetchMatchingCallRecord(input: CallProviderInput): Promise<CallRecord | null> {

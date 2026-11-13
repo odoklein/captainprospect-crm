@@ -10,7 +10,7 @@
     "lint": "eslint",
     "brand:check": "tsx scripts/brand-check.ts",
     "ai:token-audit": "tsx scripts/assistant-token-audit.ts",
-    "test:call-enrichment": "tsx --test lib/call-enrichment/allo-response.test.ts",
+    "test:call-enrichment": "tsx --test lib/call-enrichment/allo-response.test.ts lib/call-enrichment/provider.test.ts app/manager/rdv/_components/DetailPanel/audio/call-model.test.ts",
     "test:list-health": "tsx --test lib/services/ListHealthService.test.ts lib/services/ListHealthService.sql.pglite.test.ts",
     "test:ai-tools": "tsx --test lib/ai/tools/guard.test.ts",
     "test:assistant": "tsx --test lib/ai/agent/runtime.test.ts lib/ai/agent/verify/verifier.test.ts lib/ai/tools/guard.test.ts lib/assistant/answer.test.ts lib/ai/providers/providers.test.ts lib/ai/usage.test.ts",

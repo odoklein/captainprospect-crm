@@ -276,7 +276,7 @@ export async function linkCallToAction(action: {
         const linked = await prisma.telephonyCall.findUnique({ where: { id: action.callId } });
         if (linked) {
             await syncLinkedAction(linked);
-            await syncSummaryToAction(linked.id);
+            await syncSummaryToAction(linked.id, { fillFiche: false });
         }
         return linked;
     }
@@ -320,6 +320,6 @@ export async function linkCallToAction(action: {
     const linked = { ...call, actionId: action.id };
     await syncLinkedAction(linked);
     // A summary/transcript may already exist (the SDR qualified after the AI finished).
-    await syncSummaryToAction(call.id);
+    await syncSummaryToAction(call.id, { fillFiche: false });
     return linked;
 }

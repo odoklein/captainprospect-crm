@@ -1,14 +1,16 @@
-import { NextRequest } from "next/server";
+import { NextRequest, after } from "next/server";
 import { DateTime } from "luxon";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getAlloNumbersForAction } from "@/lib/call-enrichment/enrich-action";
-import { callProvider } from "@/lib/call-enrichment/provider";
+import { findCallWithFallback } from "@/lib/call-enrichment/provider";
+import {
+  extractAdditionalPhonesFromJson,
+  normalizePhonesFromField,
+  rdvSearchWindows,
+} from "@/lib/call-enrichment/rdv-call-context";
+import { fillRdvFicheIfEmpty } from "@/lib/call-enrichment/rdv-fiche";
 import { errorResponse, requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
-import { parsePhoneNumber, isValidPhoneNumber } from "libphonenumber-js";
-
-const DEFAULT_COUNTRY = (process.env.PHONE_DEFAULT_COUNTRY ?? "FR") as Parameters<typeof isValidPhoneNumber>[1];
-const ENRICHMENT_DAY_TZ = process.env.CALL_ENRICHMENT_DAY_TZ ?? "Europe/Paris";
 const MAX_ACTIONS = 150;
 const schema = z.object({
   actionIds: z.array(z.string().min(1)).min(1).max(MAX_ACTIONS),
@@ -30,141 +32,24 @@ const syncSchema = z.object({
     .max(MAX_ACTIONS),
 });
 
-function normalizePhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  try {
-    if (isValidPhoneNumber(raw, DEFAULT_COUNTRY)) {
-      return parsePhoneNumber(raw, DEFAULT_COUNTRY).format("E.164");
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function extractPhoneCandidates(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  const text = raw.trim();
-  if (!text) return [];
-  const chunks = text.match(/(?:\+|00)?\d(?:[\d\s()./-]{6,}\d)?/g) ?? [];
-  if (chunks.length === 0) return [text];
-  const candidates = new Set<string>();
-  for (const chunk of chunks) {
-    const cleaned = chunk.replace(/[^\d+]/g, "");
-    if (!cleaned) continue;
-    candidates.add(cleaned);
-    if (cleaned.startsWith("00")) candidates.add(`+${cleaned.slice(2)}`);
-    const digitsOnly = cleaned.replace(/\D/g, "");
-    if (digitsOnly.length === 10 && digitsOnly.startsWith("0")) {
-      candidates.add(digitsOnly);
-      candidates.add(`+33${digitsOnly.slice(1)}`);
-    }
-    if (digitsOnly.length === 11 && digitsOnly.startsWith("33")) candidates.add(`+${digitsOnly}`);
-  }
-  return [...candidates];
-}
-
-function normalizePhonesFromField(raw: string | null | undefined): string[] {
-  return [
-    ...new Set(
-      extractPhoneCandidates(raw)
-        .map(normalizePhone)
-        .filter((p): p is string => p !== null),
-    ),
-  ];
-}
-
 function phoneMatchesFilter(phones: string[], filter: string | undefined): boolean {
   const needle = filter?.replace(/\D/g, "");
   if (!needle) return true;
   return phones.some((phone) => phone.replace(/\D/g, "").includes(needle));
 }
 
-function extractAdditionalPhonesFromJson(data: unknown): string[] {
-  if (!data || typeof data !== "object") return [];
-  const asRecord = data as Record<string, unknown>;
-  const candidates: unknown[] = [];
-  for (const key of ["additionalPhones", "phones", "phoneNumbers"]) {
-    if (key in asRecord) candidates.push(asRecord[key]);
-  }
-  const flattened = candidates.flatMap((value) =>
-    Array.isArray(value) ? value : value == null ? [] : [value],
-  );
-  return flattened
-    .map((v) => (typeof v === "string" ? v : null))
-    .filter((v): v is string => !!v);
-}
-
-function calendarDayWindow(date: Date): { start: Date; end: Date } {
-  const local = DateTime.fromJSDate(date, { zone: "utc" }).setZone(ENRICHMENT_DAY_TZ);
-  return {
-    start: local.startOf("day").toUTC().toJSDate(),
-    end: local.endOf("day").toUTC().toJSDate(),
-  };
-}
-
-function relativeWindow(date: Date, beforeHours: number, afterHours: number): { start: Date; end: Date } {
-  return {
-    start: new Date(date.getTime() - beforeHours * 60 * 60 * 1000),
-    end: new Date(date.getTime() + afterHours * 60 * 60 * 1000),
-  };
-}
-
-type MatchResult = {
-  summary?: string;
-  transcription?: string;
-  recordingUrl?: string;
-  windowLabel: string;
-};
-
-type SearchAttempt = {
-  label: string;
-  found: boolean;
-};
-
-async function findBestMatchForAction(input: {
-  sdrId: string;
-  createdAt: Date;
-  callbackDate: Date | null;
-  phones: string[];
-  alloNumbers: string[];
-}): Promise<{ match: MatchResult | null; attempts: SearchAttempt[] }> {
-  const windows: Array<{ label: string; start: Date; end: Date }> = [];
-  const attempts: SearchAttempt[] = [];
-  if (input.callbackDate) {
-    const day = calendarDayWindow(input.callbackDate);
-    windows.push({ label: "Jour RDV", start: day.start, end: day.end });
-    const rel = relativeWindow(input.callbackDate, 24, 24);
-    windows.push({ label: "RDV ±24h", start: rel.start, end: rel.end });
-  }
-  const createdDay = calendarDayWindow(input.createdAt);
-  windows.push({ label: "Jour création action", start: createdDay.start, end: createdDay.end });
-  const createdRel = relativeWindow(input.createdAt, 24, 24);
-  windows.push({ label: "Création ±24h", start: createdRel.start, end: createdRel.end });
-
-  for (const w of windows) {
-    const record = await callProvider.fetchMatchingCallRecord({
-      phones: input.phones,
-      alloNumbers: input.alloNumbers,
-      sdrId: input.sdrId,
-      windowStart: w.start,
-      windowEnd: w.end,
-    });
-    if (record && (record.recordingUrl?.trim() || record.transcription?.trim() || record.summary?.trim())) {
-      attempts.push({ label: w.label, found: true });
-      return {
-        attempts,
-        match: {
-          summary: record.summary?.trim() || undefined,
-          transcription: record.transcription?.trim() || undefined,
-          recordingUrl: record.recordingUrl?.trim() || undefined,
-          windowLabel: w.label,
-        },
-      };
+/** Runs `fn` over `items` with at most `limit` in flight (Allo rate-limits bursts). */
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
     }
-    attempts.push({ label: w.label, found: false });
-  }
-  return { match: null, attempts };
+  });
+  await Promise.all(workers);
+  return out;
 }
 
 async function fetchRdvActions(input: { actionIds: string[]; dateFrom?: string; dateTo?: string }) {
@@ -181,6 +66,8 @@ async function fetchRdvActions(input: { actionIds: string[]; dateFrom?: string; 
     select: {
       id: true,
       sdrId: true,
+      contactId: true,
+      companyId: true,
       createdAt: true,
       callbackDate: true,
       meetingPhone: true,
@@ -235,58 +122,54 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   if (actionsWithPhones.length === 0) return successResponse({ items: [], matchedCount: 0 });
 
-  const items = await Promise.all(
-    actionsWithPhones.map(async ({ action: a, phones: dedupedPhones }) => {
-      const searchWays = [
-        "meetingPhone",
-        "contact.phone",
-        "company.phone",
-        "contact.additionalPhones",
-        "company.customData(additionalPhones/phones/phoneNumbers)",
-      ];
-      const lookup =
-        dedupedPhones.length > 0
-          ? await getAlloNumbersForAction(a.sdrId).then(({ alloNumbers }) =>
-              alloNumbers.length > 0
-                ? findBestMatchForAction({
-                    sdrId: a.sdrId,
-                    createdAt: a.createdAt,
-                    callbackDate: a.callbackDate,
-                    phones: dedupedPhones,
-                    alloNumbers,
-                  })
-                : { match: null, attempts: [] as SearchAttempt[] },
-            )
-          : { match: null, attempts: [] as SearchAttempt[] };
-      const contactName = [a.contact?.firstName, a.contact?.lastName].filter(Boolean).join(" ").trim() || "—";
-      return {
-        actionId: a.id,
-        contactName,
-        companyName: a.company?.name || "—",
-        phonesTried: dedupedPhones,
-        existing: {
-          hasSummary: !!a.callSummary?.trim(),
-          hasTranscription: !!a.callTranscription?.trim(),
-          hasRecording: !!a.callRecordingUrl?.trim(),
-        },
-        searchWays,
-        windowAttempts: lookup.attempts,
-        match: lookup.match
-          ? {
-              windowLabel: lookup.match.windowLabel,
-              hasSummary: !!lookup.match.summary,
-              hasTranscription: !!lookup.match.transcription,
-              hasRecording: !!lookup.match.recordingUrl,
-              syncPayload: {
-                summary: lookup.match.summary ?? null,
-                transcription: lookup.match.transcription ?? null,
-                recordingUrl: lookup.match.recordingUrl ?? null,
-              },
-            }
-          : null,
-      };
-    }),
-  );
+  const items = await mapLimit(actionsWithPhones, 4, async ({ action: a, phones: dedupedPhones }) => {
+    const searchWays = [
+      "meetingPhone",
+      "contact.phone",
+      "company.phone",
+      "contact.additionalPhones",
+      "company.customData(additionalPhones/phones/phoneNumbers)",
+    ];
+    const { alloNumbers } = await getAlloNumbersForAction(a.sdrId);
+    // Call Vault → Twilio → Allo, each on every window, closest window first.
+    const { record, attempts } = await findCallWithFallback({
+      phones: dedupedPhones,
+      alloNumbers,
+      sdrId: a.sdrId,
+      actionId: a.id,
+      contactId: a.contactId,
+      companyId: a.companyId,
+      windows: rdvSearchWindows({ createdAt: a.createdAt, callbackDate: a.callbackDate }),
+    });
+    const contactName = [a.contact?.firstName, a.contact?.lastName].filter(Boolean).join(" ").trim() || "—";
+    return {
+      actionId: a.id,
+      contactName,
+      companyName: a.company?.name || "—",
+      phonesTried: dedupedPhones,
+      existing: {
+        hasSummary: !!a.callSummary?.trim(),
+        hasTranscription: !!a.callTranscription?.trim(),
+        hasRecording: !!a.callRecordingUrl?.trim(),
+      },
+      searchWays,
+      sourceAttempts: attempts,
+      match: record
+        ? {
+            source: record.source,
+            windowLabel: record.window,
+            hasSummary: !!record.summary,
+            hasTranscription: !!record.transcription,
+            hasRecording: !!record.recordingUrl,
+            syncPayload: {
+              summary: record.summary ?? null,
+              transcription: record.transcription ?? null,
+              recordingUrl: record.recordingUrl ?? null,
+            },
+          }
+        : null,
+    };
+  });
 
   return successResponse({
     items,
@@ -319,6 +202,7 @@ export const PATCH = withErrorHandler(async (request: NextRequest) => {
 
   let synced = 0;
   let noMatch = 0;
+  const withTranscript: string[] = [];
   for (const a of actions) {
     const payload = unique.get(a.id);
     if (!payload) continue;
@@ -338,6 +222,14 @@ export const PATCH = withErrorHandler(async (request: NextRequest) => {
       },
     });
     synced += 1;
+    if (payload.transcription?.trim()) withTranscript.push(a.id);
+  }
+
+  // Fiches are written from the transcripts after the response (one AI call each).
+  if (withTranscript.length) {
+    after(async () => {
+      for (const id of withTranscript) await fillRdvFicheIfEmpty(id);
+    });
   }
 
   return successResponse({ synced, noMatch, noPhone: 0, total: actions.length });

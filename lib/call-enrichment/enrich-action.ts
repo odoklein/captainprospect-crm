@@ -3,6 +3,7 @@ import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 import { prisma } from '@/lib/prisma';
 import { ceDebug, isCallEnrichmentDebug } from './debug';
 import { callProvider } from './provider';
+import { fillRdvFicheIfEmpty } from './rdv-fiche';
 import { acquireAlloSlot } from './allo-semaphore';
 import { integrationKey } from "@/lib/integrations/keys";
 
@@ -166,7 +167,7 @@ export async function enrichActionFromCallProvider(
 
   const action = await prisma.action.findUnique({
     where: { id: actionId },
-    select: { id: true, sdrId: true, createdAt: true, callEnrichmentAt: true, callSummary: true, callRecordingUrl: true },
+    select: { id: true, sdrId: true, contactId: true, companyId: true, createdAt: true, callEnrichmentAt: true, callSummary: true, callRecordingUrl: true },
   });
 
   if (!action) {
@@ -196,16 +197,16 @@ export async function enrichActionFromCallProvider(
     WINDOW_AFTER_MS,
   });
 
-  if (phones.length === 0) {
+  // Twilio can still match a phoneless action by its contact / company.
+  if (phones.length === 0 && !action.contactId && !action.companyId) {
     console.warn(`[call-enrichment] outcome=NO_PHONE actionId=${actionId} — no E.164-normalized number from meetingPhone / contact / company`);
     await prisma.action.update({ where: { id: actionId }, data: { callEnrichmentError: 'NO_PHONE' } });
     return;
   }
 
+  // No Allo line only skips the Allo step of the chain — Call Vault and Twilio are still asked.
   if (alloNumbers.length === 0) {
-    console.warn(`[call-enrichment] outcome=NO_ALLO_NUMBERS actionId=${actionId} — env ALLO_NUMBERS is empty`);
-    await prisma.action.update({ where: { id: actionId }, data: { callEnrichmentError: 'NO_ALLO_NUMBERS' } });
-    return;
+    console.log(`[call-enrichment] no Allo line for actionId=${actionId} — Allo fallback skipped, Call Vault and Twilio still searched`);
   }
 
   const { windowStart, windowEnd, logHint } = enrichmentWindowForAction(action.createdAt);
@@ -216,7 +217,16 @@ export async function enrichActionFromCallProvider(
   let record;
   const releaseAlloSlot = await acquireAlloSlot();
   try {
-    record = await callProvider.fetchMatchingCallRecord({ phones, alloNumbers, sdrId: action.sdrId, windowStart, windowEnd });
+    record = await callProvider.fetchMatchingCallRecord({
+      phones,
+      alloNumbers,
+      sdrId: action.sdrId,
+      windowStart,
+      windowEnd,
+      actionId: action.id,
+      contactId: action.contactId,
+      companyId: action.companyId,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message.slice(0, 200) : 'PROVIDER_ERROR';
     console.error(`[call-enrichment] outcome=PROVIDER_ERROR actionId=${actionId} message=${msg}`, err);
@@ -227,13 +237,7 @@ export async function enrichActionFromCallProvider(
   }
 
   if (!record) {
-    const noop = !hasKey;
-    console.warn(
-      `[call-enrichment] outcome=NO_MATCH actionId=${actionId}` +
-        (noop
-          ? " — provider is NOOP (ALLO_API_KEY unset); no WithAllo request was made"
-          : " — no call matched phone + time window on any ALLO_NUMBERS line (see [allo] line reports above)"),
-    );
+    console.warn(`[call-enrichment] outcome=NO_MATCH actionId=${actionId} — no source (Call Vault → Twilio → Allo) had a call in the window`);
     await prisma.action.update({ where: { id: actionId }, data: { callEnrichmentError: 'NO_MATCH' } });
     return;
   }
@@ -267,6 +271,8 @@ export async function enrichActionFromCallProvider(
   });
 
   console.log(
-    `[call-enrichment] outcome=ENRICHED_OK actionId=${actionId} summary=${!!record.summary} transcription=${!!record.transcription} recording=${!!record.recordingUrl}`,
+    `[call-enrichment] outcome=ENRICHED_OK actionId=${actionId} source=${record.source ?? "?"} summary=${!!record.summary} transcription=${!!record.transcription} recording=${!!record.recordingUrl}`,
   );
+  // An RDV gets its fiche from the conversation (no-op for other results or a filled fiche).
+  if (record.transcription?.trim()) await fillRdvFicheIfEmpty(actionId);
 }

@@ -18,6 +18,7 @@ import { transcribeAudioFr } from "@/lib/ai/mistral-transcribe";
 import { integrationKey } from "@/lib/integrations/keys";
 import { getTwilioConfig } from "./config";
 import { isTwilioRecordingUrl } from "./twilio";
+import { fillRdvFicheIfEmpty } from "@/lib/call-enrichment/rdv-fiche";
 
 /** How long an answered call may wait for Twilio's recording before we give up on it. */
 const RECORDING_WAIT_MS = 5 * 60_000;
@@ -390,8 +391,12 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
     }
 }
 
-/** Copies the AI summary and transcript onto the call's qualification, without overwriting anything. */
-export async function syncSummaryToAction(callId: string): Promise<void> {
+/**
+ * Copies the AI summary and transcript onto the call's qualification, without overwriting anything.
+ * `fillFiche: false` when called inside a user request (the SDR saving): the fiche is an AI call,
+ * the caller schedules it after the response instead.
+ */
+export async function syncSummaryToAction(callId: string, opts: { fillFiche?: boolean } = {}): Promise<void> {
     const call = await prisma.telephonyCall.findUnique({
         where: { id: callId },
         include: { transcript: { orderBy: [{ at: "asc" }, { seq: "asc" }] } },
@@ -400,9 +405,17 @@ export async function syncSummaryToAction(callId: string): Promise<void> {
     const action = await prisma.action.findUnique({ where: { id: call.actionId }, select: { callSummary: true, callTranscription: true } });
     if (!action) return;
 
-    const data: { callSummary?: string; callTranscription?: string } = {};
+    const data: { callSummary?: string; callTranscription?: string; callEnrichmentAt?: Date; callEnrichmentError?: null } = {};
     const state = readSummaryState(call);
     if (!action.callSummary && state.status === "done") data.callSummary = summaryText(state.data);
-    if (!action.callTranscription && call.transcript.length) data.callTranscription = transcriptText(call.transcript);
-    if (Object.keys(data).length) await prisma.action.update({ where: { id: call.actionId }, data });
+    // Only once the call is over: an RDV is often booked while still on the line, and copying
+    // the live transcript then would freeze a half conversation on the RDV (never overwritten).
+    if (!action.callTranscription && call.endedAt && call.transcript.length) data.callTranscription = transcriptText(call.transcript);
+    if (Object.keys(data).length) {
+        data.callEnrichmentAt = new Date();
+        data.callEnrichmentError = null;
+        await prisma.action.update({ where: { id: call.actionId }, data });
+    }
+    // An RDV booked from the softphone gets its fiche written from the conversation.
+    if (call.endedAt && opts.fillFiche !== false) await fillRdvFicheIfEmpty(call.actionId);
 }

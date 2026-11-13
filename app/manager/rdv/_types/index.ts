@@ -141,7 +141,7 @@ export const QUICK_PRESETS: QuickPreset[] = [
   { id: "absent_open", label: "Absents à traiter", icon: AlertTriangle, description: "Signalés absents, ni replacés ni mis de côté" },
   { id: "to_confirm", label: "À confirmer", icon: Clock, description: "RDV à venir en attente de confirmation" },
   { id: "past_no_feedback", label: "Sans feedback", icon: MessageSquare, description: "RDV passés sans retour renseigné" },
-  { id: "no_audio", label: "Sans audio", icon: MicOff, description: "RDV sans enregistrement Allo lié" },
+  { id: "no_audio", label: "Sans audio", icon: MicOff, description: "RDV sans enregistrement d'appel lié (Call Vault, Twilio ou Allo)" },
   { id: "this_week", label: "Cette semaine", icon: CalendarDays, description: "RDV créés cette semaine" },
   { id: "positive", label: "Positifs", icon: CheckCircle2, description: "RDV avec feedback positif" },
 ];

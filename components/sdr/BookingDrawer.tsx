@@ -94,7 +94,11 @@ interface BookingDrawerProps {
     /** Fired once the RDV is recorded. For a physical RDV the drawer first stays on
      *  its confirmation screen (address → Google Maps) and fires this when the SDR
      *  leaves it; the other formats fire it immediately. */
-    onBookingSuccess?: () => void;
+    onBookingSuccess?: (result: BookingSuccessResult) => void;
+    /** What the SDR typed about the RDV — stored on the RDV instead of the calendar trace. */
+    note?: string;
+    /** The softphone call being qualified: its recording, transcript and summary follow the RDV. */
+    telephonyCallId?: string | null;
     interlocuteurs?: SdrInterlocuteur[];
     /** Commercial that owns the current list (or the mission default). When set,
      *  the drawer pre-selects that commercial's calendar and folds the rest into a
@@ -105,9 +109,18 @@ interface BookingDrawerProps {
     preferredInterlocuteurIds?: string[] | null;
 }
 
+/** Handed to `onBookingSuccess`: the RDV that was just recorded. */
+export interface BookingSuccessResult {
+    actionId?: string;
+    rebookedAbsent?: boolean;
+    /** A softphone call was attached: its audio and transcript reach the RDV on their own. */
+    callLinked?: boolean;
+}
+
 /** The RDV as recorded. The confirmation screen reads this rather than the form,
  *  which controlling callers reset on success. */
 interface ConfirmedBooking {
+    result: BookingSuccessResult;
     rdvDate?: string;
     meetingType: "" | "VISIO" | "PHYSIQUE" | "TELEPHONIQUE";
     meetingAddress: string;
@@ -544,6 +557,8 @@ export function BookingDrawer({
     onMeetingJoinUrlChange,
     onMeetingPhoneChange,
     onBookingSuccess,
+    note,
+    telephonyCallId,
     interlocuteurs,
     preferredInterlocuteurId,
     preferredInterlocuteurIds,
@@ -754,6 +769,8 @@ export function BookingDrawer({
                     ...(phone && { meetingPhone: phone }),
                     ...(selectedOption?.interlocuteurId && { interlocuteurId: selectedOption.interlocuteurId }),
                     ...(interlocuteurName && { interlocuteurName }),
+                    ...(note?.trim() && { note: note.trim() }),
+                    ...(telephonyCallId && { telephonyCallId }),
                 }),
             });
             const json = await res.json();
@@ -765,7 +782,13 @@ export function BookingDrawer({
 
             bookingHandledRef.current = true;
             pendingEventDataRef.current = null;
+            const result: BookingSuccessResult = {
+                actionId: json.data?.actionId,
+                rebookedAbsent: Boolean(json.data?.rebookedAbsent),
+                callLinked: Boolean(json.data?.callLinked),
+            };
             setConfirmedBooking({
+                result,
                 rdvDate: isoRdvDate,
                 meetingType: effectiveMeetingType,
                 meetingAddress: address,
@@ -776,7 +799,12 @@ export function BookingDrawer({
             if (json.data?.rebookedAbsent) {
                 success("RDV replanifié", `L'absence de ${contactName} est levée : le RDV repasse « À venir »`);
             } else {
-                success("Rendez-vous confirmé", `Le rendez-vous avec ${contactName} a été enregistré`);
+                success(
+                    "Rendez-vous confirmé",
+                    result.callLinked
+                        ? `RDV avec ${contactName} enregistré — l'appel (audio, transcription, fiche) y est rattaché automatiquement`
+                        : `Le rendez-vous avec ${contactName} a été enregistré`,
+                );
             }
             trackMeetingBooked({
                 leadId: contactId || companyId || "",
@@ -785,7 +813,7 @@ export function BookingDrawer({
                 scheduledAt: isoRdvDate,
             });
             if (effectiveMeetingType !== "PHYSIQUE") {
-                onBookingSuccess?.();
+                onBookingSuccess?.(result);
                 setTimeout(onClose, 1800);
             }
         } catch (err) {
@@ -795,7 +823,7 @@ export function BookingDrawer({
         } finally {
             setIsProcessing(false);
         }
-    }, [contactId, companyId, contactName, contactInfo?.companyName, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, onBookingSuccess, onClose, success, showError]);
+    }, [contactId, companyId, contactName, contactInfo?.companyName, effectiveMeetingType, effectiveMeetingCategory, effectiveMeetingAddress, effectiveMeetingJoinUrl, effectiveMeetingPhone, selectedOption, note, telephonyCallId, onBookingSuccess, onClose, success, showError]);
 
     // Listen for booking completion postMessage
     useEffect(() => {
@@ -856,9 +884,9 @@ export function BookingDrawer({
 
     /** Leaves the physical-RDV confirmation and hands back to the caller. */
     const finishBooking = useCallback(() => {
-        onBookingSuccess?.();
+        onBookingSuccess?.(confirmedBooking?.result ?? {});
         onClose();
-    }, [onBookingSuccess, onClose]);
+    }, [onBookingSuccess, onClose, confirmedBooking]);
 
     if (!portalTarget) return null;
 

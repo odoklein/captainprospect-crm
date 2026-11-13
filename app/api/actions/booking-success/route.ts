@@ -6,12 +6,14 @@
 // Regression: (1) Book with each format from UnifiedActionDrawer (2) Confirm CTAs in SDR, client portal, manager client (3) Cancel/reschedule/feedback unchanged.
 // ============================================
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireRole, withErrorHandler, validateRequest } from '@/lib/api-utils';
 import { z } from 'zod';
 import { autoEnrichAction } from '@/lib/call-enrichment/auto-enrichment';
 import { rebookAbsentRdvInPlace } from '@/lib/meetings/absentRebook';
+import { linkCallToAction } from '@/lib/telephony/service';
+import { fillRdvFicheIfEmpty } from '@/lib/call-enrichment/rdv-fiche';
 
 // ============================================
 // SCHEMAS
@@ -29,6 +31,10 @@ const bookingSuccessSchema = z.object({
     meetingPhone: z.string().max(50).optional(),
     interlocuteurId: z.string().min(1).optional(),
     interlocuteurName: z.string().max(200).optional(),
+    /** What the SDR typed about the RDV in the qualification drawer. */
+    note: z.string().max(5000).optional(),
+    /** The softphone call being qualified, when the RDV was booked from (or right after) it. */
+    telephonyCallId: z.string().min(1).max(100).optional(),
 })
     .refine((data) => !!data.contactId || !!data.companyId, {
         message: 'Contact ou société requis',
@@ -201,19 +207,57 @@ function extractMeetingJoinUrl(eventData: Record<string, unknown> | undefined): 
 }
 
 // ============================================
+// CALL → RDV
+// ============================================
+
+/**
+ * Brings the call the RDV was booked on into the RDV. A softphone (Twilio) call is
+ * linked right away: its recording, transcript, AI summary and the fiche then
+ * land on the RDV on their own as Twilio delivers them (lib/telephony). Otherwise
+ * the call-source chain (Call Vault → Twilio → Allo) looks for it after the
+ * response. Returns true when a softphone call was linked.
+ */
+async function attachCallToRdv(input: {
+    actionId: string;
+    sdrId: string;
+    telephonyCallId?: string;
+    contactId: string | null;
+    companyId: string | null;
+}): Promise<boolean> {
+    let linked = false;
+    try {
+        linked = Boolean(await linkCallToAction({
+            id: input.actionId,
+            sdrId: input.sdrId,
+            callId: input.telephonyCallId ?? null,
+            contactId: input.contactId,
+            companyId: input.companyId,
+        }));
+    } catch (err) {
+        console.error('[booking-success] linking softphone call failed', err);
+    }
+    // Linked: the fiche is written from the transcript after the response (no-op while the call
+    // is still running — the end-of-call summary fills it then). Not linked: search the sources.
+    if (linked) after(() => fillRdvFicheIfEmpty(input.actionId).then(() => undefined));
+    else after(() => autoEnrichAction(input.actionId).then(() => undefined));
+    return linked;
+}
+
+// ============================================
 // POST /api/actions/booking-success
 // ============================================
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(['SDR', 'BUSINESS_DEVELOPER', 'MANAGER'], request);
-    const { contactId, companyId, eventData, rdvDate, meetingType, meetingCategory, meetingAddress, meetingJoinUrl, meetingPhone, interlocuteurId, interlocuteurName } = await validateRequest(request, bookingSuccessSchema);
+    const { contactId, companyId, eventData, rdvDate, meetingType, meetingCategory, meetingAddress, meetingJoinUrl, meetingPhone, interlocuteurId, interlocuteurName, note, telephonyCallId } = await validateRequest(request, bookingSuccessSchema);
 
     const bookingSourceLabel = interlocuteurName?.trim()
         ? `RDV planifié via calendrier (${interlocuteurName.trim()})`
         : 'RDV planifié via calendrier';
     // On ne stocke plus le dump JSON de l'event : il finissait affiché tel quel
     // (ex. "RDV planifié via calendrier (X): {}") dans les portails client/commercial.
-    const bookingNote = bookingSourceLabel;
+    // Ce que le SDR a écrit sur le RDV prime sur la trace machine (masquée à l'affichage).
+    const bookingNote = note?.trim() || bookingSourceLabel;
 
     const scheduledAt = rdvDate
         ? new Date(rdvDate)
@@ -317,13 +361,19 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             },
         });
 
-        // Fire-and-forget: search for Allo audio + generate fiche in the background.
-        void autoEnrichAction(action.id);
+        const callLinked = await attachCallToRdv({
+            actionId: action.id,
+            sdrId: session.user.id,
+            telephonyCallId,
+            contactId: contact.id,
+            companyId: contact.company.id,
+        });
 
         return NextResponse.json({
             success: true,
             data: {
                 actionId: action.id,
+                callLinked,
                 message: `Rendez-vous enregistré pour ${contact.firstName || ''} ${contact.lastName || ''}`.trim(),
             },
         });
@@ -418,13 +468,19 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
         },
     });
 
-    // Fire-and-forget: search for Allo audio + generate fiche in the background.
-    void autoEnrichAction(action.id);
+    const callLinked = await attachCallToRdv({
+        actionId: action.id,
+        sdrId: session.user.id,
+        telephonyCallId,
+        contactId: null,
+        companyId: company.id,
+    });
 
     return NextResponse.json({
         success: true,
         data: {
             actionId: action.id,
+            callLinked,
             message: `Rendez-vous enregistré pour la société ${company.name}`,
         },
     });

@@ -3716,9 +3716,12 @@ export default function SDRActionPage() {
                     interlocuteurs={currentAction.clientInterlocuteurs}
                     preferredInterlocuteurId={currentAction.preferredInterlocuteurId}
                     preferredInterlocuteurIds={currentAction.preferredInterlocuteurIds}
+                    note={note}
+                    telephonyCallId={autoMode ? autoCallId : undefined}
                     onBookingSuccess={() => {
                         setShowBookingDrawer(false);
                         setRdvDate("");
+                        setNote("");
                         loadNextAction();
                     }}
                 />

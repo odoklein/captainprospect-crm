@@ -15,6 +15,7 @@ import { createExclusionFromRow } from '@/lib/exclusions/service';
 import { prisma } from '@/lib/prisma';
 import { enqueueActionCallEnrichment } from '@/lib/call-enrichment/scheduler';
 import { linkCallToAction } from '@/lib/telephony/service';
+import { fillRdvFicheIfEmpty } from '@/lib/call-enrichment/rdv-fiche';
 import { z } from 'zod';
 import { ActionValidationError } from '@/lib/actions/action-result';
 
@@ -186,6 +187,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
             console.error('Linking softphone call to action failed:', err);
         }
         if (!viaSoftphone) after(() => enqueueActionCallEnrichment(action.id));
+        // An RDV qualified on a softphone call gets its fiche from the conversation.
+        else after(() => fillRdvFicheIfEmpty(action.id).then(() => undefined));
     }
 
     // The exclusion is applied after the action is safely stored: a failure here

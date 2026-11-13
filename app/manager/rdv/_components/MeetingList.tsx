@@ -24,6 +24,7 @@ import type { ConfirmationFilter } from "../_types";
 import { Copy, Linkedin, RefreshCw, Check, X, Mic, ChevronUp, ChevronDown } from "lucide-react";
 import type { SortField, SortDir } from "../_types";
 import { BUCKET_META, bucketSwatch, meetingBucket } from "../_lib/buckets";
+import { ORIGIN_META, originOfRecording } from "./DetailPanel/audio/call-model";
 
 interface MeetingListProps {
   meetings: Meeting[];
@@ -66,6 +67,7 @@ const MeetingRow = memo(function MeetingRow({
   const isUpcoming = bucket === "upcoming_confirmed" || bucket === "upcoming_pending";
   const [audioPopupOpen, setAudioPopupOpen] = useState(false);
   const hasAudio = !!meeting.callRecordingUrl?.trim();
+  const audioOrigin = originOfRecording(meeting.callRecordingUrl);
   const transcription = meeting.callTranscription?.trim() ?? "";
 
   const handleInlineConfirm = (e: React.MouseEvent) => {
@@ -254,7 +256,7 @@ const MeetingRow = memo(function MeetingRow({
               className="rdv-icon-btn"
               data-active={audioPopupOpen}
               style={{ width: 22, height: 22 }}
-              title="Audio et transcription"
+              title={audioOrigin ? `Audio et transcription · ${ORIGIN_META[audioOrigin].label}` : "Audio et transcription"}
             >
               <Mic size={12} />
             </button>
@@ -275,6 +277,11 @@ const MeetingRow = memo(function MeetingRow({
                   textAlign: "left",
                 }}
               >
+                {audioOrigin && (
+                  <div style={{ marginBottom: 6 }}>
+                    <span className="rdv-origin" data-origin={audioOrigin}>{ORIGIN_META[audioOrigin].label}</span>
+                  </div>
+                )}
                 <audio controls src={`/api/actions/${meeting.id}/recording`} style={{ width: "100%", height: 32 }} />
                 <div
                   className="rdv-scrollbar"

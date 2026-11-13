@@ -1377,6 +1377,41 @@ export function UnifiedActionDrawer({
 
     const handleSendEmailAndRecord = (andNext?: boolean) => sendEmailMutation.mutate({ andNext });
 
+    /**
+     * The Allo call the SDR picked by hand («  Lier un appel Allo ») goes onto the action
+     * it qualifies — a plain action or an RDV booked through the calendar drawer.
+     */
+    const attachPickedAlloCall = async (actionId: string) => {
+        const callToLink = linkedAlloCallRef.current;
+        if (!callToLink) return;
+        const transcription =
+            callToLink.transcription ??
+            (callToLink.transcript?.length ?
+                callToLink.transcript.map((t) => `${t.source}: ${t.text}`).join("\n")
+            :   null);
+        try {
+            const enrichRes = await fetch(`/api/actions/${actionId}/enrich-call`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    callId: callToLink.id,
+                    summary: callToLink.summary ?? null,
+                    transcription,
+                    recordingUrl: callToLink.recording_url ?? null,
+                }),
+            });
+            const enrichJson = await enrichRes.json();
+            if (!enrichJson.success) {
+                showError(
+                    "Appel non enregistré",
+                    enrichJson.error ?? "Les données Allo n'ont pas pu être attachées à l'action."
+                );
+            }
+        } catch {
+            showError("Appel non enregistré", "Erreur réseau lors de l'enrichissement.");
+        }
+    };
+
     const addActionMutation = useMutation({
         mutationFn: async ({ andNext }: { andNext?: boolean }) => {
             const campaignId = campaigns[0]?.id;
@@ -1453,35 +1488,9 @@ export function UnifiedActionDrawer({
             // An absent RDV booked again is the first RDV moved in place: its call
             // recording stays the first call's, so nothing is attached over it.
             const rebookedAbsent = Boolean(json.data?.rebookedAbsent);
-            const callToLink = linkedAlloCallRef.current;
             const missionChannel = (selectedCampaign?.mission?.channel ?? "CALL") as string;
-            if (newActionId && !rebookedAbsent && missionChannel === "CALL" && callToLink) {
-                const transcription =
-                    callToLink.transcription ??
-                    (callToLink.transcript?.length ?
-                        callToLink.transcript.map((t) => `${t.source}: ${t.text}`).join("\n")
-                    :   null);
-                try {
-                    const enrichRes = await fetch(`/api/actions/${newActionId}/enrich-call`, {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            callId: callToLink.id,
-                            summary: callToLink.summary ?? null,
-                            transcription,
-                            recordingUrl: callToLink.recording_url ?? null,
-                        }),
-                    });
-                    const enrichJson = await enrichRes.json();
-                    if (!enrichJson.success) {
-                        showError(
-                            "Appel non enregistré",
-                            enrichJson.error ?? "Les données Allo n'ont pas pu être attachées à l'action."
-                        );
-                    }
-                } catch {
-                    showError("Appel non enregistré", "Erreur réseau lors de l'enrichissement.");
-                }
+            if (newActionId && !rebookedAbsent && missionChannel === "CALL") {
+                await attachPickedAlloCall(newActionId);
             }
 
             return { andNext, rebookedAbsent };
@@ -4159,7 +4168,14 @@ export function UnifiedActionDrawer({
                     interlocuteurs={effectiveInterlocuteurs}
                     preferredInterlocuteurId={effectivePreferredInterlocuteurId}
                     preferredInterlocuteurIds={effectivePreferredInterlocuteurIds}
-                    onBookingSuccess={() => {
+                    note={newActionNote}
+                    telephonyCallId={telephonyCallId}
+                    onBookingSuccess={(result) => {
+                        // A hand-picked Allo call follows the RDV like any other qualification.
+                        if (result.actionId && !result.rebookedAbsent && !result.callLinked) {
+                            void attachPickedAlloCall(result.actionId);
+                        }
+                        setLinkedAlloCall(null);
                         setShowBookingDrawer(false);
                         setNewActionResult("");
                         setNewActionNote("");
