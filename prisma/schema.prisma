@@ -1381,6 +1381,9 @@ model TelephonyCall {
   @@index([sdrId, createdAt])
   @@index([sdrId, contactId, createdAt])
   @@index([sdrId, companyId, createdAt])
+  // lib/qualification/queue.ts: latest analysed call of a prospect, whoever placed it
+  @@index([contactId, startedAt])
+  @@index([companyId, startedAt])
 }
 
 /// AI pre-call brief for one prospect (contact, or company when called
@@ -5850,4 +5853,199 @@ model SmsOptOut {
   number    String   @unique // E.164
   keyword   String? // what they sent (STOP, ARRET…)
   createdAt DateTime @default(now())
+}
+
+// ============================================
+// SALES EXECUTION ENGINE — dialer sessions, attempts, post-call proposals
+// (docs/SALES_EXECUTION_ENGINE.md). Ids are plain strings, no FK to User /
+// Contact / Company, like TelephonyCall: the log survives a list being
+// re-imported. Two invariants live in the migration as PARTIAL unique indexes,
+// which Prisma cannot express: one non-ended DialerSession per sdrId, and one
+// non-ended DialAttempt per toNumber (a number is never rung twice at once,
+// whoever dials it).
+// ============================================
+
+enum DialerMode {
+  POWER // one line, next prospect chosen by the engine
+  PARALLEL // several lines, one conversation reaches the SDR
+}
+
+enum DialerSessionStatus {
+  OPEN
+  PAUSED // no new dial; calls already up are left alone
+  ENDED
+}
+
+/// What the SDR's browser leg is doing inside the session's conference.
+enum DialerAgentState {
+  JOINING // session created, browser not in the conference yet
+  READY // in the conference and free: the only state that may be reserved
+  RESERVED // a prospect answered and is being bridged to this SDR
+  ON_CALL // talking
+  WRAP_UP // conversation over, qualifying: no new dial until they are done
+  OFFLINE // browser gone (closed tab, lost network)
+}
+
+enum DialAttemptState {
+  PENDING // row created, not yet placed with the provider
+  DIALING // provider accepted the call
+  RINGING
+  ANSWERED // someone picked up; human / machine not known yet
+  BRIDGING // an SDR is reserved for it and the bridge was ordered
+  CONNECTED // both legs are in the conference: the only genuine connection
+  ENDED // terminal; see outcome
+}
+
+enum DialOutcome {
+  NO_ANSWER
+  BUSY
+  FAILED
+  CANCELED_SIBLING // another line answered first
+  CANCELED_SESSION // session ended or paused while it rang
+  VOICEMAIL // answering machine detected
+  MACHINE_OTHER // IVR / unclassifiable automaton
+  UNCERTAIN_RELEASED // detection stayed unknown: released rather than risk the SDR's time
+  ABANDONED // a person answered and no SDR could take the call
+  CONVERSATION // bridged and talked
+  TIMEOUT // no verdict from the provider in time
+}
+
+model DialerSession {
+  id         String              @id @default(cuid())
+  sdrId      String
+  missionId  String?
+  campaignId String?
+  mode       DialerMode          @default(PARALLEL)
+  status     DialerSessionStatus @default(OPEN)
+
+  agentState        DialerAgentState @default(JOINING)
+  /// The attempt the SDR is reserved for (RESERVED / ON_CALL); null otherwise.
+  reservedAttemptId String?
+  conferenceName    String           @unique
+  agentCallSid      String?          @unique // the browser leg inside the conference
+
+  /// Lines allowed at start, after policy and ceilings. The orchestrator may go lower, never higher.
+  maxLines       Int
+  policySnapshot Json?
+
+  startedAt       DateTime  @default(now())
+  /// Written by the browser; a session silent for too long is abandoned by the sweeper.
+  lastHeartbeatAt DateTime  @default(now())
+  endedAt         DateTime?
+  endReason       String?
+
+  attempts DialAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sdrId, status])
+  @@index([status, lastHeartbeatAt])
+}
+
+/// One outbound call placed by the orchestrator. The single source of truth for
+/// « what happened on this line »: every provider event is folded into it through
+/// compare-and-set transitions (lib/dialer/attempt-state.ts).
+model DialAttempt {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   DialerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sdrId     String
+
+  contactId  String?
+  companyId  String?
+  campaignId String?
+  toNumber   String
+  fromNumber String
+
+  state   DialAttemptState @default(PENDING)
+  outcome DialOutcome?
+
+  callSid         String? @unique // the prospect leg (CA…)
+  /// Provider's raw machine-detection verdict (human, machine_start, machine_end_beep, …, unknown, fax).
+  answeredBy      String?
+  /// The TelephonyCall row opened when the call is bridged: transcript, recording and AI summary hang off it.
+  telephonyCallId String? @unique
+  errorCode       String?
+
+  /// Why this prospect was picked: score and headline at selection time (explainability, accuracy metrics).
+  selection Json?
+
+  createdAt  DateTime  @default(now())
+  placedAt   DateTime?
+  ringingAt  DateTime?
+  answeredAt DateTime? // provider says the call was answered
+  detectedAt DateTime? // machine-detection verdict arrived
+  reservedAt DateTime? // an SDR was reserved
+  bridgedAt  DateTime? // both legs confirmed in the conference
+  endedAt    DateTime?
+
+  @@index([sessionId, state])
+  @@index([sdrId, createdAt])
+  @@index([fromNumber, createdAt])
+  @@index([contactId, createdAt])
+  @@index([state, createdAt])
+}
+
+/// Every provider callback and system decision, deduplicated on dedupeKey. A duplicate
+/// delivery hits the unique key and is dropped; a failed one stays unprocessed (error, tries)
+/// for the sweeper, and is parked after too many tries.
+model DialerEvent {
+  id          String    @id @default(cuid())
+  dedupeKey   String    @unique
+  sessionId   String?
+  attemptId   String?
+  source      String // twilio | system | browser
+  type        String
+  payload     Json
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+  tries       Int       @default(0)
+  error       String?
+
+  @@index([attemptId])
+  @@index([processedAt, receivedAt])
+}
+
+enum ProposalStatus {
+  PROPOSED
+  APPLIED
+  DISMISSED
+  FAILED
+}
+
+/// A CRM action proposed after a call (lib/post-call). key = callId:kind:payloadHash makes
+/// proposing twice harmless. APPLIED / DISMISSED rates are the AI's measured accuracy.
+model PostCallProposal {
+  id         String         @id @default(cuid())
+  key        String         @unique
+  callId     String
+  sdrId      String
+  contactId  String?
+  companyId  String?
+  campaignId String?
+  kind       String
+  status     ProposalStatus @default(PROPOSED)
+  /// "suggest" | "auto": what the policy allowed when it was proposed.
+  mode       String
+  source     String
+  title      String
+  payload    Json
+  evidence   Json
+  confidence Float?
+  holdReason String?
+  blocked    String?
+  /// "auto" or the user id who applied / dismissed it.
+  decidedBy  String?
+  decidedAt  DateTime?
+  /// What it created: an Action id, a Task id…
+  resultRef  String?
+  error      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([callId])
+  @@index([sdrId, status])
+  @@index([status, createdAt])
 }

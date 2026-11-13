@@ -42,6 +42,8 @@
     "test:telephony": "tsx --test lib/telephony/telephony.test.ts lib/telephony/suggestion.test.ts",
     "test:calls-journal": "tsx --test lib/calls-journal/calls-journal.test.ts",
     "test:focus": "tsx --test lib/focus/focus.test.ts",
+    "test:post-call": "tsx --test lib/post-call/post-call.test.ts",
+    "test:dialer": "tsx --test lib/dialer/dialer.test.ts lib/dialer/store.pglite.test.ts",
     "test:qualification": "tsx --test lib/qualification/engine.test.ts lib/qualification/queue.pglite.test.ts",
     "test:sdr-assistant": "tsx --test lib/sdr-assistant/brief.test.ts",
     "test:onboarding": "tsx --test lib/onboarding/checklist-template.test.ts",

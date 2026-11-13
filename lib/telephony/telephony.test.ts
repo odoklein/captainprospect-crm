@@ -221,6 +221,15 @@ test("AI summaries are validated, capped and never padded", () => {
         qualification: { need: "Un alternant en caisse", currentSolution: null, timing: null, decisionMaker: null, budget: null },
         suggestedStatus: "MEETING_BOOKED",
         callbackAt: null,
+        // Structured post-call fields: neutral when the model said nothing about them.
+        interest: null,
+        decisionMakerStatus: null,
+        statedRole: null,
+        optOut: false,
+        promises: [],
+        meeting: null,
+        confidence: null,
+        evidence: [],
     });
     assert.match(summaryText(s!), /Qualification :\n• Besoin : Un alternant en caisse/);
     // A status the mission does not have is never suggested.

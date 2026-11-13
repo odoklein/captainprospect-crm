@@ -93,7 +93,15 @@ Réponds UNIQUEMENT avec un objet JSON :
     "budget": "budget évoqué, ou null"
   },
   "suggestedStatus": "un code de la liste STATUTS fournie, ou null",
-  "callbackAt": "date et heure de rappel convenues, au format AAAA-MM-JJTHH:MM (heure de Paris), ou null"
+  "callbackAt": "date et heure de rappel convenues, au format AAAA-MM-JJTHH:MM (heure de Paris), ou null",
+  "interest": "high" | "medium" | "low" | null,
+  "decisionMakerStatus": "confirmed" | "other_person" | null,
+  "statedRole": "fonction que l'interlocuteur a lui-même citée, ou null",
+  "optOut": true | false,
+  "promises": [{ "by": "sdr" | "prospect", "what": "engagement concret pris pendant l'appel" }],
+  "meeting": { "mentioned": true | false, "at": "AAAA-MM-JJTHH:MM ou null" } | null,
+  "confidence": nombre entre 0 et 1,
+  "evidence": ["citation courte, mot pour mot, tirée de la transcription", ...]
 }
 
 Règles :
@@ -102,7 +110,13 @@ Règles :
 - Pas de formule de politesse, pas d'évaluation du SDR.
 - qualification : null pour tout ce qui n'a pas été dit explicitement.
 - suggestedStatus : le statut que le SDR devrait enregistrer d'après la conversation, choisi UNIQUEMENT dans la liste STATUTS ; null si aucun ne convient clairement.
-- callbackAt : seulement si un moment précis de rappel a été convenu (« jeudi 14 h »), calculé à partir de la DATE DE L'APPEL fournie ; null sinon. Jamais de date inventée.`;
+- callbackAt : seulement si un moment précis de rappel a été convenu (« jeudi 14 h »), calculé à partir de la DATE DE L'APPEL fournie ; null sinon. Jamais de date inventée.
+- interest, decisionMakerStatus, optOut, meeting : uniquement si une phrase de la transcription le montre clairement ; cette phrase doit figurer MOT POUR MOT dans "evidence" (4 citations maximum, 160 caractères chacune). Sans citation exacte : null (ou false pour optOut, jamais true par déduction).
+- decisionMakerStatus : "confirmed" seulement si l'interlocuteur dit lui-même qu'il décide ou signe ; "other_person" si il désigne quelqu'un d'autre ; sinon null.
+- optOut : true seulement si le prospect demande explicitement à ne plus être appelé ou contacté.
+- meeting.at : seulement si un jour ET une heure ont été dits ; sinon null.
+- promises : ce que l'une des deux personnes s'est engagée à faire (envoyer un document, rappeler, transmettre un contact). Pas de suppositions.
+- confidence : ta certitude sur ces champs structurés (0 à 1). Transcription bruitée, courte ou ambiguë → valeur basse.`;
 
 function list(v: unknown, max: number): string[] {
     if (!Array.isArray(v)) return [];
@@ -122,13 +136,19 @@ function field(v: unknown): string | null {
  * Validates the model's JSON; null when it has no usable summary.
  * `allowedStatuses` drops a suggested status the mission does not have.
  */
-export function normalizeSummary(raw: unknown, allowedStatuses?: ReadonlySet<string>): CallAiSummary | null {
+export function normalizeSummary(
+    raw: unknown,
+    allowedStatuses?: ReadonlySet<string>,
+    /** Given when the summary is being WRITTEN: evidence quotes are then checked against it. */
+    check?: { transcript: string; mixed: boolean },
+): CallAiSummary | null {
     if (!raw || typeof raw !== "object") return null;
     const o = raw as Record<string, unknown>;
     const summary = typeof o.summary === "string" ? o.summary.trim().slice(0, 1200) : "";
     if (!summary) return null;
     const q = (o.qualification && typeof o.qualification === "object" ? o.qualification : {}) as Record<string, unknown>;
     const suggested = typeof o.suggestedStatus === "string" ? o.suggestedStatus.trim().toUpperCase() : "";
+    const structured = normalizeStructured(o, check);
     return {
         summary,
         keyPoints: list(o.keyPoints, 4),
@@ -144,7 +164,59 @@ export function normalizeSummary(raw: unknown, allowedStatuses?: ReadonlySet<str
         suggestedStatus:
             suggested && /^[A-Z0-9_]{1,64}$/.test(suggested) && (!allowedStatuses || allowedStatuses.has(suggested)) ? suggested : null,
         callbackAt: localDateTime(o.callbackAt),
+        ...structured,
     };
+}
+
+type Structured = Pick<CallAiSummary, "interest" | "decisionMakerStatus" | "statedRole" | "optOut" | "promises" | "meeting" | "confidence" | "evidence">;
+
+/**
+ * The structured post-call fields. When `check` is given (the summary is being written),
+ * every evidence quote must appear in the transcript; claims left without a verified quote
+ * are dropped, never trusted. A suspected opt-out is the one exception: it is kept even
+ * without proof, because the safe reading of « maybe asked not to be called » is a human check.
+ */
+export function normalizeStructured(o: Record<string, unknown>, check?: { transcript: string; mixed: boolean }): Structured {
+    const quotes = list(o.evidence, 4).map((q) => q.replace(/^[«"“\s]+|[»"”\s]+$/g, "").slice(0, 160)).filter(Boolean);
+    const evidence = check ? quotes.filter((q) => quoteInTranscript(q, check.transcript)) : quotes;
+    const supported = evidence.length > 0;
+
+    const interestRaw = typeof o.interest === "string" ? o.interest.trim().toLowerCase() : "";
+    const dmRaw = typeof o.decisionMakerStatus === "string" ? o.decisionMakerStatus.trim().toLowerCase() : "";
+    const confRaw = typeof o.confidence === "number" && Number.isFinite(o.confidence) ? Math.max(0, Math.min(1, o.confidence)) : null;
+
+    const meetingObj = o.meeting && typeof o.meeting === "object" ? (o.meeting as Record<string, unknown>) : null;
+    const meetingMentioned = meetingObj?.mentioned === true;
+
+    const promises = (Array.isArray(o.promises) ? o.promises : [])
+        .map((p) => (p && typeof p === "object" ? (p as Record<string, unknown>) : null))
+        .filter((p): p is Record<string, unknown> => !!p && (p.by === "sdr" || p.by === "prospect") && typeof p.what === "string" && p.what.trim().length > 0)
+        .map((p) => ({ by: p.by as "sdr" | "prospect", what: (p.what as string).trim().slice(0, 200) }))
+        .slice(0, 4);
+
+    return {
+        interest: supported && (interestRaw === "high" || interestRaw === "medium" || interestRaw === "low") ? interestRaw : null,
+        // Two voices mixed without attribution: nobody can tell who « I decide » was said by.
+        decisionMakerStatus: supported && !check?.mixed && (dmRaw === "confirmed" || dmRaw === "other_person") ? dmRaw : null,
+        statedRole: field(o.statedRole),
+        optOut: o.optOut === true,
+        promises,
+        meeting: meetingMentioned && (supported || !check) ? { mentioned: true, at: localDateTime(meetingObj?.at) } : null,
+        confidence: supported ? confRaw : null,
+        evidence,
+    };
+}
+
+/** Accent/case/punctuation-insensitive: speech recognition and the model may differ on both. */
+function squash(text: string): string {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/** A quote counts when each of its « … »-separated pieces (≥ 10 chars) is found in the transcript. */
+export function quoteInTranscript(quote: string, transcript: string): boolean {
+    const haystack = ` ${squash(transcript)} `;
+    const pieces = quote.split(/…|\.{3}/).map(squash).filter((p) => p.length >= 10);
+    return pieces.length > 0 && pieces.every((p) => haystack.includes(` ${p} `));
 }
 
 /** "2026-11-12T14:00" (Paris wall time) or null; anything else is dropped. */
@@ -301,7 +373,7 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
         const { parsed } = await callJsonModel({
             system: SYSTEM,
             user: `DATE DE L'APPEL : ${parisStamp(call.startedAt)}\n\nSTATUTS (code : libellé)\n${statusList || "(aucun)"}\n\nTranscription de l'appel${mixed ? " (issue de l'enregistrement : les deux voix sont mélangées, sans indication de qui parle)" : ""} :\n\n${text.slice(0, 24_000)}`,
-            maxTokens: 900,
+            maxTokens: 1400,
             temperature: 0.2,
             timeoutMs: 45_000,
             surface: "call_summary",
@@ -309,7 +381,7 @@ export async function summarizeCall(callId: string): Promise<SummaryState> {
             userId: call.sdr.id,
             ...callModelOptions(),
         });
-        const data = normalizeSummary(parsed, allowed);
+        const data = normalizeSummary(parsed, allowed, { transcript: text, mixed });
         if (!data) return finish({ aiSummaryStatus: "failed", aiSummaryError: "Réponse de l'IA inutilisable" });
         return finish({ aiSummaryStatus: "done", aiSummary: data as unknown as object });
     } catch (err) {
