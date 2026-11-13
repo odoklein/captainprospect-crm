@@ -17,7 +17,7 @@ import { CLIENTS_QUERY_KEY, LEEXI_RECAPS_QUERY_KEY } from "@/lib/query-keys";
 import { collectAttention } from "@/lib/manager/attention";
 import { InboxItem, type WorkspaceClient, type WorkspaceClientStatus as ClientStatus, type WorkspaceLocation } from "@/components/manager/workspace/InboxItem";
 import { requestFocus, useFocusRequest } from "@/components/manager/workspace/focus";
-import { buildWorkspaceSearch, normalizeStoredLocation, parseWorkspace } from "@/components/manager/workspace/url";
+import { buildWorkspaceHref, buildWorkspaceSearch, normalizeStoredLocation, parseWorkspace } from "@/components/manager/workspace/url";
 import "./workspace.css";
 
 interface LeexiRecapItem {
@@ -47,6 +47,15 @@ const FILTERS = [
     { id: "STOPPED", label: "Arrêtés", icon: Folder },
 ] as const;
 type Filter = (typeof FILTERS)[number]["id"];
+
+type SortKey = "name" | "status" | "missions" | "attention";
+const STATUS_ORDER: Record<string, number> = { ACTIVE: 0, PAUSED: 1, STOPPED: 2 };
+const COLUMNS: { key: SortKey; label: string }[] = [
+    { key: "name", label: "Client" },
+    { key: "status", label: "Statut" },
+    { key: "missions", label: "Missions" },
+    { key: "attention", label: "À traiter" },
+];
 
 const WORKSPACE_CLIENTS_KEY = [...CLIENTS_QUERY_KEY, "workspace"] as const;
 const INBOX_PREVIEW = 6;
@@ -86,6 +95,9 @@ function ClientsPageInner() {
     const searchParams = useSearchParams();
     const { data: session } = useSession();
     const [searchQuery, setSearchQuery] = useState("");
+    const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "attention", dir: 1 });
+    const searchRef = useRef<HTMLInputElement>(null);
+    const tableRef = useRef<HTMLTableSectionElement>(null);
     const [filter, setFilter] = useState<Filter>("ALL");
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
     const [initialLeexiCallId, setInitialLeexiCallId] = useState<string>();
@@ -173,7 +185,51 @@ function ClientsPageInner() {
     const filtered = clients.filter((client) => {
         const inScope = filter === "ALL" || (filter === "ATTENTION" ? Boolean(clientAttention(client)) : client.status === filter);
         return inScope && searchText(`${client.name} ${client.industry ?? ""}`).includes(query);
+    }).map((client) => ({ client, next: clientAttention(client) })).sort((a, b) => {
+        const byName = a.client.name.localeCompare(b.client.name, "fr");
+        let diff = 0;
+        if (sort.key === "status") diff = (STATUS_ORDER[a.client.status] ?? 9) - (STATUS_ORDER[b.client.status] ?? 9);
+        else if (sort.key === "missions") diff = b.client._count.missions - a.client._count.missions;
+        else if (sort.key === "attention") diff = (a.next?.rank ?? 1e6) - (b.next?.rank ?? 1e6);
+        return diff * sort.dir || byName * (sort.key === "name" ? sort.dir : 1);
     });
+
+    function toggleSort(key: SortKey) {
+        setSort((current) => current.key === key ? { key, dir: current.dir === 1 ? -1 : 1 } : { key, dir: 1 });
+    }
+
+    // « / » jumps to search from anywhere in the directory (not while typing elsewhere).
+    useEffect(() => {
+        if (clientParam) return;
+        function onKey(event: globalThis.KeyboardEvent) {
+            if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+            const target = event.target as HTMLElement | null;
+            if (target?.closest("input, textarea, select, [contenteditable='true'], [role='dialog']")) return;
+            event.preventDefault();
+            searchRef.current?.focus();
+        }
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [clientParam]);
+
+    /** ↑ / ↓ move between client rows; Enter follows the focused link natively. */
+    function onRowKey(event: React.KeyboardEvent<HTMLElement>) {
+        if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+        const links = Array.from(tableRef.current?.querySelectorAll<HTMLAnchorElement>("a.cw-record") ?? []);
+        const index = links.indexOf(document.activeElement as HTMLAnchorElement);
+        if (index < 0) return;
+        event.preventDefault();
+        links[Math.min(links.length - 1, Math.max(0, index + (event.key === "ArrowDown" ? 1 : -1)))]?.focus();
+    }
+
+    function onSearchKey(event: React.KeyboardEvent<HTMLInputElement>) {
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            tableRef.current?.querySelector<HTMLAnchorElement>("a.cw-record")?.focus();
+        } else if (event.key === "Enter" && filtered.length === 1) {
+            navigate({ client: filtered[0].client.id });
+        }
+    }
 
     function handleOnboardingSuccess() {
         queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
@@ -292,22 +348,36 @@ function ClientsPageInner() {
                                 <section className="cw-section cw-directory" ref={directoryRef} aria-labelledby="cw-directory-title">
                                     <div className="cw-section-head">
                                         <h2 id="cw-directory-title" tabIndex={-1} data-focus-key="directory">{FILTERS.find((item) => item.id === filter)?.label} <small>{filtered.length}</small></h2>
-                                        <label className="cw-search"><Search /><input type="search" aria-label="Rechercher un client" placeholder="Rechercher un client…" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></label>
+                                        <label className="cw-search"><Search /><input ref={searchRef} type="search" aria-label="Rechercher un client" aria-keyshortcuts="/" placeholder="Rechercher un client…" value={searchQuery} onKeyDown={onSearchKey} onChange={(event) => setSearchQuery(event.target.value)} /><kbd className="cw-kbd" aria-hidden>/</kbd></label>
                                     </div>
                                     {filtered.length ? (
                                         <div className="cw-table-scroll">
                                             <table className="cw-table">
-                                                <thead><tr><th>Client</th><th>Statut</th><th>Missions</th><th>À traiter</th><th><span className="sr-only">Ouvrir</span></th></tr></thead>
-                                                <tbody>
-                                                    {filtered.map((client) => {
-                                                        const next = clientAttention(client);
+                                                <thead><tr>
+                                                    {COLUMNS.map((column) => (
+                                                        <th key={column.key} aria-sort={sort.key === column.key ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
+                                                            <button type="button" className="cw-sort" data-active={sort.key === column.key ? "" : undefined} onClick={() => toggleSort(column.key)}>
+                                                                {column.label}{sort.key === column.key ? (sort.dir === 1 ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />) : <ChevronDown aria-hidden data-idle="" />}
+                                                            </button>
+                                                        </th>
+                                                    ))}
+                                                    <th><span className="sr-only">Ouvrir</span></th>
+                                                </tr></thead>
+                                                <tbody ref={tableRef} onKeyDown={onRowKey}>
+                                                    {filtered.map(({ client, next }) => {
                                                         const active = client.missions?.filter((mission) => mission.status === "ACTIVE").length ?? 0;
+                                                        const href = buildWorkspaceHref({ client: client.id }, pathname);
                                                         return (
-                                                            <tr key={client.id} onClick={() => navigate({ client: client.id })}>
-                                                                <td><button className="cw-record" data-focus-key={`client:${client.id}`} title={client.name} onClick={(event) => { event.stopPropagation(); navigate({ client: client.id }); }}>
+                                                            <tr key={client.id} onClick={(event) => { if (!(event.target as HTMLElement).closest("a")) navigate({ client: client.id }); }}>
+                                                                <td><a className="cw-record" href={href} data-focus-key={`client:${client.id}`} title={client.name} onClick={(event) => {
+                                                                    // Plain click stays in the workspace; modifier clicks open a new tab.
+                                                                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                                                                    event.preventDefault();
+                                                                    navigate({ client: client.id });
+                                                                }}>
                                                                     <span className="cw-monogram">{client.name[0]?.toUpperCase() || "?"}</span>
                                                                     <span><strong>{client.name}</strong><small>{client.industry || "Secteur non renseigné"}</small></span>
-                                                                </button></td>
+                                                                </a></td>
                                                                 <td><span className="cw-pill" data-tone={client.status === "ACTIVE" ? "success" : client.status === "PAUSED" ? "warning" : undefined}><i />{STATUS[client.status] ?? STATUS.ACTIVE}</span></td>
                                                                 <td><strong className="cw-figures">{client._count.missions}</strong>{active > 0 && <small className="cw-subline">{active} en cours</small>}</td>
                                                                 <td>{next ? <span className="cw-attention-label" title={`${next.mission.name} · ${next.detail}`}><span />{next.label}</span> : <span className="cw-muted">—</span>}</td>

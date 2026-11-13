@@ -32,7 +32,19 @@ interface Props {
     activeLists: number;
     readyLists: number;
     onAction: (kind: NextActionKind) => void;
+    /** Period of the rhythm and team sections; the verdict and funnel always cover the whole mission. */
+    period?: PulsePeriod;
+    onPeriodChange?: (period: PulsePeriod) => void;
+    periodLoading?: boolean;
 }
+
+export type PulsePeriod = "7" | "30" | "90" | "all";
+export const PULSE_PERIODS: { key: PulsePeriod; label: string; short: string; heading: string }[] = [
+    { key: "7", label: "7 j", short: "7 j", heading: "7 derniers jours" },
+    { key: "30", label: "30 j", short: "30 j", heading: "30 derniers jours" },
+    { key: "90", label: "90 j", short: "90 j", heading: "90 derniers jours" },
+    { key: "all", label: "Depuis le début", short: "depuis le début", heading: "depuis le début" },
+];
 
 const VERDICT_TONE: Record<PaceVerdict, "success" | "warning" | "danger" | "neutral"> = {
     no_target: "neutral", not_started: "neutral", early: "neutral", ahead: "success",
@@ -131,10 +143,13 @@ export function MissionPulse(props: Props) {
             </section>
 
             {/* 4. Daily rhythm --------------------------------------------------- */}
-            <RhythmChart series={series} />
+            {props.onPeriodChange && <PeriodPicker value={props.period ?? "30"} onChange={props.onPeriodChange} loading={props.periodLoading} />}
+            <div className="cw-period-body" data-loading={props.periodLoading ? "" : undefined} aria-busy={props.periodLoading || undefined}>
+            <RhythmChart series={series} heading={periodMeta(props.period).heading} />
 
             {/* 5. Who carries it ------------------------------------------------- */}
-            <TeamContribution team={team} stats={teamStats} onAssign={() => onAction("assign")} />
+            <TeamContribution team={team} stats={teamStats} onAssign={() => onAction("assign")} periodShort={periodMeta(props.period).short} />
+            </div>
         </div>
     );
 }
@@ -174,7 +189,25 @@ const MEASURES = [
     { key: "meetings", label: "RDV", unit: ["RDV", "RDV"] },
 ] as const;
 
-function RhythmChart({ series }: { series: DayPoint[] }) {
+function periodMeta(period: PulsePeriod | undefined) {
+    return PULSE_PERIODS.find((item) => item.key === (period ?? "30"))!;
+}
+
+function PeriodPicker({ value, onChange, loading }: { value: PulsePeriod; onChange: (period: PulsePeriod) => void; loading?: boolean }) {
+    return (
+        <div className="cw-period">
+            <span className="cw-period-label">Période</span>
+            <div className="cw-segmented" role="radiogroup" aria-label="Période du rythme et de l’équipe">
+                {PULSE_PERIODS.map((item) => (
+                    <button key={item.key} role="radio" aria-checked={value === item.key} onClick={() => onChange(item.key)}>{item.label}</button>
+                ))}
+            </div>
+            <span className="cw-period-state" role="status">{loading ? "Mise à jour…" : ""}</span>
+        </div>
+    );
+}
+
+function RhythmChart({ series, heading }: { series: DayPoint[]; heading: string }) {
     const [measure, setMeasure] = useState<(typeof MEASURES)[number]["key"]>("actions");
     const [active, setActive] = useState<number | null>(null);
     const id = useId();
@@ -186,6 +219,8 @@ function RhythmChart({ series }: { series: DayPoint[] }) {
     const total = values.reduce((sum, value) => sum + value, 0);
     const focus = active ?? values.length - 1;
     const plural = (n: number) => `${n.toLocaleString("fr-FR")} ${n > 1 ? meta.unit[1] : meta.unit[0]}`;
+    // About five labels whatever the period, on whole weeks.
+    const tickStep = Math.max(1, Math.ceil(series.length / 5 / 7)) * 7;
 
     function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
         if (!values.length) return;
@@ -201,7 +236,7 @@ function RhythmChart({ series }: { series: DayPoint[] }) {
     return (
         <section className="cw-section" aria-labelledby={`${id}-title`}>
             <div className="cw-section-head">
-                <h2 id={`${id}-title`}>Rythme <small>30 derniers jours</small></h2>
+                <h2 id={`${id}-title`}>Rythme <small>{heading}</small></h2>
                 <div className="cw-segmented" role="radiogroup" aria-label="Mesure affichée">
                     {MEASURES.map((item) => (
                         <button key={item.key} role="radio" aria-checked={measure === item.key} onClick={() => { setMeasure(item.key); setActive(null); }}>{item.label}</button>
@@ -211,6 +246,7 @@ function RhythmChart({ series }: { series: DayPoint[] }) {
             <p className="cw-section-sub">{plural(total)} sur la période · {formatRate(mean)} par jour ouvré en moyenne</p>
             <div
                 className="cw-chart"
+                data-dense={values.length > 45 ? "" : undefined}
                 tabIndex={0}
                 role="group"
                 aria-label={`${meta.label} par jour. Flèches gauche et droite pour parcourir les jours.`}
@@ -240,7 +276,7 @@ function RhythmChart({ series }: { series: DayPoint[] }) {
                     )}
                 </div>
                 <div className="cw-chart-axis" aria-hidden>
-                    {series.map((day, index) => <span key={day.date}>{(series.length - 1 - index) % 7 === 0 ? tickDay.format(new Date(day.date)) : ""}</span>)}
+                    {series.map((day, index) => <span key={day.date}>{(series.length - 1 - index) % tickStep === 0 ? tickDay.format(new Date(day.date)) : ""}</span>)}
                 </div>
             </div>
         </section>
@@ -249,7 +285,7 @@ function RhythmChart({ series }: { series: DayPoint[] }) {
 
 // ── Team contribution ─────────────────────────────────────────────────────────
 
-function TeamContribution({ team, stats, onAssign }: { team: { id: string; name: string }[]; stats: Props["teamStats"]; onAssign: () => void }) {
+function TeamContribution({ team, stats, onAssign, periodShort }: { team: { id: string; name: string }[]; stats: Props["teamStats"]; onAssign: () => void; periodShort: string }) {
     const assigned = new Set(team.map((sdr) => sdr.id));
     const rows = [
         ...team.map((sdr) => ({ id: sdr.id, name: sdr.name, assigned: true, ...(stats.find((row) => row.sdrId === sdr.id) ?? { actions: 0, meetings: 0, recentActions: 0 }) })),
@@ -268,7 +304,7 @@ function TeamContribution({ team, stats, onAssign }: { team: { id: string; name:
                         <span className="cw-avatar" aria-hidden>{initials(row.name)}</span>
                         <span className="cw-team-name"><strong>{row.name}</strong><small>{row.assigned ? `${row.meetings} RDV depuis le début` : "N’est plus affecté à la mission"}</small></span>
                         <span className="cw-team-bar" aria-hidden><span style={{ width: `${(row.recentActions / max) * 100}%` }} /></span>
-                        <span className="cw-team-value">{row.recentActions.toLocaleString("fr-FR")}<small> appels · 30 j</small></span>
+                        <span className="cw-team-value">{row.recentActions.toLocaleString("fr-FR")}<small> appel{row.recentActions > 1 ? "s" : ""} · {periodShort}</small></span>
                     </li>
                 ))}
             </ul> : <p className="cw-empty-line"><span>Aucun SDR n’a appelé sur cette mission.</span></p>}

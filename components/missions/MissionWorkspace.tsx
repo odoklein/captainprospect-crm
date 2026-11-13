@@ -45,13 +45,16 @@ import { CSVImportDialog } from "@/components/dialogs/CSVImportDialog";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
-import { MissionPulse, type PulseData } from "./MissionPulse";
+import { MissionPulse, type PulseData, type PulsePeriod } from "./MissionPulse";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/lib/manager/workspace/http";
 import type { NextActionKind } from "@/lib/missions/pulse";
 import { LaunchChecklist, launchSteps, type LaunchList, type StrategyField } from "./ReadinessPanel";
 import { MissionSetupPanel, type SetupField } from "./MissionSetupPanel";
 import { Drawer } from "@/components/ui/Drawer";
 import { CrumbActions } from "@/components/manager/workspace/CrumbSlot";
 import { useFocusRequest } from "@/components/manager/workspace/focus";
+import { Button as CwButton, EmptyState, ErrorState, SkeletonDoc } from "@/components/manager/workspace/ui";
 import type { ClientPageSummary } from "@/components/manager/workspace/clientPages";
 import { PAGE_TEMPLATES, PAGE_TEMPLATE_IDS, type PageTemplate } from "@/lib/client-pages/blocks";
 import { StrategyEditorDrawer } from "./StrategyEditorDrawer";
@@ -266,6 +269,8 @@ export interface MissionWorkspaceProps {
     linkedPages?: ClientPageSummary[];
     onOpenPage?: (pageId: string) => void;
     onCreatePage?: (template: PageTemplate) => void;
+    /** Opens another mission of the same client (after « Dupliquer »). */
+    onOpenMission?: (missionId: string) => void;
 }
 
 /** Substantial editors open in a drawer over the brief; `?tab=` names the open one. */
@@ -548,11 +553,47 @@ export function MissionWorkspace({
     linkedPages = [],
     onOpenPage,
     onCreatePage,
+    onOpenMission,
 }: MissionWorkspaceProps) {
     const { success, error: showError, addToast } = useToast();
 
     const [mission, setMission] = useState<Mission | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<{ notFound: boolean; message: string } | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
+    /** Copies framing, strategies and e-mail templates (not bases nor team), then opens the copy. */
+    async function duplicateMission() {
+        setDuplicating(true);
+        try {
+            const res = await fetch(`/api/missions/${missionId}/duplicate`, { method: "POST" });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || "Impossible de dupliquer la mission");
+            success("Mission dupliquée", `« ${json.data.name} » est en préparation : ajoutez ses bases et son équipe.`);
+            onMissionMutated?.();
+            onOpenMission?.(json.data.id);
+        } catch (err) {
+            showError("Erreur", err instanceof Error ? err.message : "Impossible de dupliquer la mission");
+        } finally {
+            setDuplicating(false);
+        }
+    }
+
+    // Pulse period: 30 days ships with the mission; other periods come from /insights.
+    const [pulsePeriod, setPulsePeriod] = useState<PulsePeriod>("30");
+    const periodInsights = useQuery({
+        queryKey: ["mission", missionId, "insights", pulsePeriod],
+        queryFn: () => apiGet<{ series: { date: string; actions: number; meetings: number; reached: number }[]; teamStats: { sdrId: string; name: string; actions: number; meetings: number; recentActions: number }[] }>(`/api/missions/${missionId}/insights?period=${pulsePeriod}`),
+        enabled: pulsePeriod !== "30",
+        placeholderData: keepPreviousData,
+        staleTime: 60_000,
+    });
+    const periodError = pulsePeriod !== "30" ? periodInsights.error : null;
+    useEffect(() => {
+        if (!periodError) return;
+        // Fall back to the loaded 30 days rather than an empty chart.
+        showError("Erreur", periodError.message);
+        setPulsePeriod("30");
+    }, [periodError]); // eslint-disable-line react-hooks/exhaustive-deps
     const [isDeleting, setIsDeleting] = useState(false);
     const [isToggling, setIsToggling] = useState(false);
     const [showPortalLaunchModal, setShowPortalLaunchModal] = useState(false);
@@ -668,13 +709,16 @@ export function MissionWorkspace({
             if (json.success) {
                 const m = json.data;
                 setMission(m);
+                setLoadError(null);
+            } else if (!mission) {
+                setLoadError({ notFound: res.status === 404 || res.status === 403, message: json.error || "Mission introuvable" });
             } else {
-                showError("Erreur", json.error || "Mission non trouvée");
-                onBack();
+                showError("Erreur", json.error || "Impossible d’actualiser la mission");
             }
         } catch (err) {
             console.error("Failed to fetch mission:", err);
-            showError("Erreur", "Impossible de charger la mission");
+            if (!mission) setLoadError({ notFound: false, message: "Vérifiez votre connexion puis réessayez." });
+            else showError("Erreur", "Impossible d’actualiser la mission");
         } finally {
             setIsLoading(false);
         }
@@ -1749,19 +1793,18 @@ export function MissionWorkspace({
     // LOADING STATE
     // ============================================
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-                    <p className="text-sm text-slate-500">Chargement de la mission...</p>
-                </div>
-            </div>
-        );
+    if (isLoading && !mission) {
+        return <SkeletonDoc label="Chargement de la mission…" />;
     }
 
     if (!mission) {
-        return null;
+        return loadError?.notFound ? (
+            <EmptyState icon={<AlertTriangle aria-hidden />} title="Mission introuvable" action={<CwButton size="sm" onClick={onBack}>Retour au client</CwButton>}>
+                Elle a peut-être été supprimée, ou vous n’y avez plus accès.
+            </EmptyState>
+        ) : (
+            <ErrorState title="Impossible de charger la mission" message={loadError?.message} onRetry={() => { setLoadError(null); setIsLoading(true); void fetchMission(); }} />
+        );
     }
 
     const isPortalLaunching = Boolean(
@@ -1852,6 +1895,7 @@ export function MissionWorkspace({
                         <DropdownMenuItem onSelect={() => setShowStatusWorkflowDrawer(true)}><Activity />Statuts et workflow</DropdownMenuItem>
                         {mission.status === "ACTIVE" && !isPortalLaunching && <DropdownMenuItem onSelect={() => setShowPortalLaunchModal(true)}><EyeOff />Visibilité du portail</DropdownMenuItem>}
                         <DropdownMenuItem onSelect={() => setShowEditMissionDialog(true)}><Pencil />Client et options de la mission</DropdownMenuItem>
+                        <DropdownMenuItem disabled={duplicating} onSelect={() => void duplicateMission()}><Copy />Dupliquer la mission</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => onTabChange("reglages")}><ShieldCheck />Administration</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -1896,9 +1940,15 @@ export function MissionWorkspace({
                             endDate={mission.endDate}
                             targetMeetings={mission.targetMeetings ?? null}
                             pulse={mission.pulse}
-                            series={insights?.series ?? []}
+                            series={pulsePeriod !== "30" && periodInsights.data ? periodInsights.data.series : insights?.series ?? []}
                             team={team}
-                            teamStats={mission.teamStats ?? []}
+                            teamStats={pulsePeriod !== "30" && periodInsights.data
+                                // In a period, the bar is the calls of that period.
+                                ? periodInsights.data.teamStats.map((row) => ({ ...row, recentActions: row.actions }))
+                                : mission.teamStats ?? []}
+                            period={pulsePeriod !== "30" && !periodInsights.data ? "30" : pulsePeriod}
+                            onPeriodChange={setPulsePeriod}
+                            periodLoading={periodInsights.isFetching}
                             activeLists={launchReadiness?.activeLists ?? 0}
                             readyLists={launchReadiness?.readyLists ?? 0}
                             onAction={onPulseAction}

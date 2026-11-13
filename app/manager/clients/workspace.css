@@ -1368,3 +1368,69 @@
 .cw-skeleton-block { height: 120px; border-radius: var(--cw-radius); }
 @keyframes cw-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .cw-skeleton-line, .cw-skeleton-block { animation: none; } }
+
+/* ── Pulse period (MissionPulse PeriodPicker) ──────────────────────────────── */
+
+.cw-period { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--cw-line); }
+.cw-period-label { color: var(--cw-muted); font-size: 12px; font-weight: 600; }
+.cw-period-state { color: var(--cw-muted); font-size: 12px; }
+.cw-period + .cw-period-body > .cw-section:first-child { padding-top: 20px; }
+.cw-period-body { transition: opacity var(--cw-motion); }
+.cw-period-body[data-loading] { opacity: .55; }
+.cw-chart[data-dense] .cw-chart-plot { gap: 1px; }
+.cw-chart[data-dense] .cw-chart-col[data-weekend] { background: none; }
+.cw-chart-bar { transition: height 260ms cubic-bezier(.2, .65, .25, 1); }
+.cw-team-bar > span { transition: width 260ms cubic-bezier(.2, .65, .25, 1); }
+@media (prefers-reduced-motion: reduce) { .cw-chart-bar, .cw-team-bar > span, .cw-period-body { transition: none; } }
+
+/* ── Directory: sortable headers, link rows, keyboard hint ─────────────────── */
+
+.cw-sort { display: inline-flex; align-items: center; gap: 4px; margin: -4px -6px; padding: 4px 6px; border-radius: 6px; color: inherit; font: inherit; }
+.cw-sort:hover { background: var(--cw-well); color: var(--cw-ink); }
+.cw-sort:focus-visible { outline: 2px solid var(--cw-focus); outline-offset: 1px; }
+.cw-sort svg { width: 13px; height: 13px; flex: none; }
+.cw-sort svg[data-idle] { opacity: 0; transition: opacity var(--cw-motion); }
+.cw-sort:hover svg[data-idle], .cw-sort:focus-visible svg[data-idle] { opacity: .5; }
+.cw-sort[data-active] { color: var(--cw-ink); }
+a.cw-record { color: inherit; text-decoration: none; }
+a.cw-record:focus-visible { outline: 2px solid var(--cw-focus); outline-offset: 2px; border-radius: 8px; }
+.cw-table tbody tr:focus-within { background: var(--cw-tree); }
+.cw-kbd { flex: none; min-width: 18px; padding: 0 5px; border: 1px solid var(--cw-line-2); border-radius: 5px; color: var(--cw-muted); font: 600 11.5px/18px var(--font-sans); text-align: center; }
+.cw-search:focus-within .cw-kbd { display: none; }
+@container client-canvas (max-width: 620px) { .cw-kbd { display: none; } }
+
+/* ── Motion ────────────────────────────────────────────────────────────────────
+   Places arrive, they don't pop: a short rise on the document, a stagger on
+   the first rows, and a press on buttons. Nothing moves for people who ask
+   the system for less motion. */
+
+@keyframes cw-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes cw-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.cw-doc > .cw-doc-head { animation: cw-arrive 260ms cubic-bezier(.2, .65, .25, 1) both; }
+.cw-doc > .cw-section, .cw-doc > .cw-pulse, .cw-doc > .cw-sections { animation: cw-arrive 320ms cubic-bezier(.2, .65, .25, 1) both; animation-delay: 40ms; }
+.cw-doc > :nth-child(3) { animation-delay: 70ms; }
+.cw-doc > :nth-child(n + 4) { animation-delay: 100ms; }
+.cw-rail { animation: cw-fade 360ms ease-out 80ms both; }
+
+.cw-inbox > .cw-inbox-item, .cw-rows > .cw-row, .cw-table tbody tr { animation: cw-fade 240ms ease-out both; }
+.cw-inbox > .cw-inbox-item:nth-child(2), .cw-rows > .cw-row:nth-child(2), .cw-table tbody tr:nth-child(2) { animation-delay: 25ms; }
+.cw-inbox > .cw-inbox-item:nth-child(3), .cw-rows > .cw-row:nth-child(3), .cw-table tbody tr:nth-child(3) { animation-delay: 50ms; }
+.cw-inbox > .cw-inbox-item:nth-child(4), .cw-rows > .cw-row:nth-child(4), .cw-table tbody tr:nth-child(4) { animation-delay: 75ms; }
+.cw-inbox > .cw-inbox-item:nth-child(n + 5), .cw-rows > .cw-row:nth-child(n + 5), .cw-table tbody tr:nth-child(n + 5) { animation-delay: 100ms; }
+
+.cw-button { transition: background-color var(--cw-motion), border-color var(--cw-motion), color var(--cw-motion), transform 90ms ease-out, box-shadow var(--cw-motion); }
+.cw-button:active:not(:disabled) { transform: translateY(1px) scale(.985); }
+.cw-segmented button { transition: background-color var(--cw-motion), color var(--cw-motion), box-shadow var(--cw-motion); }
+.cw-table tbody tr { transition: background-color var(--cw-motion); }
+.cw-row-arrow { transition: transform var(--cw-motion), color var(--cw-motion); }
+.cw-table tbody tr:hover .cw-row-arrow, .cw-table tbody tr:focus-within .cw-row-arrow { transform: translateX(2px); color: var(--cw-ink-2); }
+.cw-save-state { transition: background-color var(--cw-motion), color var(--cw-motion); }
+.cw-save-state[data-state="saved"] { animation: cw-fade 200ms ease-out both; }
+.cw-empty, .cw-loading { animation: cw-fade 300ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+    .cw-doc > *, .cw-rail, .cw-inbox > .cw-inbox-item, .cw-rows > .cw-row, .cw-table tbody tr, .cw-empty, .cw-loading, .cw-save-state { animation: none; }
+    .cw-button:active:not(:disabled) { transform: none; }
+    .cw-table tbody tr:hover .cw-row-arrow { transform: none; }
+}

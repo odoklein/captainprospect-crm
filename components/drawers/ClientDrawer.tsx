@@ -1965,6 +1965,7 @@ export function ClientDrawer({
                             linkedPages={pages.filter((page) => page.missionId === activeMissionId)}
                             onOpenPage={(pageId) => go({ client: client.id, page: pageId }, "heading")}
                             onCreatePage={(template) => void addPage(template, activeMissionId)}
+                            onOpenMission={(id) => openMission(id)}
                         />
                     ) : view === "page" && activePageId ? (
                         <ClientPageEditor
