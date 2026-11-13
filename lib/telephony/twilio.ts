@@ -21,6 +21,10 @@ export function identityFor(userId: string): string {
     return `u_${userId.replace(/[^A-Za-z0-9_]/g, "")}`;
 }
 
+/**
+ * The user part of a "client:u_…" identity, as `identityFor` wrote it: for a UUID user id the
+ * hyphens are gone, so compare it with `identityFor(id)`, never with the raw id.
+ */
 export function userIdFromIdentity(from: string | null | undefined): string | null {
     const m = /^client:u_([A-Za-z0-9_]+)$/.exec((from ?? "").trim());
     return m ? m[1] : null;

@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { callerIdFor, type TwilioConfig } from "./config";
 import { checkDialNumber, phonesInField } from "./phone";
 import { isFinalStatus, mapTwilioStatus, nextStatus, parseSeconds, type TelephonyStatus } from "./status";
-import { recordingMediaUrl, userIdFromIdentity } from "./twilio";
+import { identityFor, recordingMediaUrl, userIdFromIdentity } from "./twilio";
 import { syncSummaryToAction } from "./summary";
 
 /** Twilio must ask for TwiML within this delay of the row being created. */
@@ -125,7 +125,9 @@ export async function acceptVoiceRequest(params: Record<string, string>, now = n
 
     const call = await prisma.telephonyCall.findUnique({ where: { id: callId } });
     if (!call) return refuse("unknown_call");
-    if (call.sdrId !== userId) return refuse("wrong_user");
+    // Compare in identity form: identities drop characters Twilio refuses (the "-" of
+    // UUID user ids, in databases created before cuid), so the raw ids would never match.
+    if (identityFor(call.sdrId) !== identityFor(userId)) return refuse("wrong_user");
     if (call.parentCallSid && call.parentCallSid !== parentSid) return refuse("replayed");
     if (call.status !== "INITIATED") return refuse("not_initiated");
     if (now.getTime() - call.createdAt.getTime() > VOICE_REQUEST_WINDOW_MS) {

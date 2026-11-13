@@ -103,6 +103,9 @@ test("a late 'completed' corrects a CANCELED written first", () => {
 test("identity round-trips and rejects anything else", () => {
     const id = "cmm0exu5f00nhl404et347e3j";
     assert.equal(userIdFromIdentity(`client:${identityFor(id)}`), id);
+    // UUID ids (older databases): the hyphens are dropped, both sides compare in identity form.
+    const uuid = "3f2b8c1e-9a4d-4e6b-8c2a-1d5e7f9a0b3c";
+    assert.equal(identityFor(userIdFromIdentity(`client:${identityFor(uuid)}`)!), identityFor(uuid));
     assert.equal(userIdFromIdentity("client:someone"), null);
     assert.equal(userIdFromIdentity("+33612345678"), null);
     assert.equal(userIdFromIdentity(undefined), null);
