@@ -15,6 +15,7 @@ import type { MissionStatusValue } from '@/lib/constants/missionStatus';
 import { isMissionInPortalLaunch } from '@/lib/portal-visibility';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 import { getCooldownDisabledListIds } from '@/lib/sdr-queue/cooldown';
+import { RESULT_META, REACHED_CATEGORIES } from '@/lib/api-v1/glossary';
 import { computeListReadiness, defaultCampaignOf, summarizeReadiness, type ReadinessCampaign } from '@/lib/missions/readiness';
 
 // ============================================
@@ -31,6 +32,8 @@ const updateMissionSchema = z
             .union([z.string().min(1), z.literal(null)])
             .optional()
             .transform((v) => (v === null ? '' : v)),
+        /** « RDV visés » over the mission period; null clears it. */
+        targetMeetings: z.number().int().min(0).max(100000).nullable().optional(),
         channel: channelEnum.optional(),
         channels: z.array(channelEnum).min(1).optional(),
         startDate: z.string().transform((s) => new Date(s)).optional(),
@@ -212,11 +215,16 @@ export const GET = withErrorHandler(async (
     const windowStart = new Date(startOfToday.getTime() - (TREND_DAYS - 1) * DAY_MS);
     const previousStart = new Date(windowStart.getTime() - TREND_DAYS * DAY_MS);
 
-    const trendRows = await prisma.$queryRaw<Array<{ day: Date; actions: number; meetings: number }>>(
+    // Result groups from the shared glossary: « reached » = spoken to (refusal, follow-up or meeting).
+    const reachedResults = Object.entries(RESULT_META).filter(([, meta]) => REACHED_CATEGORIES.includes(meta.category)).map(([code]) => code);
+    const interestedResults = Object.entries(RESULT_META).filter(([, meta]) => meta.category === 'rdv' || meta.category === 'follow_up').map(([code]) => code);
+
+    const trendRows = await prisma.$queryRaw<Array<{ day: Date; actions: number; meetings: number; reached: number }>>(
         Prisma.sql`
             SELECT date_trunc('day', a."createdAt") AS day,
                    COUNT(a.id)::int AS actions,
-                   COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings
+                   COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings,
+                   COUNT(CASE WHEN a."result"::text = ANY(${reachedResults}) THEN 1 END)::int AS reached
             FROM "Action" a
             JOIN "Campaign" c ON c.id = a."campaignId"
             WHERE c."missionId" = ${id}
@@ -226,18 +234,62 @@ export const GET = withErrorHandler(async (
         `
     );
 
-    const bucketed = new Map<string, { actions: number; meetings: number }>();
+    const bucketed = new Map<string, { actions: number; meetings: number; reached: number }>();
     for (const row of trendRows) {
         const key = new Date(row.day).toISOString().slice(0, 10);
-        bucketed.set(key, { actions: Number(row.actions), meetings: Number(row.meetings) });
+        bucketed.set(key, { actions: Number(row.actions), meetings: Number(row.meetings), reached: Number(row.reached) });
     }
 
-    const series: Array<{ date: string; actions: number; meetings: number }> = [];
+    const series: Array<{ date: string; actions: number; meetings: number; reached: number }> = [];
     for (let i = 0; i < TREND_DAYS; i++) {
         const date = new Date(windowStart.getTime() + i * DAY_MS).toISOString().slice(0, 10);
         const hit = bucketed.get(date);
-        series.push({ date, actions: hit?.actions ?? 0, meetings: hit?.meetings ?? 0 });
+        series.push({ date, actions: hit?.actions ?? 0, meetings: hit?.meetings ?? 0, reached: hit?.reached ?? 0 });
     }
+
+    // ── Pulse: the mission funnel per prospect (a contact, or the company when
+    // called directly), counted once at each stage, over the whole mission.
+    type FunnelRow = { called: number; reached: number; interested: number; meetings: number };
+    const [funnelRows, prospectRows, benchmarkRows] = await Promise.all([
+        prisma.$queryRaw<FunnelRow[]>(Prisma.sql`
+            WITH t AS (
+                SELECT COALESCE(a."contactId", a."companyId") AS target, a."result"::text AS r
+                FROM "Action" a
+                JOIN "Campaign" c ON c.id = a."campaignId"
+                WHERE c."missionId" = ${id}
+            )
+            SELECT COUNT(DISTINCT target)::int AS called,
+                   COUNT(DISTINCT target) FILTER (WHERE r = ANY(${reachedResults}))::int AS reached,
+                   COUNT(DISTINCT target) FILTER (WHERE r = ANY(${interestedResults}))::int AS interested,
+                   COUNT(DISTINCT target) FILTER (WHERE r = 'MEETING_BOOKED')::int AS meetings
+            FROM t
+        `),
+        prisma.$queryRaw<Array<{ prospects: number }>>(Prisma.sql`
+            SELECT COUNT(ct.id)::int AS prospects
+            FROM "Contact" ct
+            JOIN "Company" co ON co.id = ct."companyId"
+            JOIN "List" l ON l.id = co."listId"
+            WHERE l."missionId" = ${id} AND l."isActive" = true AND l."isArchived" = false
+        `),
+        // Agency reference: the same step rates on every other mission, last 90 days.
+        prisma.$queryRaw<FunnelRow[]>(Prisma.sql`
+            WITH t AS (
+                SELECT c."missionId" AS m, COALESCE(a."contactId", a."companyId") AS target, a."result"::text AS r
+                FROM "Action" a
+                JOIN "Campaign" c ON c.id = a."campaignId"
+                WHERE c."missionId" <> ${id} AND a."createdAt" >= ${new Date(startOfToday.getTime() - 90 * DAY_MS)}
+            )
+            SELECT COUNT(DISTINCT (m, target))::int AS called,
+                   COUNT(DISTINCT (m, target)) FILTER (WHERE r = ANY(${reachedResults}))::int AS reached,
+                   COUNT(DISTINCT (m, target)) FILTER (WHERE r = ANY(${interestedResults}))::int AS interested,
+                   COUNT(DISTINCT (m, target)) FILTER (WHERE r = 'MEETING_BOOKED')::int AS meetings
+            FROM t
+        `),
+    ]);
+    const funnel = funnelRows[0] ?? { called: 0, reached: 0, interested: 0, meetings: 0 };
+    const agency = benchmarkRows[0] ?? { called: 0, reached: 0, interested: 0, meetings: 0 };
+    // Below 50 prospects at a stage, the agency rate is noise: leave it out.
+    const ratio = (part: number, whole: number) => (whole >= 50 ? part / whole : null);
 
     const sumWindow = (from: Date, to: Date) => {
         let actions = 0;
@@ -258,15 +310,17 @@ export const GET = withErrorHandler(async (
     // Per-SDR contribution on this mission: one group-by rather than a request
     // per assignee, so the Equipe tab stays cheap however big the team is.
     const teamRows = await prisma.$queryRaw<
-        Array<{ sdrId: string; actions: number; meetings: number; recentActions: number }>
+        Array<{ sdrId: string; name: string; actions: number; meetings: number; recentActions: number }>
     >(
         Prisma.sql`
             SELECT a."sdrId" AS "sdrId",
+                   MAX(u.name) AS name,
                    COUNT(a.id)::int AS actions,
                    COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings,
                    COUNT(CASE WHEN a."createdAt" >= ${windowStart} THEN 1 END)::int AS "recentActions"
             FROM "Action" a
             JOIN "Campaign" c ON c.id = a."campaignId"
+            JOIN "User" u ON u.id = a."sdrId"
             WHERE c."missionId" = ${id}
             GROUP BY a."sdrId"
         `
@@ -308,10 +362,25 @@ export const GET = withErrorHandler(async (
         },
         teamStats: teamRows.map((row) => ({
             sdrId: row.sdrId,
+            name: row.name,
             actions: Number(row.actions),
             meetings: Number(row.meetings),
             recentActions: Number(row.recentActions),
         })),
+        pulse: {
+            funnel: {
+                prospects: Number(prospectRows[0]?.prospects ?? 0),
+                called: Number(funnel.called),
+                reached: Number(funnel.reached),
+                interested: Number(funnel.interested),
+                meetings: Number(funnel.meetings),
+            },
+            benchmark: {
+                reach: ratio(Number(agency.reached), Number(agency.called)),
+                interest: ratio(Number(agency.interested), Number(agency.reached)),
+                meeting: ratio(Number(agency.meetings), Number(agency.interested)),
+            },
+        },
         insights: {
             windowDays: TREND_DAYS,
             series,

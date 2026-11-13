@@ -937,6 +937,8 @@ model Mission {
   client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
   name      String
   objective String
+  /// Meetings the mission aims for over its period (« RDV visés »). Null: no numeric target, pace is not computed.
+  targetMeetings Int?
   channel   Channel // Primary (first channel); kept for backward compatibility
   channels  Channel[] @default([CALL]) // Multi-channel: mission can run on CALL + EMAIL + LINKEDIN
 

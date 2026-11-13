@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Modal, ModalFooter, ConfirmModal, ContextMenu, useContextMenu, useToast } from "@/components/ui";
 import { MissionStatusWorkflowDrawer } from "@/components/drawers";
 import {
@@ -45,6 +45,8 @@ import { CSVImportDialog } from "@/components/dialogs/CSVImportDialog";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
+import { MissionPulse, type PulseData } from "./MissionPulse";
+import type { NextActionKind } from "@/lib/missions/pulse";
 import { LaunchChecklist, launchSteps, type LaunchList, type StrategyField } from "./ReadinessPanel";
 import { MissionSetupPanel, type SetupField } from "./MissionSetupPanel";
 import { Drawer } from "@/components/ui/Drawer";
@@ -167,15 +169,18 @@ interface Mission {
         meetingsBooked: number;
         opportunities: number;
     };
+    targetMeetings?: number | null;
+    pulse?: PulseData;
     teamStats?: Array<{
         sdrId: string;
+        name?: string;
         actions: number;
         meetings: number;
         recentActions: number;
     }>;
     insights?: {
         windowDays: number;
-        series: Array<{ date: string; actions: number; meetings: number }>;
+        series: Array<{ date: string; actions: number; meetings: number; reached?: number }>;
         current: { actions: number; meetings: number; opportunities: number };
         previous: { actions: number; meetings: number; opportunities: number };
     };
@@ -1731,6 +1736,8 @@ export function MissionWorkspace({
     useEffect(() => {
         if (activeTab !== "lancement" || !missionLoaded) return;
         const frame = requestAnimationFrame(() => {
+            const section = document.getElementById("lancement");
+            if (section instanceof HTMLDetailsElement) section.open = true;
             const heading = document.getElementById("cw-launch-title");
             heading?.scrollIntoView({ block: "start" });
             heading?.focus({ preventScroll: true });
@@ -1796,7 +1803,28 @@ export function MissionWorkspace({
         {team.slice(0, limit).map((sdr) => <span key={sdr.id} className="cw-avatar" title={sdr.name} aria-hidden>{initials(sdr.name)}</span>)}
         {team.length > limit && <span className="cw-avatar" data-more aria-hidden>+{team.length - limit}</span>}
     </span> : <span className="cw-prop-empty">Aucun SDR</span>;
-    const showActivity = mission.status !== "DRAFT" || (mission.stats?.totalActions ?? 0) > 0;
+    // Phase decides what leads the page: preparing → brief and checklist; running → the pulse.
+    const running = mission.status !== "DRAFT";
+    const scrollTo = (id: string, focusId?: string) => {
+        const target = document.getElementById(id);
+        if (target instanceof HTMLDetailsElement) target.open = true;
+        target?.scrollIntoView({ block: "start", behavior: "smooth" });
+        (document.getElementById(focusId ?? id) as HTMLElement | null)?.focus({ preventScroll: true });
+    };
+    const onPulseAction = (kind: NextActionKind) => {
+        if (kind === "assign") onTabChange("equipe");
+        else if (kind === "lists") { if (mission.lists.length) onTabChange("audience"); else setAudiencePanel("new"); }
+        else if (kind === "launch") { if (launch.next?.action) launch.next.action.run(); else scrollTo("lancement", "cw-launch-title"); }
+        else if (kind === "resume") void changeStatus("ACTIVE");
+        else if (kind === "target") setEditRequest({ field: "targetMeetings", at: Date.now() });
+        else if (kind === "extend") setEditRequest({ field: "endDate", at: Date.now() });
+        else if (kind === "funnel") scrollTo("cw-conversion", "cw-weak-step");
+    };
+    const phases = [
+        { id: "prep", label: "Préparation", state: running ? "done" : "current" },
+        { id: "run", label: mission.status === "PAUSED" ? "En pause" : "En cours", state: mission.status === "ACTIVE" || mission.status === "PAUSED" ? "current" : running ? "done" : "next" },
+        { id: "end", label: "Bilan", state: mission.status === "COMPLETED" || mission.status === "ARCHIVED" ? "current" : "next" },
+    ] as const;
     const scrollToLaunch = () => {
         const heading = document.getElementById("cw-launch-title");
         heading?.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -1834,12 +1862,20 @@ export function MissionWorkspace({
                     <header className="cw-doc-head">
                         <span className="cw-eyebrow"><Target aria-hidden /><span>Mission · {mission.client?.name}</span></span>
                         <h1 id="cw-mission-title" className="cw-doc-title" tabIndex={-1} data-focus-key="heading">{mission.name}</h1>
-                        <dl className="cw-facts">
+                        {running ? (
+                            <ol className="cw-phases" aria-label="Étapes de la mission">
+                                {phases.map((phase, index) => <Fragment key={phase.id}>
+                                    {index > 0 && <li className="cw-phases-sep" aria-hidden />}
+                                    <li data-state={phase.state} aria-current={phase.state === "current" ? "step" : undefined}><span aria-hidden />{phase.label}</li>
+                                </Fragment>)}
+                                <li className="cw-phases-meta">{period}</li>
+                            </ol>
+                        ) : <dl className="cw-facts">
                             <div className="cw-fact"><dt><CalendarDays aria-hidden />Période</dt><dd>{period}</dd></div>
                             <div className="cw-fact"><dt><Database aria-hidden />Bases</dt><dd>{launchReadiness ? `${launchReadiness.readyLists} / ${launchReadiness.activeLists} prêtes` : `${mission._count.lists}`}</dd></div>
                             <div className="cw-fact"><dt><Users aria-hidden />Équipe</dt><dd>{avatars(4)}</dd></div>
                             <div className="cw-fact"><dt><Rocket aria-hidden />Lancement</dt><dd>{launch.done} / {launch.total} vérifications</dd></div>
-                        </dl>
+                        </dl>}
                     </header>
 
                     {isPortalLaunching && mission.portalVisibleAt && (
@@ -1853,6 +1889,23 @@ export function MissionWorkspace({
                         </div>
                     )}
 
+                    {running && mission.pulse && (
+                        <MissionPulse
+                            status={mission.status}
+                            startDate={mission.startDate}
+                            endDate={mission.endDate}
+                            targetMeetings={mission.targetMeetings ?? null}
+                            pulse={mission.pulse}
+                            series={insights?.series ?? []}
+                            team={team}
+                            teamStats={mission.teamStats ?? []}
+                            activeLists={launchReadiness?.activeLists ?? 0}
+                            readyLists={launchReadiness?.readyLists ?? 0}
+                            onAction={onPulseAction}
+                        />
+                    )}
+                    {running && <h2 className="cw-part-title">Configuration</h2>}
+
                     <div className="cw-sections" data-numbered>
                         <MissionSetupPanel
                             mission={mission}
@@ -1862,7 +1915,17 @@ export function MissionWorkspace({
                             onDirtyChange={setSetupDirty}
                         />
 
-                        <section className="cw-section" id="lancement" aria-labelledby="cw-launch-title">
+                        {running ? (
+                            <details className="cw-section cw-fold" id="lancement" open={!launch.ready || undefined}>
+                                <summary><div className="cw-section-head">
+                                <h2 id="cw-launch-title" tabIndex={-1}>Configuration de lancement <small>{launch.done}/{launch.total}</small></h2>
+                                {mission.status === "ACTIVE" ? <span className="cw-pill" data-tone="success"><i />Mission active</span>
+                                    : launch.ready ? <span className="cw-pill" data-tone="success"><i />Prête à lancer</span>
+                                    : <span className="cw-pill" data-tone="warning"><i />{launch.total - launch.done} point{launch.total - launch.done > 1 ? "s" : ""} à régler</span>}
+                            </div></summary>
+                            <LaunchChecklist summary={launch} readinessAvailable={Boolean(launchReadiness)} onFixStrategy={(field, list) => setLaunchFix({ field, list })} />
+                        </details>
+                        ) : (<section className="cw-section" id="lancement" aria-labelledby="cw-launch-title">
                             <div className="cw-section-head">
                                 <h2 id="cw-launch-title" tabIndex={-1}>Checklist de lancement <small>{launch.done}/{launch.total}</small></h2>
                                 {mission.status === "ACTIVE" ? <span className="cw-pill" data-tone="success"><i />Mission active</span>
@@ -1870,7 +1933,7 @@ export function MissionWorkspace({
                                     : <span className="cw-pill" data-tone="warning"><i />{launch.total - launch.done} point{launch.total - launch.done > 1 ? "s" : ""} à régler</span>}
                             </div>
                             <LaunchChecklist summary={launch} readinessAvailable={Boolean(launchReadiness)} onFixStrategy={(field, list) => setLaunchFix({ field, list })} />
-                        </section>
+                        </section>)}
 
                         <section className="cw-section" aria-labelledby="cw-lists-title">
                             <div className="cw-section-head">
@@ -1919,7 +1982,7 @@ export function MissionWorkspace({
                             </div> : <p className="cw-empty-line"><span>Aucun ciblage ni script : les SDR n’ont rien à dire au téléphone.</span><button className="cw-button cw-primary" data-size="sm" onClick={() => setCampaignEditor("new")}>Rédiger le ciblage et le script</button></p>}
                         </section>
 
-                        <section className="cw-section" aria-labelledby="cw-team-title">
+                        {!running && <section className="cw-section" aria-labelledby="cw-team-title">
                             <div className="cw-section-head">
                                 <h2 id="cw-team-title">Équipe <small>{team.length} SDR</small></h2>
                                 <button className="cw-button" data-size="sm" onClick={() => onTabChange("equipe")}>{team.length ? "Gérer l’équipe" : "Affecter des SDR"} <ChevronRight /></button>
@@ -1934,9 +1997,9 @@ export function MissionWorkspace({
                                 ))}
                             </div> : <p className="cw-empty-line"><span>Aucun SDR affecté : personne n’appellera sur cette mission.</span></p>}
                             {team.length > 6 && <button className="cw-text-button" onClick={() => onTabChange("equipe")}>Voir les {team.length} SDR <ChevronRight /></button>}
-                        </section>
+                        </section>}
 
-                        {showActivity && <section className="cw-section" aria-labelledby="cw-activity-title">
+                        {!running && (mission.stats?.totalActions ?? 0) > 0 && <section className="cw-section" aria-labelledby="cw-activity-title">
                             <div className="cw-section-head"><h2 id="cw-activity-title">Activité <small>{insights?.windowDays ?? 30} derniers jours</small></h2>
                                 <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("feedback")}>Avis SDR <ChevronRight /></button></div>
                             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -2075,12 +2138,13 @@ export function MissionWorkspace({
                             <div><dt>Statut</dt><dd><StatusSelect status={mission.status} disabled={isToggling} onSelect={changeStatus} /></dd></div>
                             <div><dt>Début</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "startDate", at: Date.now() })}><span className={mission.startDate ? undefined : "cw-prop-empty"}>{mission.startDate ? dayShortFr.format(new Date(mission.startDate)) : "À définir"}</span></button></dd></div>
                             <div><dt>Fin</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "endDate", at: Date.now() })}><span className={mission.endDate ? undefined : "cw-prop-empty"}>{mission.endDate ? dayShortFr.format(new Date(mission.endDate)) : "À définir"}</span></button></dd></div>
+                            <div><dt>Objectif</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "targetMeetings", at: Date.now() })}><span className={mission.targetMeetings ? undefined : "cw-prop-empty"}>{mission.targetMeetings ? `${mission.targetMeetings} RDV` : "À chiffrer"}</span></button></dd></div>
                             <div><dt>Référent</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "teamLeadSdrId", at: Date.now() })}><span className={mission.teamLeadSdr ? undefined : "cw-prop-empty"}>{mission.teamLeadSdr?.name ?? "Non désigné"}</span></button></dd></div>
                             <div><dt>Équipe</dt><dd><button className="cw-prop-button" onClick={() => onTabChange("equipe")} aria-label={`Équipe : ${team.length} SDR. Gérer`}>{avatars(5)}</button></dd></div>
                         </dl>
                     </section>
 
-                    <section className="cw-rail-section" aria-labelledby="cw-rail-launch">
+                    {!running && <section className="cw-rail-section" aria-labelledby="cw-rail-launch">
                         <h2 className="cw-rail-title" id="cw-rail-launch">Lancement <small>{launch.done} / {launch.total}</small></h2>
                         <div className="cw-progress" data-done={launch.ready ? "" : undefined} role="progressbar" aria-label="Vérifications de lancement validées" aria-valuemin={0} aria-valuemax={launch.total} aria-valuenow={launch.done}>
                             <span style={{ width: `${Math.round((launch.done / Math.max(launch.total, 1)) * 100)}%` }} />
@@ -2097,17 +2161,8 @@ export function MissionWorkspace({
                         </>}
                         {mission.status === "ACTIVE" && !isPortalLaunching && <p className="cw-hint"><span className="cw-pill" data-tone="success"><i />Mission active</span></p>}
                         <button className="cw-text-button" style={{ marginTop: 0 }} onClick={scrollToLaunch}>Voir la checklist <ChevronRight /></button>
-                    </section>
+                    </section>}
 
-                    <section className="cw-rail-section">
-                        <h2 className="cw-rail-title">Raccourcis</h2>
-                        <div className="cw-shortcuts">
-                            <button className="cw-shortcut" onClick={() => onTabChange("feedback")}><MessageSquare /><span>Avis SDR</span><ChevronRight /></button>
-                            <button className="cw-shortcut" onClick={() => onTabChange("strategy")}><FileText /><span>Stratégie avancée</span><ChevronRight /></button>
-                            {onClientOnboarding && <button className="cw-shortcut" onClick={onClientOnboarding}><CheckCircle2 /><span>Intégration du client</span><ChevronRight /></button>}
-                            <button className="cw-shortcut" onClick={() => onTabChange("reglages")}><ShieldCheck /><span>Administration</span><ChevronRight /></button>
-                        </div>
-                    </section>
 
                     {onCreatePage && <section className="cw-rail-section">
                         <h2 className="cw-rail-title">Pages liées <small>{linkedPages.length || ""}</small></h2>

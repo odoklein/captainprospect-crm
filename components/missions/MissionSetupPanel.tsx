@@ -10,6 +10,7 @@ interface SetupMission {
     id: string;
     name: string;
     objective?: string | null;
+    targetMeetings?: number | null;
     startDate?: string | null;
     endDate?: string | null;
     channel: Channel;
@@ -25,6 +26,7 @@ function valuesOf(mission: SetupMission) {
     return {
         name: mission.name,
         objective: mission.objective ?? "",
+        targetMeetings: mission.targetMeetings ? String(mission.targetMeetings) : "",
         startDate: mission.startDate?.slice(0, 10) ?? "",
         endDate: mission.endDate?.slice(0, 10) ?? "",
         channels: mission.channels?.length ? mission.channels : [mission.channel],
@@ -36,6 +38,7 @@ function valuesOf(mission: SetupMission) {
 const FIELD_LABELS = {
     name: "Nom de la mission",
     objective: "Objectif",
+    targetMeetings: "RDV visés",
     startDate: "Date de début",
     endDate: "Date de fin",
     channels: "Canaux",
@@ -124,11 +127,13 @@ export function MissionSetupPanel({ mission, onSave, onTabChange, editRequest, o
         if (!draft || !dirty || saving) return;
         if (!draft.name.trim()) return setError("Renseignez le nom de la mission.");
         if (!draft.channels.length) return setError("Sélectionnez au moins un canal.");
+        if (draft.targetMeetings && !/^\d{1,5}$/.test(draft.targetMeetings.trim())) return setError("Le nombre de RDV visés doit être un nombre entier.");
         if (draft.startDate && draft.endDate && draft.endDate < draft.startDate) {
             return setError("La date de fin doit être le même jour ou après la date de début.");
         }
         const patch = Object.fromEntries(changed.map((field) => {
             const value = draft[field];
+            if (field === "targetMeetings") return [field, draft.targetMeetings.trim() ? Number(draft.targetMeetings) : null];
             return [field, typeof value === "string" ? value.trim() || null : value];
         }));
         setSaving(true);
@@ -139,8 +144,6 @@ export function MissionSetupPanel({ mission, onSave, onTabChange, editRequest, o
         close();
     }
 
-    const contact = mission.defaultInterlocuteur;
-    const contactName = contact ? `${contact.firstName} ${contact.lastName}` : "Défini par base";
     const dateError = Boolean(draft?.startDate && draft.endDate && draft.endDate < draft.startDate);
 
     return (
@@ -157,7 +160,8 @@ export function MissionSetupPanel({ mission, onSave, onTabChange, editRequest, o
                         <legend><Target /> Objectif et période</legend>
                         <label>Nom de la mission<input name="name" required value={draft.name} onChange={(event) => setField("name", event.target.value)} /></label>
                         <label>Objectif<textarea name="objective" rows={3} value={draft.objective} placeholder="Ex. 12 rendez-vous qualifiés avec des DSI de PME industrielles" onChange={(event) => setField("objective", event.target.value)} /></label>
-                        <div className="cw-form-grid">
+                        <div className="cw-form-grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
+                            <label>RDV visés<input name="targetMeetings" inputMode="numeric" placeholder="Ex. 12" value={draft.targetMeetings} onChange={(event) => setField("targetMeetings", event.target.value)} /></label>
                             <label>Date de début<input name="startDate" type="date" required={Boolean(initial.startDate)} value={draft.startDate} onChange={(event) => setField("startDate", event.target.value)} /></label>
                             <label>Date de fin<input name="endDate" type="date" required={Boolean(initial.endDate)} min={draft.startDate || undefined} aria-invalid={dateError} value={draft.endDate} onChange={(event) => setField("endDate", event.target.value)} /></label>
                         </div>
@@ -197,9 +201,9 @@ export function MissionSetupPanel({ mission, onSave, onTabChange, editRequest, o
                     <section>
                         <p className="cw-objective" data-empty={saved.objective ? undefined : ""}>{saved.objective || <span className="cw-muted">Objectif à renseigner : le résultat attendu, la cible et le volume.</span>}</p>
                         <dl className="cw-properties">
+                            <Property label="Objectif chiffré">{mission.targetMeetings ? `${mission.targetMeetings} RDV` : "À chiffrer"}</Property>
                             <Property label="Période">{saved.startDate || saved.endDate ? `${formatDate(saved.startDate)} → ${formatDate(saved.endDate)}` : "À définir"}</Property>
                             <Property label="Canaux">{saved.channels.map((channel) => CHANNELS[channel]).join(", ")}</Property>
-                            <Property label="Commercial par défaut">{contactName}</Property>
                         </dl>
                     </section>
                     {lastSaved.length > 0 && <p className="cw-hint" role="status"><Check aria-hidden className="mr-1 inline h-3.5 w-3.5 text-success" />Enregistré : {lastSaved.join(", ")}</p>}
