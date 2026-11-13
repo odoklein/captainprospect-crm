@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Modal, ModalFooter, ConfirmModal, ContextMenu, useContextMenu, useToast, Tabs } from "@/components/ui";
+import { Modal, ModalFooter, ConfirmModal, ContextMenu, useContextMenu, useToast } from "@/components/ui";
 import { MissionStatusWorkflowDrawer } from "@/components/drawers";
 import {
     Target,
@@ -34,6 +34,9 @@ import {
     MoreHorizontal,
     AlertTriangle,
     Rocket,
+    CalendarDays,
+    Database,
+    Link2,
 } from "lucide-react";
 import { Upload } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
@@ -42,8 +45,13 @@ import { CSVImportDialog } from "@/components/dialogs/CSVImportDialog";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
-import { ReadinessPanel, type LaunchList, type StrategyField } from "./ReadinessPanel";
-import { MissionSetupPanel } from "./MissionSetupPanel";
+import { LaunchChecklist, launchSteps, type LaunchList, type StrategyField } from "./ReadinessPanel";
+import { MissionSetupPanel, type SetupField } from "./MissionSetupPanel";
+import { Drawer } from "@/components/ui/Drawer";
+import { CrumbActions } from "@/components/manager/workspace/CrumbSlot";
+import { useFocusRequest } from "@/components/manager/workspace/focus";
+import type { ClientPageSummary } from "@/components/manager/workspace/clientPages";
+import { PAGE_TEMPLATES, PAGE_TEMPLATE_IDS, type PageTemplate } from "@/lib/client-pages/blocks";
 import { StrategyEditorDrawer } from "./StrategyEditorDrawer";
 import { StrategyByListTab } from "./StrategyByListTab";
 import { ListCommercialsPicker } from "./ListCommercialsPicker";
@@ -249,7 +257,28 @@ export interface MissionWorkspaceProps {
     activeTab: string;
     onTabChange: (tab: string) => void;
     onClientOnboarding?: () => void;
+    /** Client pages linked to this mission (briefs, launch notes). */
+    linkedPages?: ClientPageSummary[];
+    onOpenPage?: (pageId: string) => void;
+    onCreatePage?: (template: PageTemplate) => void;
 }
+
+/** Substantial editors open in a drawer over the brief; `?tab=` names the open one. */
+const PANELS: Record<string, { title: string; description: string }> = {
+    audience: { title: "Bases de prospects", description: "Listes, contacts et commerciaux de chaque base" },
+    strategies: { title: "Ciblage et scripts", description: "Stratégie, ciblage, pitch et script de chaque base" },
+    strategy: { title: "Stratégie avancée", description: "Campagnes et modèles d’e-mails" },
+    equipe: { title: "Équipe", description: "SDR affectés à la mission" },
+    feedback: { title: "Avis SDR", description: "Retours de fin de journée sur cette mission" },
+    reglages: { title: "Administration", description: "Réglages sensibles de la mission" },
+};
+
+function initials(name: string) {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
+}
+
+const dayFr = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const dayShortFr = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 // ============================================
 // INSIGHTS PRIMITIVES
@@ -468,13 +497,6 @@ function KpiTile({
 // ============================================
 
 /** Mission name, renamed in place. Enter commits, Escape reverts. */
-const STATUS_PILL_CLASS: Record<MissionStatusValue, string> = {
-    DRAFT: "bg-slate-100 text-slate-700 hover:bg-slate-200",
-    ACTIVE: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
-    PAUSED: "bg-amber-100 text-amber-800 hover:bg-amber-200",
-    COMPLETED: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-    ARCHIVED: "bg-zinc-200 text-zinc-700 hover:bg-zinc-300",
-};
 
 /** Status pill that only offers the transitions the workflow allows. */
 function StatusSelect({
@@ -486,63 +508,24 @@ function StatusSelect({
     disabled?: boolean;
     onSelect: (next: MissionStatusValue) => void;
 }) {
-    const [open, setOpen] = useState(false);
     const allowed = MISSION_STATUS_TRANSITIONS[status] ?? [];
-
+    const tone = status === "ACTIVE" ? "success" : status === "PAUSED" ? "warning" : status === "COMPLETED" ? "info" : undefined;
+    const pill = <span className="cw-pill" data-tone={tone}><i />{MISSION_STATUS_CONFIG[status]?.label ?? status}</span>;
+    if (!allowed.length) return pill;
     return (
-        <div className="relative">
-            <button
-                type="button"
-                disabled={disabled || allowed.length === 0}
-                onClick={() => setOpen((v) => !v)}
-                className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors disabled:opacity-60",
-                    STATUS_PILL_CLASS[status]
-                )}
-                aria-expanded={open}
-                aria-label="Changer le statut de la mission"
-            >
-                {MISSION_STATUS_CONFIG[status]?.label ?? status}
-                {allowed.length > 0 && <ChevronRight className="h-3.5 w-3.5 rotate-90 opacity-60" />}
-            </button>
-            {open && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
-                    <div className="absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                        <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                            Transitions possibles
-                        </p>
-                        {allowed.map((next) => (
-                            <button
-                                key={next}
-                                type="button"
-                                onClick={() => {
-                                    setOpen(false);
-                                    onSelect(next);
-                                }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                            >
-                                <span
-                                    className={cn(
-                                        "h-2 w-2 rounded-full",
-                                        next === "ACTIVE"
-                                            ? "bg-emerald-500"
-                                            : next === "PAUSED"
-                                                ? "bg-amber-500"
-                                                : next === "COMPLETED"
-                                                    ? "bg-blue-500"
-                                                    : next === "ARCHIVED"
-                                                        ? "bg-zinc-400"
-                                                        : "bg-slate-400"
-                                    )}
-                                />
-                                {MISSION_STATUS_CONFIG[next]?.label ?? next}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            )}
-        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button className="cw-prop-button" disabled={disabled} aria-label={`Statut : ${MISSION_STATUS_CONFIG[status]?.label ?? status}. Changer`}>
+                    {pill}<ChevronRight className="rotate-90" aria-hidden />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Passer à</DropdownMenuLabel>
+                {allowed.map((next) => (
+                    <DropdownMenuItem key={next} onSelect={() => onSelect(next)}>{MISSION_STATUS_CONFIG[next]?.label ?? next}</DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 
@@ -557,6 +540,9 @@ export function MissionWorkspace({
     activeTab,
     onTabChange,
     onClientOnboarding,
+    linkedPages = [],
+    onOpenPage,
+    onCreatePage,
 }: MissionWorkspaceProps) {
     const { success, error: showError, addToast } = useToast();
 
@@ -620,6 +606,8 @@ export function MissionWorkspace({
     const [showCsvImport, setShowCsvImport] = useState(false);
     const [campaignEditor, setCampaignEditor] = useState<string | "new" | null>(null);
     const [fieldSaveState, setFieldSaveState] = useState<"saving" | "saved" | null>(null);
+    const [editRequest, setEditRequest] = useState<{ field: SetupField; at: number } | null>(null);
+    const [setupDirty, setSetupDirty] = useState(false);
     const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -1738,6 +1726,18 @@ export function MissionWorkspace({
         ]
         : [];
 
+    const missionLoaded = Boolean(mission);
+    useFocusRequest(missionLoaded);
+    useEffect(() => {
+        if (activeTab !== "lancement" || !missionLoaded) return;
+        const frame = requestAnimationFrame(() => {
+            const heading = document.getElementById("cw-launch-title");
+            heading?.scrollIntoView({ block: "start" });
+            heading?.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [activeTab, missionLoaded]);
+
     // ============================================
     // LOADING STATE
     // ============================================
@@ -1775,114 +1775,171 @@ export function MissionWorkspace({
 
     const canStart = mission.status !== "ACTIVE" && MISSION_STATUS_TRANSITIONS[mission.status].includes("ACTIVE");
     const launchReadiness = mission.missionReadiness;
-    const launchNeedsAttention = Boolean(launchReadiness && (!launchReadiness.activeLists || launchReadiness.readyLists < launchReadiness.activeLists));
-    const tabs = [
-        { id: "general", label: "Paramètres", icon: <Target className="h-4 w-4" /> },
-        { id: "lancement", label: "Lancement", icon: <Rocket className="h-4 w-4" />, badge: launchNeedsAttention ? "À suivre" : undefined },
-        { id: "equipe", label: "Équipe", icon: <Users className="h-4 w-4" /> },
-        { id: "audience", label: "Bases de prospects", icon: <ListIcon className="h-4 w-4" /> },
-        { id: "strategies", label: "Ciblage et scripts", icon: <FileText className="h-4 w-4" /> },
-        { id: "strategy", label: "Stratégie avancée", icon: <FileText className="h-4 w-4" /> },
-        { id: "feedback", label: "Avis SDR", icon: <MessageSquare className="h-4 w-4" /> },
-        { id: "reglages", label: "Administration", icon: <ShieldCheck className="h-4 w-4" /> },
-    ];
-    const visibleTab = tabs.some((tab) => tab.id === activeTab) ? activeTab : "general";
+
+    const panel = PANELS[activeTab] ? activeTab : null;
+    const activeLists = mission.lists.filter((list) => list.isActive !== false && !list.isArchived);
+    const launch = launchSteps({
+        readiness: launchReadiness,
+        lists: mission.lists,
+        startDate: mission.startDate,
+        assignmentCount: mission.sdrAssignments.length,
+        onFixAudience: () => mission.lists.length ? onTabChange("audience") : setAudiencePanel("new"),
+        onFixTeam: () => onTabChange("equipe"),
+        onFixDates: () => setEditRequest({ field: "startDate", at: Date.now() }),
+        onFixStrategy: (field, list) => setLaunchFix({ field, list }),
+    });
+    const period = mission.startDate || mission.endDate
+        ? `${mission.startDate ? dayFr.format(new Date(mission.startDate)) : "…"} → ${mission.endDate ? dayFr.format(new Date(mission.endDate)) : "…"}`
+        : "À définir";
+    const team = mission.sdrAssignments.map((assignment) => assignment.sdr);
+    const avatars = (limit: number) => team.length ? <span className="cw-avatars" aria-label={team.map((sdr) => sdr.name).join(", ")}>
+        {team.slice(0, limit).map((sdr) => <span key={sdr.id} className="cw-avatar" title={sdr.name} aria-hidden>{initials(sdr.name)}</span>)}
+        {team.length > limit && <span className="cw-avatar" data-more aria-hidden>+{team.length - limit}</span>}
+    </span> : <span className="cw-prop-empty">Aucun SDR</span>;
+    const showActivity = mission.status !== "DRAFT" || (mission.stats?.totalActions ?? 0) > 0;
+    const scrollToLaunch = () => {
+        const heading = document.getElementById("cw-launch-title");
+        heading?.scrollIntoView({ block: "start", behavior: "smooth" });
+        heading?.focus({ preventScroll: true });
+    };
 
     return (
         <div className="cw-mission">
-            <header className="cw-pagehead">
-                <div className="cw-client-identity">
-                    <span className="cw-monogram cw-monogram-large"><Target /></span>
-                    <div>
-                        <h1>{mission.name}</h1>
-                        <p>{mission.client?.name} <span aria-hidden>·</span> {mission._count.lists} base{mission._count.lists !== 1 ? "s" : ""} <span aria-hidden>·</span> {mission.sdrAssignments.length} SDR</p>
-                    </div>
-                </div>
-                <div className="cw-actions">
-                    <span role="status" className={cn("cw-save-state", fieldSaveState === "saved" && "cw-save-state-done")}>
-                        {fieldSaveState === "saving" && <><Loader2 className="animate-spin" /> Enregistrement…</>}
-                        {fieldSaveState === "saved" && <><CheckCircle2 /> Enregistré</>}
-                    </span>
-                    <StatusSelect status={mission.status} disabled={isToggling} onSelect={changeStatus} />
-                    {visibleTab !== "lancement" && <button className="cw-button cw-primary" onClick={() => onTabChange("lancement")}><Rocket /> {canStart ? "Préparer le lancement" : "Voir le lancement"}</button>}
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild><button className="cw-button cw-icon-button" aria-label="Actions de la mission"><MoreHorizontal /></button></DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                            <DropdownMenuLabel>Préparer la mission</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => setShowEditMissionDialog(true)}><Edit />Modifier la mission</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setAudiencePanel("new")}><Plus />Créer une base de prospects</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setShowCsvImport(true)}><Upload />Importer un fichier CSV</DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setCampaignEditor("new")}><FileText />Créer un ciblage et un script</DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={() => setShowStatusWorkflowDrawer(true)}><ShieldCheck />Statuts et workflow</DropdownMenuItem>
-                            {mission.status === "ACTIVE" && !isPortalLaunching && <DropdownMenuItem onSelect={() => setShowPortalLaunchModal(true)}><EyeOff />Visibilité du portail</DropdownMenuItem>}
-                            <DropdownMenuItem onSelect={() => onTabChange("reglages")}><Edit />Administration</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </header>
+            <CrumbActions>
+                <span className="cw-save-state" role="status" data-state={setupDirty ? "dirty" : fieldSaveState === "saved" ? "saved" : undefined}>
+                    {fieldSaveState === "saving" ? <><Loader2 className="animate-spin" aria-hidden /> Enregistrement…</>
+                        : setupDirty ? "Modifications non enregistrées"
+                        : fieldSaveState === "saved" ? <><CheckCircle2 aria-hidden /> Enregistré</> : null}
+                </span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" aria-label="Actions de la mission"><MoreHorizontal /></button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuLabel>Préparer</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => setEditRequest({ field: "name", at: Date.now() })}><Edit />Modifier le cadrage</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setAudiencePanel("new")}><Plus />Créer une base de prospects</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setShowCsvImport(true)}><Upload />Importer un fichier CSV</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setCampaignEditor("new")}><FileText />Créer un ciblage et un script</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onTabChange("strategy")}><FileText />Stratégie avancée</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setShowStatusWorkflowDrawer(true)}><Activity />Statuts et workflow</DropdownMenuItem>
+                        {mission.status === "ACTIVE" && !isPortalLaunching && <DropdownMenuItem onSelect={() => setShowPortalLaunchModal(true)}><EyeOff />Visibilité du portail</DropdownMenuItem>}
+                        <DropdownMenuItem onSelect={() => setShowEditMissionDialog(true)}><Pencil />Client et options de la mission</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onTabChange("reglages")}><ShieldCheck />Administration</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </CrumbActions>
 
-            {isPortalLaunching && mission.portalVisibleAt && (
-                <div className="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                            <EyeOff className="h-5 w-5" />
+            <div className="cw-layout">
+                <main className="cw-doc" aria-labelledby="cw-mission-title">
+                    <header className="cw-doc-head">
+                        <span className="cw-eyebrow"><Target aria-hidden /><span>Mission · {mission.client?.name}</span></span>
+                        <h1 id="cw-mission-title" className="cw-doc-title" tabIndex={-1} data-focus-key="heading">{mission.name}</h1>
+                        <dl className="cw-facts">
+                            <div className="cw-fact"><dt><CalendarDays aria-hidden />Période</dt><dd>{period}</dd></div>
+                            <div className="cw-fact"><dt><Database aria-hidden />Bases</dt><dd>{launchReadiness ? `${launchReadiness.readyLists} / ${launchReadiness.activeLists} prêtes` : `${mission._count.lists}`}</dd></div>
+                            <div className="cw-fact"><dt><Users aria-hidden />Équipe</dt><dd>{avatars(4)}</dd></div>
+                            <div className="cw-fact"><dt><Rocket aria-hidden />Lancement</dt><dd>{launch.done} / {launch.total} vérifications</dd></div>
+                        </dl>
+                    </header>
+
+                    {isPortalLaunching && mission.portalVisibleAt && (
+                        <div className="cw-callout" role="status">
+                            <EyeOff aria-hidden />
+                            <div>
+                                <strong>Activité masquée sur le portail client</strong>
+                                <p>Les SDR travaillent normalement. Publication automatique le {new Date(mission.portalVisibleAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}.</p>
+                            </div>
+                            <button className="cw-button" data-size="sm" onClick={() => setShowPortalLaunchModal(true)}>Gérer</button>
                         </div>
-                        <div>
-                            <p className="text-sm font-bold text-amber-950">Activité masquée sur les portails</p>
-                            <p className="mt-1 text-xs leading-5 text-amber-800">
-                                Les SDR continuent de travailler normalement. Publication automatique le{" "}
-                                {new Date(mission.portalVisibleAt).toLocaleDateString("fr-FR", {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                })}.
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => setShowPortalLaunchModal(true)}
-                        className="h-9 shrink-0 rounded-lg border border-amber-300 bg-white px-4 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100"
-                    >
-                        Gérer la visibilité
-                    </button>
-                </div>
-            )}
+                    )}
 
+                    <div className="cw-sections" data-numbered>
+                        <MissionSetupPanel
+                            mission={mission}
+                            onSave={(patch) => saveMissionField(patch, "Cadrage de la mission", { silent: true })}
+                            onTabChange={onTabChange}
+                            editRequest={editRequest}
+                            onDirtyChange={setSetupDirty}
+                        />
 
-            <div className="cw-mission-tabs">
-                <Tabs activeTab={visibleTab} onTabChange={onTabChange} tabs={tabs} />
-            </div>
+                        <section className="cw-section" id="lancement" aria-labelledby="cw-launch-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-launch-title" tabIndex={-1}>Checklist de lancement <small>{launch.done}/{launch.total}</small></h2>
+                                {mission.status === "ACTIVE" ? <span className="cw-pill" data-tone="success"><i />Mission active</span>
+                                    : launch.ready ? <span className="cw-pill" data-tone="success"><i />Prête à lancer</span>
+                                    : <span className="cw-pill" data-tone="warning"><i />{launch.total - launch.done} point{launch.total - launch.done > 1 ? "s" : ""} à régler</span>}
+                            </div>
+                            <LaunchChecklist summary={launch} readinessAvailable={Boolean(launchReadiness)} onFixStrategy={(field, list) => setLaunchFix({ field, list })} />
+                        </section>
 
-            <div hidden={visibleTab !== "general"}>
-                <MissionSetupPanel
-                    mission={mission}
-                    onSave={(patch) => saveMissionField(patch, "Paramètres de la mission", { silent: true })}
-                    onTabChange={onTabChange}
-                />
-            </div>
+                        <section className="cw-section" aria-labelledby="cw-lists-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-lists-title">Bases de prospects <small>{activeLists.length} active{activeLists.length > 1 ? "s" : ""}</small></h2>
+                                <div className="cw-actions">
+                                    <button className="cw-button" data-size="sm" onClick={() => setAudiencePanel("new")}><Plus /> Nouvelle base</button>
+                                    {mission.lists.length > 0 && <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("audience")}>Gérer <ChevronRight /></button>}
+                                </div>
+                            </div>
+                            {activeLists.length ? <div className="cw-rows">
+                                {activeLists.slice(0, 5).map((list) => (
+                                    <div key={list.id} className="cw-row">
+                                        <span className="cw-row-icon" data-tone={list.readiness?.isReady ? "done" : "todo"}><Database aria-hidden /></span>
+                                        <div className="cw-row-main">
+                                            <button className="cw-row-title" title={list.name} onClick={() => setAudiencePanel({ id: list.id, name: list.name })}>{list.name}</button>
+                                            <small>{list._count?.companies ?? 0} société{(list._count?.companies ?? 0) > 1 ? "s" : ""}{list._count?.contacts !== undefined ? ` · ${list._count.contacts} contact${list._count.contacts > 1 ? "s" : ""}` : ""} · {list.campaign?.name ?? (list.readiness?.hasStrategy ? "Stratégie de la mission" : "Sans stratégie")}</small>
+                                        </div>
+                                        <span className="cw-row-side"><span className="cw-pill" data-tone={list.readiness?.isReady ? "success" : "warning"}><i />{list.readiness?.isReady ? "Prête" : "À compléter"}</span></span>
+                                    </div>
+                                ))}
+                            </div> : <p className="cw-empty-line"><span>{mission.lists.length ? "Aucune base active : réactivez une base pour alimenter la file d’appels." : "Aucune base de prospects pour cette mission."}</span>
+                                <button className="cw-button cw-primary" data-size="sm" onClick={() => mission.lists.length ? onTabChange("audience") : setAudiencePanel("new")}>{mission.lists.length ? "Réactiver une base" : "Ajouter une base"}</button></p>}
+                            {activeLists.length > 5 && <button className="cw-text-button" onClick={() => onTabChange("audience")}>Voir les {activeLists.length} bases <ChevronRight /></button>}
+                        </section>
 
-            {visibleTab === "lancement" && <ReadinessPanel
-                readiness={launchReadiness}
-                lists={mission.lists}
-                startDate={mission.startDate}
-                teamLead={mission.teamLeadSdr?.name}
-                assignmentCount={mission.sdrAssignments.length}
-                canStart={canStart}
-                active={mission.status === "ACTIVE"}
-                publishing={isPortalLaunching}
-                onStart={() => setShowPortalLaunchModal(true)}
-                onFixAudience={() => mission.lists.length ? onTabChange("audience") : setAudiencePanel("new")}
-                onFixTeam={() => onTabChange("equipe")}
-                onFixStrategy={(field, list) => setLaunchFix({ field, list })}
-                onClientOnboarding={onClientOnboarding}
-            />}
+                        <section className="cw-section" aria-labelledby="cw-scripts-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-scripts-title">Ciblage et scripts <small>{mission.campaigns.length}</small></h2>
+                                <div className="cw-actions">
+                                    <button className="cw-button" data-size="sm" onClick={() => setCampaignEditor("new")}><Plus /> Nouveau</button>
+                                    {mission.campaigns.length > 0 && <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("strategies")}>Par base <ChevronRight /></button>}
+                                </div>
+                            </div>
+                            {mission.campaigns.length ? <div className="cw-rows">
+                                {mission.campaigns.map((campaign) => {
+                                    const used = mission.lists.filter((list) => list.campaignId === campaign.id || list.readiness?.inheritedCampaignId === campaign.id).length;
+                                    return <div key={campaign.id} className="cw-row">
+                                        <span className="cw-row-icon"><FileText aria-hidden /></span>
+                                        <div className="cw-row-main">
+                                            <button className="cw-row-title" title={campaign.name} onClick={() => setCampaignEditor(campaign.id)}>{campaign.name}</button>
+                                            <small>{used ? `Utilisé par ${used} base${used > 1 ? "s" : ""}` : "Utilisé par aucune base"}</small>
+                                        </div>
+                                        <span className="cw-row-side">{campaign.isActive ? <span className="cw-pill" data-tone="success"><i />Par défaut</span> : <span className="cw-pill"><i />Inactif</span>}</span>
+                                    </div>;
+                                })}
+                            </div> : <p className="cw-empty-line"><span>Aucun ciblage ni script : les SDR n’ont rien à dire au téléphone.</span><button className="cw-button cw-primary" data-size="sm" onClick={() => setCampaignEditor("new")}>Rédiger le ciblage et le script</button></p>}
+                        </section>
 
-            <div>
-                {visibleTab === "general" && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="cw-section-heading"><h2>Activité de la mission</h2></div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <section className="cw-section" aria-labelledby="cw-team-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-team-title">Équipe <small>{team.length} SDR</small></h2>
+                                <button className="cw-button" data-size="sm" onClick={() => onTabChange("equipe")}>{team.length ? "Gérer l’équipe" : "Affecter des SDR"} <ChevronRight /></button>
+                            </div>
+                            {team.length ? <div className="cw-rows">
+                                {team.slice(0, 6).map((sdr) => (
+                                    <div key={sdr.id} className="cw-row">
+                                        <span className="cw-avatar" style={{ width: 28, height: 28, border: 0 }} aria-hidden>{initials(sdr.name)}</span>
+                                        <div className="cw-row-main"><strong>{sdr.name}</strong><small>{sdr.email}</small></div>
+                                        <span className="cw-row-side">{mission.teamLeadSdrId === sdr.id && <span className="cw-pill" data-tone="accent"><i />Référent</span>}</span>
+                                    </div>
+                                ))}
+                            </div> : <p className="cw-empty-line"><span>Aucun SDR affecté : personne n’appellera sur cette mission.</span></p>}
+                            {team.length > 6 && <button className="cw-text-button" onClick={() => onTabChange("equipe")}>Voir les {team.length} SDR <ChevronRight /></button>}
+                        </section>
+
+                        {showActivity && <section className="cw-section" aria-labelledby="cw-activity-title">
+                            <div className="cw-section-head"><h2 id="cw-activity-title">Activité <small>{insights?.windowDays ?? 30} derniers jours</small></h2>
+                                <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("feedback")}>Avis SDR <ChevronRight /></button></div>
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <KpiTile
                                 icon={Activity}
                                 label="Actions réalisées"
@@ -1922,8 +1979,11 @@ export function MissionWorkspace({
                             />
                         </div>
 
-                        <details className="cw-panel cw-advanced">
-                            <summary>Réglages de prospection</summary>
+                        </section>}
+                    </div>
+
+                        <details className="cw-advanced">
+                            <summary><ChevronRight aria-hidden />Réglages de prospection</summary>
                             {/* Statuts et workflow */}
                             <div className="space-y-6">
                                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -2006,9 +2066,67 @@ export function MissionWorkspace({
                                 </div>
                             </div>
                         </details>
-                    </div>
-                )}
+                </main>
 
+                <aside className="cw-rail" aria-label="Propriétés de la mission">
+                    <section className="cw-rail-section">
+                        <h2 className="cw-rail-title">Propriétés</h2>
+                        <dl className="cw-props">
+                            <div><dt>Statut</dt><dd><StatusSelect status={mission.status} disabled={isToggling} onSelect={changeStatus} /></dd></div>
+                            <div><dt>Début</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "startDate", at: Date.now() })}><span className={mission.startDate ? undefined : "cw-prop-empty"}>{mission.startDate ? dayShortFr.format(new Date(mission.startDate)) : "À définir"}</span></button></dd></div>
+                            <div><dt>Fin</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "endDate", at: Date.now() })}><span className={mission.endDate ? undefined : "cw-prop-empty"}>{mission.endDate ? dayShortFr.format(new Date(mission.endDate)) : "À définir"}</span></button></dd></div>
+                            <div><dt>Référent</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "teamLeadSdrId", at: Date.now() })}><span className={mission.teamLeadSdr ? undefined : "cw-prop-empty"}>{mission.teamLeadSdr?.name ?? "Non désigné"}</span></button></dd></div>
+                            <div><dt>Équipe</dt><dd><button className="cw-prop-button" onClick={() => onTabChange("equipe")} aria-label={`Équipe : ${team.length} SDR. Gérer`}>{avatars(5)}</button></dd></div>
+                        </dl>
+                    </section>
+
+                    <section className="cw-rail-section" aria-labelledby="cw-rail-launch">
+                        <h2 className="cw-rail-title" id="cw-rail-launch">Lancement <small>{launch.done} / {launch.total}</small></h2>
+                        <div className="cw-progress" data-done={launch.ready ? "" : undefined} role="progressbar" aria-label="Vérifications de lancement validées" aria-valuemin={0} aria-valuemax={launch.total} aria-valuenow={launch.done}>
+                            <span style={{ width: `${Math.round((launch.done / Math.max(launch.total, 1)) * 100)}%` }} />
+                        </div>
+                        {launch.next && launch.next.action && <>
+                            <p className="cw-hint">{launch.next.blocking ? "À régler" : "Conseillé"} : <strong>{launch.next.label}</strong><br />{launch.next.detail}</p>
+                            <button className="cw-button cw-full" onClick={launch.next.action.run}>{launch.next.action.label}<ChevronRight /></button>
+                        </>}
+                        {(isPortalLaunching || canStart) && <>
+                            <button className="cw-button cw-primary cw-full" disabled={!launch.ready && !isPortalLaunching} aria-describedby={!launch.ready && !isPortalLaunching ? "cw-launch-reason" : undefined} onClick={() => setShowPortalLaunchModal(true)}>
+                                {isPortalLaunching ? <Clock3 /> : <Rocket />}{isPortalLaunching ? "Gérer la visibilité" : "Démarrer la mission"}
+                            </button>
+                            {!launch.ready && !isPortalLaunching && <p id="cw-launch-reason" className="cw-hint">Disponible quand chaque base active a sa stratégie, son ciblage, son pitch et son script.</p>}
+                        </>}
+                        {mission.status === "ACTIVE" && !isPortalLaunching && <p className="cw-hint"><span className="cw-pill" data-tone="success"><i />Mission active</span></p>}
+                        <button className="cw-text-button" style={{ marginTop: 0 }} onClick={scrollToLaunch}>Voir la checklist <ChevronRight /></button>
+                    </section>
+
+                    <section className="cw-rail-section">
+                        <h2 className="cw-rail-title">Raccourcis</h2>
+                        <div className="cw-shortcuts">
+                            <button className="cw-shortcut" onClick={() => onTabChange("feedback")}><MessageSquare /><span>Avis SDR</span><ChevronRight /></button>
+                            <button className="cw-shortcut" onClick={() => onTabChange("strategy")}><FileText /><span>Stratégie avancée</span><ChevronRight /></button>
+                            {onClientOnboarding && <button className="cw-shortcut" onClick={onClientOnboarding}><CheckCircle2 /><span>Intégration du client</span><ChevronRight /></button>}
+                            <button className="cw-shortcut" onClick={() => onTabChange("reglages")}><ShieldCheck /><span>Administration</span><ChevronRight /></button>
+                        </div>
+                    </section>
+
+                    {onCreatePage && <section className="cw-rail-section">
+                        <h2 className="cw-rail-title">Pages liées <small>{linkedPages.length || ""}</small></h2>
+                        {linkedPages.length > 0 && <div className="cw-shortcuts">
+                            {linkedPages.map((page) => <button key={page.id} className="cw-shortcut" onClick={() => onOpenPage?.(page.id)}><Link2 /><span>{page.title || "Sans titre"}</span><ChevronRight /></button>)}
+                        </div>}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><button className="cw-button cw-quiet" data-size="sm"><Plus /> Nouvelle page liée</button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Partir de</DropdownMenuLabel>
+                                {PAGE_TEMPLATE_IDS.map((id) => <DropdownMenuItem key={id} onSelect={() => onCreatePage(id)}><FileText />{PAGE_TEMPLATES[id].label}</DropdownMenuItem>)}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </section>}
+                </aside>
+            </div>
+
+            <Drawer isOpen={Boolean(panel)} onClose={() => onTabChange("general")} title={panel ? PANELS[panel].title : undefined} description={panel ? `${mission.name} · ${PANELS[panel].description}` : undefined} size="xl" bodyClassName="p-4 sm:p-6" closeOnOverlay={false}>
+            <div>
                 {activeTab === "strategies" && (
                     <StrategyByListTab
                         missionId={mission.id}
@@ -3251,6 +3369,7 @@ export function MissionWorkspace({
                     </div>
                 )}
             </div>
+            </Drawer>
 
             {/* Create Template Modal */}
             {showCreateTemplateModal && (

@@ -1,45 +1,23 @@
 "use client";
 
-import { Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Drawer } from "@/components/ui/Drawer";
 import { PlaybookImportWorkspace } from "@/components/manager/PlaybookImportWorkspace";
-import { Upload } from "lucide-react";
-import { Badge } from "@/components/ui";
-import { ArrowRight, Building2, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Clock, Folder, History, Loader2, Mic, Plus, RefreshCw, Search, Target } from "lucide-react";
-import Link from "next/link";
+import {
+    ArrowRight, Building2, ChevronDown, ChevronRight, ChevronUp, CircleAlert, Clock, Folder,
+    History, Loader2, Mic, MoreHorizontal, Plus, RefreshCw, Search, Upload,
+} from "lucide-react";
 import { ClientOnboardingModal } from "@/components/manager/ClientOnboardingModal";
 import { ClientDrawer } from "@/components/drawers";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
 import { CLIENTS_QUERY_KEY, LEEXI_RECAPS_QUERY_KEY } from "@/lib/query-keys";
+import { collectAttention } from "@/lib/manager/attention";
+import { InboxItem, type WorkspaceClient, type WorkspaceClientStatus as ClientStatus, type WorkspaceLocation } from "@/components/manager/workspace/InboxItem";
+import { requestFocus, useFocusRequest } from "@/components/manager/workspace/focus";
 import "./workspace.css";
-
-interface ClientMission {
-    id: string;
-    name: string;
-    endDate: string | null;
-    isActive: boolean;
-    status: string;
-}
-
-type ClientStatus = "ACTIVE" | "PAUSED" | "STOPPED";
-
-interface Client {
-    id: string;
-    name: string;
-    industry?: string;
-    email?: string;
-    phone?: string;
-    status: ClientStatus;
-    createdAt: string;
-    missions: ClientMission[];
-    _count: {
-        missions: number;
-        users: number;
-    };
-
-}
 
 interface LeexiRecapItem {
     id: string;
@@ -50,14 +28,8 @@ interface LeexiRecapItem {
     companyName: string;
 }
 
-interface LeexiMatchedGroup {
-    clientId: string;
-    clientName: string;
-    recaps: LeexiRecapItem[];
-}
-
 interface LeexiRecapsData {
-    matched: LeexiMatchedGroup[];
+    matched: { clientId: string; clientName: string; recaps: LeexiRecapItem[] }[];
     unmatched: LeexiRecapItem[];
     totalRecaps: number;
     totalMatched: number;
@@ -66,39 +38,24 @@ interface LeexiRecapsData {
 }
 
 const STATUS = { ACTIVE: "Actif", PAUSED: "En pause", STOPPED: "Arrêté" } as const;
-const CLIENT_FILTERS = [
+const FILTERS = [
     { id: "ALL", label: "Tous les clients", icon: Building2 },
-    { id: "ATTENTION", label: "À suivre", icon: CircleAlert },
+    { id: "ATTENTION", label: "À traiter", icon: CircleAlert },
     { id: "ACTIVE", label: "Actifs", icon: Folder },
     { id: "PAUSED", label: "En pause", icon: Clock },
     { id: "STOPPED", label: "Arrêtés", icon: Folder },
 ] as const;
+type Filter = (typeof FILTERS)[number]["id"];
 
 const WORKSPACE_CLIENTS_KEY = [...CLIENTS_QUERY_KEY, "workspace"] as const;
-
-type Filter = (typeof CLIENT_FILTERS)[number]["id"];
-type WorkspaceLocation = { client: string; mission?: string | null; tab?: string | null; espace?: string | null };
+const INBOX_PREVIEW = 6;
 
 function searchText(value: string) {
-    return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-function getAttention(client: Client) {
-    if (client.status !== "ACTIVE") return null;
-    const missions = client.missions ?? [];
-    const draft = missions.find((mission) => mission.status === "DRAFT");
-    if (draft) return { mission: draft, label: "Lancement à préparer", tab: "lancement" };
-    const ending = missions.filter((mission) => {
-        if (mission.status !== "ACTIVE" || !mission.endDate) return false;
-        const days = Math.ceil((Date.parse(mission.endDate) - Date.now()) / 86_400_000);
-        return days >= 0 && days <= 14;
-    }).sort((a, b) => (a.endDate ?? "").localeCompare(b.endDate ?? ""))[0];
-    if (ending) return { mission: ending, label: "Fin dans les 14 jours", tab: "general" };
-    return null;
-}
-
-async function fetchClientsApi(): Promise<Client[]> {
-    const clients: Client[] = [];
+async function fetchClientsApi(): Promise<WorkspaceClient[]> {
+    const clients: WorkspaceClient[] = [];
     let page = 1;
     while (true) {
         const res = await fetch(`/api/clients?view=workspace&page=${page}&limit=100`);
@@ -118,6 +75,10 @@ async function fetchLeexiRecapsApi(): Promise<LeexiRecapsData | null> {
     return null;
 }
 
+function clientAttention(client: WorkspaceClient) {
+    return collectAttention([client])[0] ?? null;
+}
+
 function ClientsPageInner() {
     const queryClient = useQueryClient();
     const pathname = usePathname();
@@ -129,13 +90,14 @@ function ClientsPageInner() {
     const [initialLeexiCallId, setInitialLeexiCallId] = useState<string>();
     const [showPlaybookImport, setShowPlaybookImport] = useState(false);
     const [importBusy, setImportBusy] = useState(false);
-    const [showLeexiSection, setShowLeexiSection] = useState(false);
+    const [showLeexi, setShowLeexi] = useState(false);
     const [expandedRecapId, setExpandedRecapId] = useState<string | null>(null);
-    const [recent, setRecent] = useState<WorkspaceLocation | null>(null);
     const directoryScroll = useRef(0);
+    const directoryRef = useRef<HTMLElement>(null);
 
     const clientParam = searchParams.get("client");
     const missionParam = searchParams.get("mission");
+    const pageParam = searchParams.get("page");
     const missionTab = searchParams.get("tab") ?? "general";
     const clientTab = searchParams.get("espace") ?? "missions";
     const recentKey = session?.user?.id ? `cp:client-workspace:${session.user.id}` : null;
@@ -143,27 +105,30 @@ function ClientsPageInner() {
     useLayoutEffect(() => {
         const canvas = document.querySelector<HTMLElement>(".cw-app-canvas");
         if (!canvas) return;
-        canvas.scrollTop = clientParam ? 0 : directoryScroll.current;
-
         if (!clientParam) {
-            const rememberPosition = () => { directoryScroll.current = canvas.scrollTop; };
-            canvas.addEventListener("scroll", rememberPosition, { passive: true });
-            return () => canvas.removeEventListener("scroll", rememberPosition);
+            canvas.scrollTop = directoryScroll.current;
+            const remember = () => { directoryScroll.current = canvas.scrollTop; };
+            canvas.addEventListener("scroll", remember, { passive: true });
+            return () => canvas.removeEventListener("scroll", remember);
         }
-    }, [clientParam, missionParam, missionTab, clientTab]);
+        // A new place starts at the top. Mission panels (?tab=) open over the page and leave it where it is.
+        canvas.scrollTop = 0;
+    }, [clientParam, missionParam, clientTab, pageParam]);
 
-    function navigate(next: WorkspaceLocation | null) {
+    /** Moves inside the workspace without a page load; `focus` names what takes focus next. */
+    function navigate(next: WorkspaceLocation | null, focus?: string) {
         const params = new URLSearchParams(window.location.search);
-        for (const key of ["client", "mission", "tab", "espace"] as const) {
+        for (const key of ["client", "mission", "tab", "espace", "page"] as const) {
             const value = next?.[key];
             if (value) params.set(key, value);
             else params.delete(key);
         }
         const url = params.size ? `${pathname}?${params}` : pathname;
         if (url === window.location.pathname + window.location.search) return;
-        if (!clientParam) {
-            directoryScroll.current = document.querySelector(".cw-app-canvas")?.scrollTop ?? 0;
-        }
+        if (!clientParam) directoryScroll.current = document.querySelector(".cw-app-canvas")?.scrollTop ?? 0;
+        // A drawer panel or the launch checklist takes focus itself; anything else lands on the new heading.
+        const ownsFocus = Boolean(next?.tab && next.tab !== "general");
+        requestFocus(focus ?? (ownsFocus ? null : next ? "heading" : clientParam ? `client:${clientParam}` : null));
         window.history.pushState(null, "", url);
     }
 
@@ -172,47 +137,50 @@ function ClientsPageInner() {
         queryFn: fetchClientsApi,
     });
 
-    const { data: leexiData, isLoading: isLoadingLeexi, refetch: refetchLeexi, error: leexiErrorQuery } = useQuery({
+    const { data: leexiData, isLoading: isLoadingLeexi, error: leexiErrorQuery } = useQuery({
         queryKey: LEEXI_RECAPS_QUERY_KEY,
         queryFn: fetchLeexiRecapsApi,
         retry: false,
         staleTime: 2 * 60 * 1000,
     });
-    const leexiError = leexiErrorQuery?.message;
 
+    // Remember where the manager was, to offer « Reprendre » on the directory.
     useEffect(() => {
-        if (!recentKey) return;
+        if (!recentKey || !clientParam) return;
         try {
-            if (clientParam) {
-                const location = { client: clientParam, mission: missionParam, tab: missionTab, espace: clientTab };
-                setRecent(location);
-                window.localStorage.setItem(recentKey, JSON.stringify(location));
-            } else {
-                setRecent(JSON.parse(window.localStorage.getItem(recentKey) ?? "null"));
-            }
+            window.localStorage.setItem(recentKey, JSON.stringify({ client: clientParam, mission: missionParam, tab: missionTab, espace: clientTab, page: pageParam }));
         } catch {
             // Recent navigation is optional when browser storage is unavailable.
         }
-    }, [recentKey, clientParam, missionParam, missionTab, clientTab]);
+    }, [recentKey, clientParam, missionParam, missionTab, clientTab, pageParam]);
+    const recent = useMemo<WorkspaceLocation | null>(() => {
+        if (!recentKey || clientParam || typeof window === "undefined") return null;
+        try {
+            return JSON.parse(window.localStorage.getItem(recentKey) ?? "null");
+        } catch {
+            return null;
+        }
+    }, [recentKey, clientParam]);
+
+    useFocusRequest(clientParam, isLoading, filter);
 
     const selectedClient = clients.find((client) => client.id === clientParam);
     const recentClient = clients.find((client) => client.id === recent?.client);
     const recentMission = recentClient?.missions?.find((mission) => mission.id === recent?.mission);
-    const attention = clients.flatMap((client) => {
-        const next = getAttention(client);
-        return next ? [{ client, ...next }] : [];
-    });
-    const counts = {
+    const attention = collectAttention(clients);
+    const counts: Record<Filter, number> = {
         ALL: clients.length,
-        ATTENTION: attention.length,
+        ATTENTION: new Set(attention.map((item) => item.clientId)).size,
         ACTIVE: clients.filter((client) => client.status === "ACTIVE").length,
         PAUSED: clients.filter((client) => client.status === "PAUSED").length,
         STOPPED: clients.filter((client) => client.status === "STOPPED").length,
     };
+    const runningMissions = clients.reduce((total, client) => total + client.missions.filter((mission) => mission.status === "ACTIVE").length, 0);
+    const draftMissions = clients.reduce((total, client) => total + client.missions.filter((mission) => mission.status === "DRAFT").length, 0);
     const query = searchText(searchQuery.trim());
     const filtered = clients.filter((client) => {
-        const matchesScope = filter === "ALL" || (filter === "ATTENTION" ? Boolean(getAttention(client)) : client.status === filter);
-        return matchesScope && searchText(`${client.name} ${client.industry ?? ""}`).includes(query);
+        const inScope = filter === "ALL" || (filter === "ATTENTION" ? Boolean(clientAttention(client)) : client.status === filter);
+        return inScope && searchText(`${client.name} ${client.industry ?? ""}`).includes(query);
     });
 
     function handleOnboardingSuccess() {
@@ -221,17 +189,27 @@ function ClientsPageInner() {
     }
 
     function handleCreateFromRecap(leexiCallId: string) {
+        setShowLeexi(false);
         setInitialLeexiCallId(leexiCallId);
         setShowOnboardingModal(true);
     }
 
+    function showAllAttention() {
+        setFilter("ATTENTION");
+        setSearchQuery("");
+        requestFocus("directory");
+        directoryRef.current?.scrollIntoView({ block: "start" });
+    }
+
     if (isLoading || clientsError) {
-        return <div className="cw-loading">
+        return <div className="cw-loading" role={clientsError ? "alert" : "status"}>
             {isLoading ? <><Loader2 className="animate-spin" /> Chargement des clients…</> : (
                 <><p>{clientsError?.message}</p><button className="cw-button" onClick={() => refetchClients()}><RefreshCw /> Réessayer</button></>
             )}
         </div>;
     }
+
+    const leexiCount = leexiData?.totalRecaps ?? 0;
 
     return (
         <>
@@ -240,64 +218,108 @@ function ClientsPageInner() {
                     key={selectedClient.id}
                     isOpen
                     client={selectedClient}
+                    allClients={clients}
+                    onNavigate={navigate}
                     onClose={() => navigate(null)}
                     clientTab={clientTab}
                     onClientTabChange={(espace) => navigate({ client: selectedClient.id, espace })}
                     openMissionId={missionParam}
-                    onOpenMission={(mission, tab) => navigate({ client: selectedClient.id, mission, tab: mission ? tab : null, espace: mission ? clientTab : "missions" })}
+                    openPageId={pageParam}
+                    onOpenMission={(mission, tab) => navigate(
+                        { client: selectedClient.id, mission, tab: mission ? tab : null, espace: mission ? clientTab : "missions" },
+                        mission ? undefined : missionParam ? `mission:${missionParam}` : undefined,
+                    )}
                     missionTab={missionTab}
-                    onMissionTabChange={(tab) => navigate({ client: selectedClient.id, mission: missionParam, tab, espace: clientTab })}
-                    onUpdate={(updated) => queryClient.setQueryData<Client[]>(WORKSPACE_CLIENTS_KEY, (previous) =>
-                        previous?.map((client) => client.id === updated.id ? { ...client, ...updated, status: updated.status ?? client.status } : client)
+                    onMissionTabChange={(tab) => {
+                        const params = new URLSearchParams(window.location.search);
+                        if (tab === "general") params.delete("tab"); else params.set("tab", tab);
+                        // Panels open over the mission page: no new history entry, no focus jump.
+                        window.history.replaceState(null, "", `${pathname}?${params}`);
+                    }}
+                    onUpdate={(updated) => queryClient.setQueryData<WorkspaceClient[]>(WORKSPACE_CLIENTS_KEY, (previous) =>
+                        previous?.map((client) => client.id === updated.id ? { ...client, ...updated, status: (updated.status ?? client.status) as ClientStatus } : client)
                     )}
                     onDelete={() => { navigate(null); handleOnboardingSuccess(); }}
                 />
             ) : (
                 <div className="cw-shell">
-                    <aside className="cw-tree">
-                        <div className="cw-tree-title"><Building2 /> Espace clients</div>
+                    <aside className="cw-tree" aria-label="Portefeuille clients">
+                        <div className="cw-tree-group"><span>Portefeuille</span></div>
                         <nav aria-label="Filtres du portefeuille">
-                            {CLIENT_FILTERS.map(({ id, label, icon: Icon }) => (
+                            {FILTERS.map(({ id, label, icon: Icon }) => (
                                 <button key={id} className="cw-tree-link" aria-pressed={filter === id} onClick={() => setFilter(id)}>
                                     <Icon /><span>{label}</span><small>{counts[id]}</small>
                                 </button>
                             ))}
                         </nav>
+                        {recent && recentClient && <>
+                            <div className="cw-tree-group"><span>Reprendre</span></div>
+                            <nav aria-label="Dernier emplacement">
+                                <button className="cw-tree-link" onClick={() => navigate(recent.mission && !recentMission ? { client: recentClient.id } : recent)} title={`${recentClient.name}${recentMission ? ` › ${recentMission.name}` : ""}`}>
+                                    <History /><span>{recentMission?.name ?? recentClient.name}</span>
+                                </button>
+                            </nav>
+                        </>}
                     </aside>
                     <div className="cw-work">
-                        <div className="cw-crumb"><span>Portefeuille</span><ChevronRight /><strong>Clients</strong></div>
-                        <div className="cw-content">
-                            <header className="cw-pagehead">
-                                <div><h1>Clients</h1><p>Suivez vos clients, leurs missions et les prochains lancements.</p></div>
-                                <div className="cw-actions">
-                                    <button className="cw-button" onClick={() => setShowPlaybookImport(true)}><Upload /> Importer un playbook</button>
-                                    <button className="cw-button cw-primary" onClick={() => setShowOnboardingModal(true)}><Plus /> Nouveau client</button>
-                                </div>
-                            </header>
-                            <div className="cw-columns">
-                                <section className="cw-panel cw-directory" aria-label="Annuaire clients">
-                                    <header className="cw-panel-toolbar">
-                                        <div><h2>{CLIENT_FILTERS.find((item) => item.id === filter)?.label}</h2><small>{filtered.length} client{filtered.length > 1 ? "s" : ""}</small></div>
+                        <nav className="cw-crumb" aria-label="Fil d’Ariane">
+                            <div className="cw-crumb-trail"><span className="cw-crumb-current" aria-current="page"><span>Clients</span></span></div>
+                            <div className="cw-crumb-actions">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" aria-label="Plus d’actions"><MoreHorizontal /></button></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-60">
+                                        <DropdownMenuItem onSelect={() => setShowPlaybookImport(true)}><Upload />Importer un playbook</DropdownMenuItem>
+                                        {leexiCount > 0 && <DropdownMenuItem onSelect={() => setShowLeexi(true)}><Mic />Appels Leexi ({leexiCount})</DropdownMenuItem>}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <button className="cw-button cw-primary" onClick={() => setShowOnboardingModal(true)}><Plus /> Nouveau client</button>
+                            </div>
+                        </nav>
+                        <div className="cw-layout">
+                            <main className="cw-doc" data-width="wide">
+                                <header className="cw-doc-head">
+                                    <h1 className="cw-doc-title" tabIndex={-1} data-focus-key="heading">Clients</h1>
+                                    <p className="cw-doc-lede">{counts.ACTIVE} client{counts.ACTIVE > 1 ? "s" : ""} actif{counts.ACTIVE > 1 ? "s" : ""} · {runningMissions} mission{runningMissions > 1 ? "s" : ""} en cours · {draftMissions} en préparation</p>
+                                </header>
+
+                                <section className="cw-section" aria-labelledby="cw-inbox-title">
+                                    <div className="cw-section-head">
+                                        <h2 id="cw-inbox-title">À traiter <small>{attention.length}</small></h2>
+                                    </div>
+                                    {attention.length ? (
+                                        <div className="cw-inbox">
+                                            {attention.slice(0, INBOX_PREVIEW).map((item) => <InboxItem key={item.mission.id} item={item} onOpen={navigate} />)}
+                                            {attention.length > INBOX_PREVIEW && <div className="cw-inbox-foot">
+                                                <span>{attention.length - INBOX_PREVIEW} autre{attention.length - INBOX_PREVIEW > 1 ? "s" : ""} point{attention.length - INBOX_PREVIEW > 1 ? "s" : ""}</span>
+                                                <button className="cw-text-button" onClick={showAllAttention}>Voir les clients concernés <ArrowRight /></button>
+                                            </div>}
+                                        </div>
+                                    ) : <p className="cw-empty-line"><span>Rien à traiter : aucun lancement bloqué, aucune mission sans équipe ni fin proche.</span></p>}
+                                </section>
+
+                                <section className="cw-section cw-directory" ref={directoryRef} aria-labelledby="cw-directory-title">
+                                    <div className="cw-section-head">
+                                        <h2 id="cw-directory-title" tabIndex={-1} data-focus-key="directory">{FILTERS.find((item) => item.id === filter)?.label} <small>{filtered.length}</small></h2>
                                         <label className="cw-search"><Search /><input type="search" aria-label="Rechercher un client" placeholder="Rechercher un client…" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></label>
-                                    </header>
+                                    </div>
                                     {filtered.length ? (
                                         <div className="cw-table-scroll">
                                             <table className="cw-table">
-                                                <thead><tr><th>Client</th><th>Statut</th><th>Missions</th><th>À suivre</th><th><span className="sr-only">Ouvrir</span></th></tr></thead>
+                                                <thead><tr><th>Client</th><th>Statut</th><th>Missions</th><th>À traiter</th><th><span className="sr-only">Ouvrir</span></th></tr></thead>
                                                 <tbody>
                                                     {filtered.map((client) => {
-                                                        const next = getAttention(client);
+                                                        const next = clientAttention(client);
                                                         const active = client.missions?.filter((mission) => mission.status === "ACTIVE").length ?? 0;
                                                         return (
                                                             <tr key={client.id} onClick={() => navigate({ client: client.id })}>
-                                                                <td><button className="cw-record" onClick={(event) => { event.stopPropagation(); navigate({ client: client.id }); }}>
+                                                                <td><button className="cw-record" data-focus-key={`client:${client.id}`} title={client.name} onClick={(event) => { event.stopPropagation(); navigate({ client: client.id }); }}>
                                                                     <span className="cw-monogram">{client.name[0]?.toUpperCase() || "?"}</span>
                                                                     <span><strong>{client.name}</strong><small>{client.industry || "Secteur non renseigné"}</small></span>
                                                                 </button></td>
-                                                                <td><span className="cw-pill" data-tone={client.status === "ACTIVE" ? "green" : "neutral"}><i />{STATUS[client.status] ?? STATUS.ACTIVE}</span></td>
+                                                                <td><span className="cw-pill" data-tone={client.status === "ACTIVE" ? "success" : client.status === "PAUSED" ? "warning" : undefined}><i />{STATUS[client.status] ?? STATUS.ACTIVE}</span></td>
                                                                 <td><strong className="cw-figures">{client._count.missions}</strong>{active > 0 && <small className="cw-subline">{active} en cours</small>}</td>
-                                                                <td>{next ? <span className="cw-attention-label"><span />{next.label}</span> : <span className="cw-muted">—</span>}</td>
-                                                                <td><ChevronRight className="cw-row-arrow" /></td>
+                                                                <td>{next ? <span className="cw-attention-label" title={`${next.mission.name} · ${next.detail}`}><span />{next.label}</span> : <span className="cw-muted">—</span>}</td>
+                                                                <td><ChevronRight className="cw-row-arrow" aria-hidden /></td>
                                                             </tr>
                                                         );
                                                     })}
@@ -306,200 +328,54 @@ function ClientsPageInner() {
                                         </div>
                                     ) : <div className="cw-empty"><Building2 /><strong>{query || filter !== "ALL" ? "Aucun résultat" : "Aucun client"}</strong><p>{query || filter !== "ALL" ? "Essayez une autre recherche ou changez de filtre." : "Ajoutez un client pour créer sa première mission."}</p></div>}
                                 </section>
-                                <aside className="cw-context" aria-label="Suivi du portefeuille">
-                                    {recent && recentClient && (
-                                        <section className="cw-panel cw-resume">
-                                            <div className="cw-side-heading"><History /><h2>Reprendre</h2></div>
-                                            <p>{recentClient.name}</p>
-                                            <strong>{recentMission?.name ?? (recent.espace === "onboarding" ? "Intégration client" : "Espace client")}</strong>
-                                            <button className="cw-text-button" onClick={() => navigate(recent.mission && !recentMission ? { client: recentClient.id } : recent)}>
-                                                Reprendre ici <ArrowRight />
-                                            </button>
-                                        </section>
-                                    )}
-                                    <section className="cw-panel cw-side">
-                                        <div className="cw-side-heading"><CircleAlert /><h2>À suivre</h2><span className="cw-count">{attention.length}</span></div>
-                                        {attention.length ? attention.slice(0, 3).map(({ client, mission, label, tab }) => (
-                                            <button className="cw-side-row" key={client.id} onClick={() => navigate({ client: client.id, mission: mission.id, tab })}>
-                                                <span className="cw-side-icon"><Target /></span><span><strong>{mission.name}</strong><small>{client.name} · {label}</small></span><ChevronRight />
-                                            </button>
-                                        )) : <p className="cw-side-note">Aucun lancement ni fin de mission à suivre.</p>}
-                                        {attention.length > 3 && <button className="cw-text-button" onClick={() => setFilter("ATTENTION")}>Voir tous les clients à suivre <ArrowRight /></button>}
-                                    </section>
-                                </aside>
-                            </div>
+                            </main>
 
-            {/* Leexi Recaps Section */}
-            {leexiData && leexiData.totalRecaps > 0 && (
-                <div className="bg-white border border-accent-200 rounded-2xl overflow-hidden">
-                    <button
-                        onClick={() => setShowLeexiSection(!showLeexiSection)}
-                        className="w-full flex items-center justify-between px-6 py-4 hover:bg-accent-50/50 transition-colors"
-                    >
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-accent-100 flex items-center justify-center">
-                                <Mic className="w-5 h-5 text-accent-600" />
-                            </div>
-                            <div className="text-left">
-                                <h3 className="text-sm font-semibold text-slate-900">
-                                    Récapitulatifs Leexi
-                                </h3>
-                                <p className="text-xs text-slate-500">
-                                    {leexiData.totalMatched} associé{leexiData.totalMatched > 1 ? "s" : ""} · {leexiData.unmatched.length} non associé{leexiData.unmatched.length > 1 ? "s" : ""}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="bg-accent-50 text-accent-700 border-accent-200 text-xs">
-                                {leexiData.totalRecaps} recap{leexiData.totalRecaps > 1 ? "s" : ""}
-                            </Badge>
-                            {showLeexiSection ? (
-                                <ChevronUp className="w-4 h-4 text-slate-400" />
-                            ) : (
-                                <ChevronDown className="w-4 h-4 text-slate-400" />
-                            )}
-                        </div>
-                    </button>
-
-                    {showLeexiSection && (
-                        <div className="border-t border-accent-100 px-6 py-4 space-y-3 max-h-80 overflow-y-auto">
-                            {leexiData.matched.map((group) => (
-                                <div key={group.clientId} className="space-y-2">
-                                    {group.recaps.map((recap) => (
-                                        <div
-                                            key={recap.id}
-                                            className="p-3 bg-accent-50/50 border border-accent-100 rounded-xl"
-                                        >
-                                            <div
-                                                className="flex items-center justify-between cursor-pointer"
-                                                onClick={() => setExpandedRecapId(expandedRecapId === recap.id ? null : recap.id)}
-                                            >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <Mic className="w-3.5 h-3.5 text-accent-500 flex-shrink-0" />
-                                                    <span className="text-sm font-medium text-slate-900 truncate">
-                                                        {recap.title}
-                                                    </span>
-                                                    <Badge variant="outline" className="text-[10px] bg-white border-accent-200 text-accent-600 flex-shrink-0">
-                                                        {group.clientName}
-                                                    </Badge>
-                                                </div>
-                                                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        {recap.date ? new Date(recap.date).toLocaleDateString("fr-FR") : ""}
-                                                    </span>
-                                                    {expandedRecapId === recap.id ? (
-                                                        <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
-                                                    ) : (
-                                                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {expandedRecapId === recap.id && (
-                                                <p className="mt-2 text-xs text-slate-600 whitespace-pre-line border-t border-accent-100 pt-2">
-                                                    {recap.recapText.slice(0, 800)}
-                                                    {recap.recapText.length > 800 && "..."}
-                                                </p>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            ))}
-
-                            {leexiData.unmatched.length > 0 && (
-                                <div className="pt-2 border-t border-accent-100">
-                                    <p className="text-xs font-medium text-slate-500 mb-2">
-                                        Non associés ({leexiData.unmatched.length})
-                                    </p>
-                                    {leexiData.unmatched.slice(0, 5).map((recap) => (
-                                        <div
-                                            key={recap.id}
-                                            className="p-3 bg-slate-50 border border-slate-100 rounded-xl mb-2"
-                                        >
-                                            <div
-                                                className="flex items-center justify-between cursor-pointer"
-                                                onClick={() => setExpandedRecapId(expandedRecapId === recap.id ? null : recap.id)}
-                                            >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <Mic className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                                                    <span className="text-sm font-medium text-slate-700 truncate">
-                                                        {recap.title}
-                                                    </span>
-                                                    {recap.companyName && (
-                                                        <span className="text-[10px] text-slate-400">
-                                                            ({recap.companyName})
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleCreateFromRecap(recap.id);
-                                                        }}
-                                                        className="text-[10px] font-medium px-2 py-0.5 bg-primary-50 text-primary-600 border border-primary-200 rounded-md hover:bg-primary-100 transition-colors"
-                                                    >
-                                                        Créer client
-                                                    </button>
-                                                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        {recap.date ? new Date(recap.date).toLocaleDateString("fr-FR") : ""}
-                                                    </span>
-                                                    {expandedRecapId === recap.id ? (
-                                                        <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
-                                                    ) : (
-                                                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                                                    )}
-                                                </div>
-                                            </div>
-                                            {expandedRecapId === recap.id && (
-                                                <div className="mt-2 border-t border-slate-100 pt-2 space-y-2">
-                                                    <p className="text-xs text-slate-600 whitespace-pre-line">
-                                                        {recap.recapText.slice(0, 800)}
-                                                        {recap.recapText.length > 800 && "..."}
-                                                    </p>
-                                                    <button
-                                                        onClick={() => handleCreateFromRecap(recap.id)}
-                                                        className="flex items-center gap-1.5 text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
-                                                    >
-                                                        <Plus className="w-3.5 h-3.5" />
-                                                        Créer le client depuis cet appel
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {isLoadingLeexi && !leexiData && (
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Chargement des récapitulatifs Leexi...
-                </div>
-            )}
-
-            {leexiError && (
-                <div className="text-xs text-red-500 flex items-center gap-1">
-                    Leexi: {leexiError}
-                </div>
-            )}
-
-            {leexiData?.warning && (
-                <div className="text-xs text-amber-700 flex items-center gap-1">
-                    Leexi : {leexiData.warning}
-                </div>
-            )}
-
-
+                            <aside className="cw-rail" aria-label="Portefeuille">
+                                {recent && recentClient && <section className="cw-rail-section">
+                                    <h2 className="cw-rail-title">Reprendre</h2>
+                                    <button className="cw-shortcut" onClick={() => navigate(recent.mission && !recentMission ? { client: recentClient.id } : recent)}>
+                                        <History /><span>{recentMission ? `${recentClient.name} › ${recentMission.name}` : recentClient.name}</span><ArrowRight />
+                                    </button>
+                                </section>}
+                                <section className="cw-rail-section">
+                                    <h2 className="cw-rail-title">Portefeuille</h2>
+                                    <dl className="cw-props">
+                                        <div><dt>Clients actifs</dt><dd className="cw-figures">{counts.ACTIVE}</dd></div>
+                                        <div><dt>Missions en cours</dt><dd className="cw-figures">{runningMissions}</dd></div>
+                                        <div><dt>En préparation</dt><dd className="cw-figures">{draftMissions}</dd></div>
+                                        <div><dt>Points à traiter</dt><dd className="cw-figures">{attention.filter((item) => item.tone !== "success").length}</dd></div>
+                                    </dl>
+                                </section>
+                                {(leexiCount > 0 || isLoadingLeexi || leexiErrorQuery || leexiData?.warning) && <section className="cw-rail-section">
+                                    <h2 className="cw-rail-title">Appels Leexi {leexiCount > 0 && <small>{leexiCount}</small>}</h2>
+                                    {isLoadingLeexi && !leexiData && <p className="cw-hint" role="status">Chargement des récapitulatifs…</p>}
+                                    {leexiErrorQuery && <p className="cw-hint" role="alert">Leexi indisponible : {leexiErrorQuery.message}</p>}
+                                    {leexiData?.warning && <p className="cw-hint">{leexiData.warning}</p>}
+                                    {leexiCount > 0 && <>
+                                        <p className="cw-hint"><strong>{leexiData!.unmatched.length}</strong> appel{leexiData!.unmatched.length > 1 ? "s" : ""} sans client : créez le client depuis l’appel.</p>
+                                        <button className="cw-shortcut" onClick={() => setShowLeexi(true)}><Mic /><span>Voir les récapitulatifs</span><ChevronRight /></button>
+                                    </>}
+                                </section>}
+                            </aside>
                         </div>
                     </div>
                 </div>
             )}
+
+            <Drawer isOpen={showLeexi} onClose={() => setShowLeexi(false)} title="Récapitulatifs Leexi" description={`${leexiData?.totalMatched ?? 0} associé(s) · ${leexiData?.unmatched.length ?? 0} sans client`} size="lg" bodyClassName="p-4 sm:p-5">
+                {leexiData && <div className="space-y-2">
+                    {leexiData.unmatched.length > 0 && <p className="px-1 pb-1 text-xs font-semibold text-ink-3">Sans client</p>}
+                    {leexiData.unmatched.map((recap) => (
+                        <RecapRow key={recap.id} recap={recap} expanded={expandedRecapId === recap.id} onToggle={() => setExpandedRecapId(expandedRecapId === recap.id ? null : recap.id)}
+                            action={<button className="cw-button" data-size="sm" onClick={() => handleCreateFromRecap(recap.id)}><Plus /> Créer le client</button>} />
+                    ))}
+                    {leexiData.matched.length > 0 && <p className="px-1 pb-1 pt-3 text-xs font-semibold text-ink-3">Associés à un client</p>}
+                    {leexiData.matched.flatMap((group) => group.recaps.map((recap) => (
+                        <RecapRow key={recap.id} recap={recap} expanded={expandedRecapId === recap.id} onToggle={() => setExpandedRecapId(expandedRecapId === recap.id ? null : recap.id)}
+                            action={<button className="cw-button" data-size="sm" onClick={() => { setShowLeexi(false); navigate({ client: group.clientId }); }}>{group.clientName}</button>} />
+                    )))}
+                </div>}
+            </Drawer>
 
             <Drawer isOpen={showPlaybookImport} onClose={() => { if (!importBusy) setShowPlaybookImport(false); }} title="Importer un playbook" description="Document → vérification → dossier client" size="xl" bodyClassName="p-0" closeOnOverlay={false} closeOnEscape={!importBusy} showCloseButton={!importBusy}>
                 {showPlaybookImport && <PlaybookImportWorkspace onBusyChange={setImportBusy} onCancel={() => setShowPlaybookImport(false)} onImported={async (clientId) => {
@@ -520,6 +396,26 @@ function ClientsPageInner() {
                 initialLeexiCallId={initialLeexiCallId}
             />
         </>
+    );
+}
+
+function RecapRow({ recap, expanded, onToggle, action }: { recap: LeexiRecapItem; expanded: boolean; onToggle: () => void; action: React.ReactNode }) {
+    return (
+        <div className="rounded-xl border border-line bg-surface">
+            <div className="flex items-center gap-2 p-3">
+                <button className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={onToggle} aria-expanded={expanded}>
+                    <Mic className="h-3.5 w-3.5 shrink-0 text-ink-3" />
+                    <span className="truncate text-sm font-medium text-ink">{recap.title}</span>
+                    {recap.companyName && <span className="truncate text-xs text-ink-3">{recap.companyName}</span>}
+                    <span className="ml-auto shrink-0 text-xs text-ink-3">{recap.date ? new Date(recap.date).toLocaleDateString("fr-FR") : ""}</span>
+                    {expanded ? <ChevronUp className="h-3.5 w-3.5 shrink-0 text-ink-4" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0 text-ink-4" />}
+                </button>
+                {action}
+            </div>
+            {expanded && <p className="whitespace-pre-line border-t border-line-subtle px-3 py-2 text-xs leading-5 text-ink-2">
+                {recap.recapText.slice(0, 800)}{recap.recapText.length > 800 && "…"}
+            </p>}
+        </div>
     );
 }
 

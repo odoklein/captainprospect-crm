@@ -11,6 +11,7 @@ import {
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { getClientProductionInsights } from '@/lib/client-insights';
+import { computeListReadiness, defaultCampaignOf, openPoints, summarizeReadiness, type ReadinessCampaign } from '@/lib/missions/readiness';
 import {
     addMonths,
     buildCampaignScript,
@@ -123,6 +124,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     }
 
     if (workspace) {
+        const strategyFields = { id: true, name: true, icp: true, pitch: true, script: true, isActive: true } as const;
         const [clients, total] = await Promise.all([
             prisma.client.findMany({
                 where,
@@ -131,7 +133,16 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                     createdAt: true, bookingUrl: true,
                     _count: { select: { missions: true, users: true } },
                     missions: {
-                        select: { id: true, name: true, endDate: true, status: true, isActive: true },
+                        select: {
+                            id: true, name: true, startDate: true, endDate: true, status: true, isActive: true,
+                            _count: { select: { sdrAssignments: true } },
+                            // Only what the launch rules read: lists still in play and their scripts.
+                            campaigns: { select: strategyFields },
+                            lists: {
+                                where: { isArchived: false },
+                                select: { isActive: true, isArchived: true, campaign: { select: strategyFields } },
+                            },
+                        },
                         orderBy: [{ endDate: 'desc' }, { id: 'asc' }],
                     },
                 },
@@ -141,7 +152,19 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             }),
             prisma.client.count({ where }),
         ]);
-        return paginatedResponse(clients, total, page, limit);
+        // Each mission carries its launch summary instead of raw lists and scripts.
+        const data = clients.map(({ missions, ...client }) => ({
+            ...client,
+            missions: missions.map(({ campaigns, lists, _count, ...mission }) => {
+                const fallback = defaultCampaignOf(campaigns) as ReadinessCampaign;
+                const readiness = summarizeReadiness(lists.map((list) => ({
+                    ...list,
+                    readiness: computeListReadiness(list.campaign as ReadinessCampaign, fallback),
+                })));
+                return { ...mission, sdrCount: _count.sdrAssignments, readiness, openPoints: openPoints(readiness) };
+            }),
+        }));
+        return paginatedResponse(data, total, page, limit);
     }
 
     const [clients, total] = await Promise.all([

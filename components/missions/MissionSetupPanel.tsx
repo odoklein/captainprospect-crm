@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, CalendarDays, Check, ChevronRight, CircleAlert, Database, FileText, Pencil, Rocket, Save, Target, Users } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Check, CircleAlert, Pencil, Save, Target, Users } from "lucide-react";
 
 const CHANNELS = { CALL: "Appel", EMAIL: "E-mail", LINKEDIN: "LinkedIn" } as const;
 type Channel = keyof typeof CHANNELS;
@@ -19,7 +19,6 @@ interface SetupMission {
     sdrAssignments: { sdr: { id: string; name: string } }[];
     client?: { interlocuteurs?: { id: string; firstName: string; lastName: string }[] };
     defaultInterlocuteur?: { id: string; firstName: string; lastName: string } | null;
-    missionReadiness?: { activeLists: number; readyLists: number };
 }
 
 function valuesOf(mission: SetupMission) {
@@ -45,8 +44,8 @@ const FIELD_LABELS = {
 } as const;
 
 type Fields = ReturnType<typeof valuesOf>;
-type Field = keyof Fields;
-const FIELD_KEYS = Object.keys(FIELD_LABELS) as Field[];
+export type SetupField = keyof Fields;
+const FIELD_KEYS = Object.keys(FIELD_LABELS) as SetupField[];
 
 function formatDate(day: string) {
     return day ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "UTC" }).format(new Date(day)) : "À définir";
@@ -60,18 +59,27 @@ interface Props {
     mission: SetupMission;
     onSave: (patch: Record<string, unknown>) => Promise<boolean>;
     onTabChange: (tab: string) => void;
+    /** Opens the editor on a field from elsewhere (rail, checklist). Bump `at` to re-trigger. */
+    editRequest?: { field: SetupField; at: number } | null;
+    /** Reports unsaved changes so the page can show them next to its save state. */
+    onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function MissionSetupPanel({ mission, onSave, onTabChange }: Props) {
+/** « Cadrage » of the mission brief: read as a document, edited as a form, saved explicitly. */
+export function MissionSetupPanel({ mission, onSave, onTabChange, editRequest, onDirtyChange }: Props) {
     const [draft, setDraft] = useState<Fields | null>(null);
     const [baseline, setBaseline] = useState<Fields | null>(null);
     const [lastSaved, setLastSaved] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    const formRef = useRef<HTMLFormElement>(null);
+    const editButton = useRef<HTMLButtonElement>(null);
     const saved = valuesOf(mission);
     const initial = baseline ?? saved;
     const changed = draft ? FIELD_KEYS.filter((key) => JSON.stringify(initial[key]) !== JSON.stringify(draft[key])) : [];
     const dirty = changed.length > 0;
+
+    useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
 
     useEffect(() => {
         if (!dirty) return;
@@ -80,7 +88,18 @@ export function MissionSetupPanel({ mission, onSave, onTabChange }: Props) {
         return () => window.removeEventListener("beforeunload", beforeUnload);
     }, [dirty]);
 
-    function setField<K extends Field>(key: K, value: Fields[K]) {
+    useEffect(() => {
+        if (!editRequest) return;
+        if (!draft) { setBaseline(saved); setDraft(saved); setError(""); }
+        requestAnimationFrame(() => {
+            const field = formRef.current?.querySelector<HTMLElement>(`[name="${editRequest.field}"]`);
+            field?.focus();
+            field?.scrollIntoView({ block: "center" });
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editRequest?.at]);
+
+    function setField<K extends SetupField>(key: K, value: Fields[K]) {
         setDraft((previous) => previous ? { ...previous, [key]: value } : previous);
         setError("");
     }
@@ -89,12 +108,15 @@ export function MissionSetupPanel({ mission, onSave, onTabChange }: Props) {
         setBaseline(saved);
         setDraft(saved);
         setError("");
+        setLastSaved([]);
+        requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>("[name=name]")?.focus());
     }
 
-    function cancel() {
+    function close() {
         setDraft(null);
         setBaseline(null);
         setError("");
+        requestAnimationFrame(() => editButton.current?.focus());
     }
 
     async function submit(event: FormEvent<HTMLFormElement>) {
@@ -112,105 +134,77 @@ export function MissionSetupPanel({ mission, onSave, onTabChange }: Props) {
         setSaving(true);
         const ok = await onSave(patch);
         setSaving(false);
-        if (!ok) return setError("Enregistrement impossible. Vos modifications sont toujours présentes.");
+        if (!ok) return setError("Enregistrement impossible. Vos modifications sont toujours là : réessayez.");
         setLastSaved(changed.map((field) => FIELD_LABELS[field]));
-        cancel();
+        close();
     }
 
-    const readiness = mission.missionReadiness;
-    const ready = Boolean(readiness?.activeLists && readiness.readyLists === readiness.activeLists);
     const contact = mission.defaultInterlocuteur;
     const contactName = contact ? `${contact.firstName} ${contact.lastName}` : "Défini par base";
+    const dateError = Boolean(draft?.startDate && draft.endDate && draft.endDate < draft.startDate);
 
     return (
-        <div className="cw-columns">
-            <section className="cw-panel cw-setup">
-                <header className="cw-panel-toolbar">
-                    <div><h2>Paramètres de la mission</h2><small>Objectif, période et organisation du travail</small></div>
-                    {!draft && <button className="cw-button" onClick={edit}><Pencil /> Modifier</button>}
-                    {draft && <span className="cw-pill" data-tone={dirty ? "amber" : "neutral"}><i />{dirty ? "Modifications en attente" : "En cours de modification"}</span>}
-                </header>
-                {draft ? (
-                    <form className="cw-form" onSubmit={submit}>
-                        <fieldset disabled={saving}>
-                            <legend><Target /> Cadrage</legend>
-                            <label>Nom de la mission<input required value={draft.name} onChange={(event) => setField("name", event.target.value)} /></label>
-                            <label>Objectif<textarea rows={3} value={draft.objective} onChange={(event) => setField("objective", event.target.value)} /></label>
-                            <div className="cw-form-grid">
-                                <label>Date de début<input type="date" required={Boolean(initial.startDate)} value={draft.startDate} onChange={(event) => setField("startDate", event.target.value)} /></label>
-                                <label>Date de fin<input type="date" required={Boolean(initial.endDate)} min={draft.startDate || undefined} value={draft.endDate} onChange={(event) => setField("endDate", event.target.value)} /></label>
-                            </div>
-                            <div className="cw-channel-options" role="group" aria-label="Canaux">
-                                {Object.entries(CHANNELS).map(([channel, label]) => {
-                                    const id = channel as Channel;
-                                    const checked = draft.channels.includes(id);
-                                    return <label key={channel} className="cw-check-label"><input type="checkbox" checked={checked} onChange={() => setField("channels", checked ? draft.channels.filter((item) => item !== id) : [...draft.channels, id])} />{label}</label>;
-                                })}
-                            </div>
-                        </fieldset>
-                        <fieldset disabled={saving}>
-                            <legend><Users /> Équipe et suivi</legend>
-                            <div className="cw-form-grid">
-                                <label>Référent SDR<select value={draft.teamLeadSdrId} onChange={(event) => setField("teamLeadSdrId", event.target.value)}>
-                                    <option value="">Non désigné</option>
-                                    {mission.sdrAssignments.map(({ sdr }) => <option key={sdr.id} value={sdr.id}>{sdr.name}</option>)}
-                                </select></label>
-                                <label>Commercial par défaut<select value={draft.defaultInterlocuteurId} onChange={(event) => setField("defaultInterlocuteurId", event.target.value)}>
-                                    <option value="">Défini par base</option>
-                                    {mission.client?.interlocuteurs?.map((person) => <option key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>)}
-                                </select></label>
-                            </div>
-                        </fieldset>
-                        {error && <p role="alert" className="cw-form-error"><CircleAlert />{error}</p>}
-                        <div className="cw-form-footer">
-                            <span role="status">{saving ? "Enregistrement…" : dirty ? `${changed.length} champ${changed.length > 1 ? "s" : ""} à enregistrer` : "Aucune modification"}</span>
-                            <div className="cw-actions"><button type="button" className="cw-button" onClick={cancel} disabled={saving}>Annuler</button><button type="submit" className="cw-button cw-primary" disabled={!dirty || saving}><Save /> Enregistrer</button></div>
+        <section className="cw-section" id="cw-cadrage" aria-labelledby="cw-cadrage-title">
+            <div className="cw-section-head">
+                <h2 id="cw-cadrage-title">Cadrage</h2>
+                {draft
+                    ? <span className="cw-pill" data-tone={dirty ? "warning" : undefined} role="status"><i />{dirty ? `${changed.length} modification${changed.length > 1 ? "s" : ""} non enregistrée${changed.length > 1 ? "s" : ""}` : "En cours de modification"}</span>
+                    : <button ref={editButton} className="cw-button" data-size="sm" onClick={edit}><Pencil /> Modifier</button>}
+            </div>
+            {draft ? (
+                <form ref={formRef} className="cw-form cw-edit-card" onSubmit={submit} onKeyDown={(event) => { if (event.key === "Escape" && !dirty) { event.preventDefault(); close(); } }}>
+                    <fieldset disabled={saving}>
+                        <legend><Target /> Objectif et période</legend>
+                        <label>Nom de la mission<input name="name" required value={draft.name} onChange={(event) => setField("name", event.target.value)} /></label>
+                        <label>Objectif<textarea name="objective" rows={3} value={draft.objective} placeholder="Ex. 12 rendez-vous qualifiés avec des DSI de PME industrielles" onChange={(event) => setField("objective", event.target.value)} /></label>
+                        <div className="cw-form-grid">
+                            <label>Date de début<input name="startDate" type="date" required={Boolean(initial.startDate)} value={draft.startDate} onChange={(event) => setField("startDate", event.target.value)} /></label>
+                            <label>Date de fin<input name="endDate" type="date" required={Boolean(initial.endDate)} min={draft.startDate || undefined} aria-invalid={dateError} value={draft.endDate} onChange={(event) => setField("endDate", event.target.value)} /></label>
                         </div>
-                    </form>
-                ) : (
-                    <div className="cw-review">
-                        <section>
-                            <h3><Target /> Cadrage</h3>
-                            <p className="cw-objective">{saved.objective || "Objectif à renseigner"}</p>
-                            <dl className="cw-properties">
-                                <Property label="Date de début">{formatDate(saved.startDate)}</Property>
-                                <Property label="Date de fin">{formatDate(saved.endDate)}</Property>
-                                <Property label="Canaux">{saved.channels.map((channel) => CHANNELS[channel]).join(", ")}</Property>
-                            </dl>
-                        </section>
-                        <section>
-                            <h3><Users /> Équipe et suivi</h3>
-                            <dl className="cw-properties">
-                                <Property label="Référent SDR">{mission.teamLeadSdr?.name || "Non désigné"}</Property>
-                                <Property label="Commercial par défaut">{contactName}</Property>
-                                <Property label="Équipe affectée">{mission.sdrAssignments.length ? mission.sdrAssignments.map(({ sdr }) => sdr.name).join(", ") : "Aucune affectation"}</Property>
-                            </dl>
-                            <button className="cw-text-button" onClick={() => onTabChange("equipe")}>Gérer les affectations <ArrowRight /></button>
-                        </section>
+                        <div className="cw-channel-options" role="group" aria-label="Canaux">
+                            {Object.entries(CHANNELS).map(([channel, label]) => {
+                                const id = channel as Channel;
+                                const checked = draft.channels.includes(id);
+                                return <label key={channel} className="cw-check-label"><input type="checkbox" name="channels" checked={checked} onChange={() => setField("channels", checked ? draft.channels.filter((item) => item !== id) : [...draft.channels, id])} />{label}</label>;
+                            })}
+                        </div>
+                    </fieldset>
+                    <fieldset disabled={saving}>
+                        <legend><Users /> Suivi</legend>
+                        <div className="cw-form-grid">
+                            <label>Référent SDR<select name="teamLeadSdrId" value={draft.teamLeadSdrId} onChange={(event) => setField("teamLeadSdrId", event.target.value)}>
+                                <option value="">Non désigné</option>
+                                {mission.sdrAssignments.map(({ sdr }) => <option key={sdr.id} value={sdr.id}>{sdr.name}</option>)}
+                            </select></label>
+                            <label>Commercial par défaut<select name="defaultInterlocuteurId" value={draft.defaultInterlocuteurId} onChange={(event) => setField("defaultInterlocuteurId", event.target.value)}>
+                                <option value="">Défini par base</option>
+                                {mission.client?.interlocuteurs?.map((person) => <option key={person.id} value={person.id}>{person.firstName} {person.lastName}</option>)}
+                            </select></label>
+                        </div>
+                        {!mission.sdrAssignments.length && <p className="cw-hint">Le référent se choisit parmi l’équipe affectée. <button type="button" className="cw-text-button" style={{ margin: 0 }} onClick={() => onTabChange("equipe")}>Affecter l’équipe</button></p>}
+                    </fieldset>
+                    {error && <p role="alert" className="cw-form-error"><CircleAlert />{error}</p>}
+                    <div className="cw-form-footer">
+                        <span role="status">{saving ? "Enregistrement…" : dirty ? changed.map((key) => FIELD_LABELS[key]).join(", ") : "Aucune modification"}</span>
+                        <div className="cw-actions">
+                            <button type="button" className="cw-button cw-quiet" onClick={close} disabled={saving}>{dirty ? "Annuler les modifications" : "Fermer"}</button>
+                            <button type="submit" className="cw-button cw-primary" disabled={!dirty || saving}><Save /> Enregistrer</button>
+                        </div>
                     </div>
-                )}
-            </section>
-            <aside className="cw-context" aria-label="Suivi de la configuration">
-                <section className={`cw-panel ${ready ? "cw-side" : "cw-resume"}`}>
-                    <div className="cw-side-heading"><Rocket /><h2>Lancement</h2></div>
-                    {readiness && <div className="cw-side-progress">
-                        <span>{readiness.readyLists} / {readiness.activeLists} bases prêtes</span>
-                        {readiness.activeLists > 0 && <progress value={readiness.readyLists} max={readiness.activeLists} />}
-                    </div>}
-                    <button className="cw-text-button" onClick={() => onTabChange("lancement")}>Voir la préparation <ArrowRight /></button>
-                </section>
-                {(draft || lastSaved.length > 0) && <section className="cw-panel cw-side" aria-live="polite">
-                    <div className="cw-side-heading">{draft ? <Pencil /> : <Check />}<h2>{draft ? "Modifications en cours" : "Dernier enregistrement"}</h2></div>
-                    {draft && !dirty ? <p className="cw-side-note">Les champs modifiés apparaîtront ici.</p> : (
-                        <ul className="cw-change-list">{(draft ? changed.map((key) => FIELD_LABELS[key]) : lastSaved).map((label) => <li key={label}>{draft ? <span /> : <Check />}{label}</li>)}</ul>
-                    )}
-                </section>}
-                <section className="cw-panel cw-side">
-                    <div className="cw-side-heading"><CalendarDays /><h2>Préparer la prospection</h2></div>
-                    <button className="cw-side-row" onClick={() => onTabChange("audience")}><span className="cw-side-icon"><Database /></span><span><strong>Bases de prospects</strong><small>Listes et affectations</small></span><ChevronRight /></button>
-                    <button className="cw-side-row" onClick={() => onTabChange("strategies")}><span className="cw-side-icon"><FileText /></span><span><strong>Ciblage et scripts</strong><small>Stratégie de chaque base</small></span><ChevronRight /></button>
-                </section>
-            </aside>
-        </div>
+                </form>
+            ) : (
+                <div className="cw-review">
+                    <section>
+                        <p className="cw-objective" data-empty={saved.objective ? undefined : ""}>{saved.objective || <span className="cw-muted">Objectif à renseigner : le résultat attendu, la cible et le volume.</span>}</p>
+                        <dl className="cw-properties">
+                            <Property label="Période">{saved.startDate || saved.endDate ? `${formatDate(saved.startDate)} → ${formatDate(saved.endDate)}` : "À définir"}</Property>
+                            <Property label="Canaux">{saved.channels.map((channel) => CHANNELS[channel]).join(", ")}</Property>
+                            <Property label="Commercial par défaut">{contactName}</Property>
+                        </dl>
+                    </section>
+                    {lastSaved.length > 0 && <p className="cw-hint" role="status"><Check aria-hidden className="mr-1 inline h-3.5 w-3.5 text-success" />Enregistré : {lastSaved.join(", ")}</p>}
+                </div>
+            )}
+        </section>
     );
 }

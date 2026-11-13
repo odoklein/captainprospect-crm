@@ -80,8 +80,18 @@ function lockScroll() {
     };
 }
 
+/**
+ * Focus origin of layers that just unregistered. React StrictMode (development)
+ * unmounts and remounts effects in one go: the first registration has already
+ * moved focus into the panel, so the remount must keep the original origin or
+ * closing the dialog would drop focus on <body>.
+ */
+const releasedOrigins = new WeakMap<HTMLElement, HTMLElement | null>();
+
 export function registerDialogLayer(layer: Layer) {
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousFocus = releasedOrigins.has(layer.panel) ? releasedOrigins.get(layer.panel) ?? null : active;
+    releasedOrigins.delete(layer.panel);
     if (layers.length === 0) document.addEventListener("keydown", handleKeydown);
     layers.push(layer);
     if (layer.modal && !releaseScroll) releaseScroll = lockScroll();
@@ -91,6 +101,8 @@ export function registerDialogLayer(layer: Layer) {
     }
 
     return () => {
+        releasedOrigins.set(layer.panel, previousFocus);
+        queueMicrotask(() => releasedOrigins.delete(layer.panel));
         const wasTop = topLayer() === layer;
         const index = layers.indexOf(layer);
         if (index !== -1) layers.splice(index, 1);

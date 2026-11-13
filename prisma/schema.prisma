@@ -600,6 +600,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Client workspace pages
+  clientPagesCreated ClientPage[] @relation("ClientPageCreatedBy")
+  clientPagesUpdated ClientPage[] @relation("ClientPageUpdatedBy")
+
   @@index([isActive])
 }
 
@@ -841,6 +845,9 @@ model Client {
   // Interlocuteurs (client's own sales team / commercials)
   interlocuteurs ClientInterlocuteur[]
 
+  // Workspace pages (briefs, launch notes, procedures) written by managers
+  pages ClientPage[]
+
   // API Keys scoped to this client
   apiKeys ApiKey[]
 
@@ -894,6 +901,34 @@ model ClientInterlocuteur {
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
+}
+
+// ============================================
+// CLIENT WORKSPACE PAGES
+// ============================================
+
+/// A free-form page in a client's workspace (mission brief, launch notes,
+/// procedure). `blocks` is the editor document: an ordered array of
+/// { id, type, text, checked?, missionId? } — see lib/client-pages/blocks.ts.
+model ClientPage {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  missionId   String?
+  mission     Mission? @relation(fields: [missionId], references: [id], onDelete: SetNull)
+  title       String   @default("")
+  icon        String?
+  blocks      Json     @default("[]")
+  position    Int      @default(0)
+  createdById String?
+  createdBy   User?    @relation("ClientPageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedById String?
+  updatedBy   User?    @relation("ClientPageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId, position])
+  @@index([missionId])
 }
 
 model Mission {
@@ -979,6 +1014,9 @@ model Mission {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Workspace pages linked to this mission
+  pages ClientPage[]
 
   @@index([defaultMailboxId])
   @@index([status])

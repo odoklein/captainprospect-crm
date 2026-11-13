@@ -15,6 +15,7 @@ import type { MissionStatusValue } from '@/lib/constants/missionStatus';
 import { isMissionInPortalLaunch } from '@/lib/portal-visibility';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 import { getCooldownDisabledListIds } from '@/lib/sdr-queue/cooldown';
+import { computeListReadiness, defaultCampaignOf, summarizeReadiness, type ReadinessCampaign } from '@/lib/missions/readiness';
 
 // ============================================
 // SCHEMAS
@@ -286,67 +287,15 @@ export const GET = withErrorHandler(async (
         }),
     ]);
 
-    // Per-list strategy readiness + mission-level rollup
-    type LinkedCampaign = {
-        id: string;
-        name: string;
-        icp: string | null;
-        pitch: string | null;
-        script: string | null;
-        isActive?: boolean;
-    } | null;
-
-    const defaultMissionCampaign = mission.campaigns.find((c) => c.isActive) || mission.campaigns[0] || null;
-
-    const computeReadiness = (campaign: LinkedCampaign) => {
-        const isCustom = !!campaign;
-        const effectiveCampaign = campaign || (defaultMissionCampaign ? {
-            id: defaultMissionCampaign.id,
-            name: defaultMissionCampaign.name,
-            icp: defaultMissionCampaign.icp,
-            pitch: defaultMissionCampaign.pitch,
-            script: defaultMissionCampaign.script,
-        } : null);
-
-        const hasIcp = !!effectiveCampaign?.icp?.trim();
-        const hasPitch = !!effectiveCampaign?.pitch?.trim();
-        const hasScript = !!effectiveCampaign?.script?.trim();
-        const hasStrategy = !!effectiveCampaign;
-        const isInherited = !campaign && !!defaultMissionCampaign;
-
-        return {
-            hasStrategy,
-            isCustom,
-            isInherited,
-            inheritedCampaignId: isInherited ? defaultMissionCampaign?.id : null,
-            inheritedCampaignName: isInherited ? defaultMissionCampaign?.name : null,
-            hasIcp,
-            hasPitch,
-            hasScript,
-            isReady: hasStrategy && hasIcp && hasPitch && hasScript,
-        };
-    };
-
+    // Per-list strategy readiness + mission-level rollup (lib/missions/readiness)
+    const defaultMissionCampaign = defaultCampaignOf(mission.campaigns) as ReadinessCampaign;
     const cooldownOffListIds = await getCooldownDisabledListIds(mission.lists.map((l) => l.id));
     const listsWithReadiness = mission.lists.map((l) => ({
         ...l,
-        readiness: computeReadiness(l.campaign as LinkedCampaign),
+        readiness: computeListReadiness(l.campaign as ReadinessCampaign, defaultMissionCampaign),
         queueCooldownEnabled: !cooldownOffListIds.has(l.id),
     }));
-
-    const activeListsWithReadiness = listsWithReadiness.filter(
-        (l) => l.isActive !== false && l.isArchived !== true
-    );
-    const missionReadiness = {
-        activeLists: activeListsWithReadiness.length,
-        readyLists: activeListsWithReadiness.filter((l) => l.readiness.isReady).length,
-        customStrategyLists: activeListsWithReadiness.filter((l) => l.readiness.isCustom).length,
-        inheritedStrategyLists: activeListsWithReadiness.filter((l) => l.readiness.isInherited).length,
-        missingStrategy: activeListsWithReadiness.filter((l) => !l.readiness.hasStrategy).length,
-        missingIcp: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasIcp).length,
-        missingPitch: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasPitch).length,
-        missingScript: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasScript).length,
-    };
+    const missionReadiness = summarizeReadiness(listsWithReadiness);
 
     return successResponse({
         ...mission,
