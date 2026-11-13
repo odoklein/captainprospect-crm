@@ -141,7 +141,7 @@ export function PortalAccessGate() {
             />
 
             <div className="relative w-full max-w-[380px] rounded-2xl border border-line bg-white/95 p-6 shadow-[0_12px_40px_-12px_rgba(39,53,95,0.25)] backdrop-blur-sm">
-                <BrandLogo height={24} className="mx-auto" />
+                <BrandLogo height={36} className="mx-auto" />
 
                 <div className="mt-6 flex flex-col items-center text-center">
                     <span

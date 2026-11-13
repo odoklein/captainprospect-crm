@@ -134,7 +134,7 @@ type RowData = Omit<
  * immediately and the name fills in a moment later, instead of the panel
  * waiting on a full-table phone scan.
  */
-async function createResolvedRow(
+export async function createResolvedRow(
     owner: LineOwner,
     callerNumber: string,
     lineNumber: string,
@@ -170,7 +170,7 @@ async function createResolvedRow(
     return row.id;
 }
 
-async function notifyMissed(userId: string, incomingCallId: string) {
+export async function notifyMissed(userId: string, incomingCallId: string) {
     const row = await prisma.incomingCall.findUnique({
         where: { id: incomingCallId },
         select: { callerName: true, companyName: true, alloPersonName: true, fromNumber: true },

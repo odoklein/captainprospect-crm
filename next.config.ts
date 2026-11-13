@@ -28,7 +28,8 @@ const nextConfig: NextConfig = {
   // Keep pdfkit external so its font data files (.afm) resolve correctly at runtime.
   // Document parsers for assistant folder files: loaded from node_modules at
   // runtime rather than bundled (unpdf ships pdf.js, exceljs/mammoth pull zip and xml libs).
-  serverExternalPackages: ["pdfkit", "unpdf", "exceljs", "mammoth", "pptxgenjs"],
+  serverExternalPackages: ["pdfkit", "unpdf", "exceljs", "mammoth", "pptxgenjs", "twilio"],
+
   // unpdf loads pdf.js through a self-referencing dynamic import
   // (`import("unpdf/pdfjs")` in dist/index.mjs). Output file tracing resolves
   // it today, but a miss would only show at runtime in the standalone image
@@ -70,9 +71,9 @@ const nextConfig: NextConfig = {
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
           {
             key: "Content-Security-Policy",
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' ${openReplayOrigin} https://static.openreplay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https:; frame-src 'self' https://cal.com https://*.cal.com https://calendly.com https://*.calendly.com https://meetings-eu1.hubspot.com https://*.hubspot.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`,
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' ${openReplayOrigin} https://static.openreplay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self' https: wss://*.twilio.com; media-src 'self' blob: https://sdk.twilio.com; frame-src 'self' https://cal.com https://*.cal.com https://calendly.com https://*.calendly.com https://meetings-eu1.hubspot.com https://*.hubspot.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`,
           },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), interest-cohort=()" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), interest-cohort=()" },
         ],
       },
       {

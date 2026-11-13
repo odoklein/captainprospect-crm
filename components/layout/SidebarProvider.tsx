@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 interface SidebarContextValue {
     isCollapsed: boolean;
@@ -31,7 +32,11 @@ export function SidebarProvider({
     children,
     defaultCollapsed = false,
 }: SidebarProviderProps) {
-    const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+    const compactWorkspace = usePathname() === "/manager/clients";
+    const [globalCollapsed, setGlobalCollapsed] = useState(defaultCollapsed);
+    const [workspaceCollapsed, setWorkspaceCollapsed] = useState(true);
+    const isCollapsed = compactWorkspace ? workspaceCollapsed : globalCollapsed;
+    const setIsCollapsed = compactWorkspace ? setWorkspaceCollapsed : setGlobalCollapsed;
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
@@ -43,16 +48,16 @@ export function SidebarProvider({
     useEffect(() => {
         const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
         if (stored !== null) {
-            setIsCollapsed(stored === "true");
+            setGlobalCollapsed(stored === "true");
         }
         setIsHydrated(true);
     }, []);
 
     useEffect(() => {
         if (isHydrated) {
-            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(globalCollapsed));
         }
-    }, [isCollapsed, isHydrated]);
+    }, [globalCollapsed, isHydrated]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -87,16 +92,16 @@ export function SidebarProvider({
         };
         document.addEventListener("keydown", handleKeyDown);
         return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [isMobileOpen, searchOpen]);
+    }, [isMobileOpen, searchOpen, setIsCollapsed]);
 
     const toggleCollapsed = useCallback(() => {
         setIsCollapsed((prev) => !prev);
         setIsHovering(false);
-    }, []);
+    }, [setIsCollapsed]);
 
     const setCollapsed = useCallback((collapsed: boolean) => {
         setIsCollapsed(collapsed);
-    }, []);
+    }, [setIsCollapsed]);
 
     const openMobile = useCallback(() => {
         setIsMobileOpen(true);

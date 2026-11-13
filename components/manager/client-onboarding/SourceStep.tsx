@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import Link from "next/link";
-import { ClipboardPaste, Clock, ExternalLink, Mic, PenLine, RefreshCw, Search, Users } from "lucide-react";
+import { NotetakerConnectButton } from "@/components/notetakers/NotetakerConnectButton";
+import { ClipboardPaste, Clock, ExternalLink, Mic, PenLine, Plug, RefreshCw, Search, Users } from "lucide-react";
 import { NotetakerLogo, NotetakerLogoStack } from "@/components/notetakers/NotetakerLogo";
 import { Badge } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -11,7 +11,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Spinner } from "@/components/ui/Spinner";
 import { FIELD_BASE, FOCUS_RING } from "@/components/ui/recipes";
 import { NOTETAKER_IDS } from "@/lib/notetakers/catalog";
-import { NOTETAKER_GUIDES, NOTETAKER_HOW_IT_WORKS, notetakerSettingsHref } from "@/lib/notetakers/guide";
+import { NOTETAKER_GUIDES, NOTETAKER_HOW_IT_WORKS } from "@/lib/notetakers/guide";
 import { cn } from "@/lib/utils";
 import type { SourceMode } from "./form";
 import { SourcePeek } from "./ui";
@@ -297,14 +297,11 @@ function RecordedCallSource(props: SourceStepProps) {
                     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-3">
                         Aussi compatibles
                         <NotetakerLogoStack ids={others.map((t) => t.id)} max={4} />
-                        <Link
-                            href={notetakerSettingsHref()}
-                            target="_blank"
-                            rel="noopener"
+                        <NotetakerConnectButton onChanged={() => void load()}
                             className={cn("inline-flex items-center gap-1 rounded-md font-medium text-link hover:underline", FOCUS_RING)}
                         >
-                            Connecter un autre outil <ExternalLink className="size-3" aria-hidden />
-                        </Link>
+                            Connecter un autre outil <Plug className="size-3" aria-hidden />
+                        </NotetakerConnectButton>
                     </span>
                 )}
             </div>
@@ -352,12 +349,9 @@ function ConnectNotetaker({
                     const guide = NOTETAKER_GUIDES[t.id as keyof typeof NOTETAKER_GUIDES];
                     return (
                         <li key={t.id}>
-                            <Link
-                                href={notetakerSettingsHref(t.id)}
-                                target="_blank"
-                                rel="noopener"
+                            <NotetakerConnectButton tool={t.id} onChanged={onRecheck}
                                 className={cn(
-                                    "group flex items-center gap-3 rounded-control border border-line px-3 py-2.5 transition-colors hover:border-line-strong hover:bg-surface-2",
+                                    "group flex w-full items-center gap-3 rounded-control border border-line px-3 py-2.5 text-left transition-colors hover:border-line-strong hover:bg-surface-2",
                                     FOCUS_RING,
                                 )}
                             >
@@ -368,9 +362,9 @@ function ConnectNotetaker({
                                     {guide?.plan && <span className="mt-0.5 block text-[11px] leading-snug text-ink-4">API : {guide.plan}</span>}
                                 </span>
                                 <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-ink-3 group-hover:text-link">
-                                    Connecter <ExternalLink className="size-3" aria-hidden />
+                                    Connecter <Plug className="size-3" aria-hidden />
                                 </span>
-                            </Link>
+                            </NotetakerConnectButton>
                         </li>
                     );
                 })}
@@ -378,7 +372,7 @@ function ConnectNotetaker({
 
             <div className="flex flex-col gap-3 border-t border-line-subtle pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs text-ink-3">
-                    La clé s&apos;ajoute dans Paramètres › Intégrations, dans un nouvel onglet. Revenez ici : la liste se met à jour.
+                    Configurez votre outil ici. La liste des appels se met à jour à la fermeture du panneau.
                 </p>
                 <div className="flex shrink-0 gap-2">
                     <Button size="xs" variant="ghost" onClick={onRecheck} isLoading={checking} leftIcon={<RefreshCw className="size-3.5" aria-hidden />}>

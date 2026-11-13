@@ -10,6 +10,7 @@ import { actionService } from "@/lib/services/ActionService";
 import { storageService } from "@/lib/storage/storage-service";
 import { resolveAudioMime } from "@/lib/audio-upload";
 import { integrationKey } from "@/lib/integrations/keys";
+import { isTwilioRecordingUrl } from "@/lib/telephony/twilio";
 
 const ALLO_HOST = "api.withallo.com";
 const ALLO_RECORDINGS_PATH_PREFIX = "/v1/assets/recordings/";
@@ -90,6 +91,13 @@ function resolveUpstream(urlString: string): Upstream {
         const apiKey = integrationKey("ALLO_API_KEY");
         if (!apiKey) throw new NotFoundError("Enregistrement introuvable");
         return { url: u, authHeader: apiKey };
+    }
+
+    // In-app softphone recordings (lib/telephony): Twilio media, Basic auth with the account's own credentials.
+    const twilioSid = integrationKey("TWILIO_ACCOUNT_SID");
+    const twilioToken = integrationKey("TWILIO_AUTH_TOKEN");
+    if (twilioSid && twilioToken && isTwilioRecordingUrl(u, twilioSid)) {
+        return { url: u, authHeader: `Basic ${Buffer.from(`${twilioSid}:${twilioToken}`).toString("base64")}` };
     }
 
     const vaultBase = process.env.VAULT_API_URL;

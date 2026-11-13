@@ -12,6 +12,10 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import {
     CARD, CARD_HOVER, EmptyBlock, FOCUS, HeroCard, HeroPill, ICON_BUTTON, IconTile, PILL, SectionHeader, Shimmer, StatusPill, TextLink,
 } from "./AccueilUI";
+import { ClientMissionTeamCard, type ClientTeamData } from "./ClientMissionTeamCard";
+
+/** The mission pill pulses only when the team really logged an action this recently. */
+const LIVE_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 export interface ClientHomeMeeting {
     id: string;
@@ -56,6 +60,10 @@ export interface ClientHomeViewProps {
     showDatabase: boolean;
     breakdown: ReactNode;
     upcomingMeetings: ClientHomeMeeting[];
+    /** null while loading. */
+    team: ClientTeamData | null;
+    /** When the figures on screen were fetched; null before the first load. */
+    updatedAt: Date | null;
 }
 
 function formatMeetingDate(dateString: string): string {
@@ -74,7 +82,12 @@ export function ClientHomeView(props: ClientHomeViewProps) {
     const {
         greeting, userName, monthLabel, missionName, meetingsBooked, callsCount, callsMonthLabel, canGoNextMonth,
         onPrevMonth, onNextMonth, isRefreshing, onRefresh, showCallHistory, showDatabase, breakdown, upcomingMeetings,
+        team, updatedAt,
     } = props;
+
+    // Measured against the fetch time, so "live" describes the figures on screen.
+    const teamLive = !!team?.lastActivityAt && !!updatedAt
+        && updatedAt.getTime() - new Date(team.lastActivityAt).getTime() < LIVE_WINDOW_MS;
 
     return (
         <div className="w-full space-y-6 pb-12 antialiased text-zinc-900">
@@ -83,7 +96,11 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                 <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                         {missionName && (
-                            <StatusPill tone="emerald" pulse>
+                            <StatusPill
+                                tone="emerald"
+                                pulse={teamLive}
+                                title={teamLive ? "Votre équipe a enregistré une action il y a moins de 2 h" : undefined}
+                            >
                                 <span className="max-w-[260px] truncate">{missionName}</span>
                             </StatusPill>
                         )}
@@ -96,16 +113,26 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                         Vos rendez-vous obtenus et l&apos;activité de prospection menée pour vous.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                    className={cn(ICON_BUTTON, "h-11 w-11 rounded-2xl flex-shrink-0")}
-                    title="Rafraîchir"
-                    aria-label="Actualiser les données"
-                >
-                    <RefreshCw className={cn("w-4 h-4", isRefreshing && "motion-safe:animate-spin")} aria-hidden />
-                </button>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                    {updatedAt && (
+                        <span className="hidden sm:block text-right text-[11px] font-semibold text-ink-3 leading-tight" aria-live="polite">
+                            Données à jour
+                            <span className="block text-ink-2 tabular-nums">
+                                à {updatedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                        </span>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onRefresh}
+                        disabled={isRefreshing}
+                        className={cn(ICON_BUTTON, "h-11 w-11 rounded-2xl")}
+                        title="Rafraîchir"
+                        aria-label="Actualiser les données"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", isRefreshing && "motion-safe:animate-spin")} aria-hidden />
+                    </button>
+                </div>
             </header>
 
             {/* ═══ 2. Hero — RDV cumulés & appels du mois ═══ */}
@@ -169,7 +196,10 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                 </div>
             </HeroCard>
 
-            {/* ═══ 3. Shortcuts (portal settings) ═══ */}
+            {/* ═══ 3. Votre mission & votre équipe ═══ */}
+            <ClientMissionTeamCard data={team} now={updatedAt} />
+
+            {/* ═══ 4. Shortcuts (portal settings) ═══ */}
             {(showCallHistory || showDatabase) && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {showCallHistory && (
@@ -191,10 +221,10 @@ export function ClientHomeView(props: ClientHomeViewProps) {
                 </div>
             )}
 
-            {/* ═══ 4. Analyse de la prospection ═══ */}
+            {/* ═══ 5. Analyse de la prospection ═══ */}
             {breakdown}
 
-            {/* ═══ 5. Prochains rendez-vous ═══ */}
+            {/* ═══ 6. Prochains rendez-vous ═══ */}
             <section className={cn(CARD, "p-6 space-y-4")}>
                 <SectionHeader
                     icon={CalendarCheck}
@@ -322,6 +352,7 @@ export function ClientHomeSkeleton() {
                 <Shimmer className="h-11 w-11 rounded-2xl" />
             </div>
             <div className="h-[300px] rounded-3xl bg-inverse/90 motion-safe:animate-pulse" />
+            <Shimmer className="h-[240px] rounded-3xl" />
             <Shimmer className="h-[420px] rounded-3xl" />
             <Shimmer className="h-[260px] rounded-3xl" />
         </div>

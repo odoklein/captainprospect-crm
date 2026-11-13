@@ -13,9 +13,9 @@
 export const brandConfig = {
     identity: {
         /** The brand people see: sidebar, login, emails, PDFs. */
-        name: "Captain Prospect",
+        name: "Suzalink",
         /** Product name for <title>, browser tabs, calendar PRODID, notifications. */
-        productName: "Captain Prospect CRM",
+        productName: "Suzalink CRM",
         /** One-line positioning, used under the logo and in meta descriptions. */
         tagline: "Plateforme d'exécution commerciale",
         /** What the agency does, as AI prompts should describe it. */
@@ -28,20 +28,20 @@ export const brandConfig = {
 
     web: {
         /** Public URL of the app — fallback when NEXT_PUBLIC_APP_URL / NEXTAUTH_URL are unset. */
-        appUrl: "https://app.captainprospect.fr",
+        appUrl: "https://app.suzalink.com",
         /** Marketing site. */
-        website: "https://captainprospect.fr",
+        website: "https://suzalink.com",
     },
 
     email: {
-        /** Display name on automatic emails ("Captain Prospect" <…>). */
-        senderName: "Captain Prospect",
+        /** Display name on automatic emails ("Suzalink" <…>). */
+        senderName: "Suzalink",
         /** Default sender for notifications when no SMTP sender is configured. */
-        notificationsAddress: "notifications@captainprospect.fr",
+        notificationsAddress: "notifications@suzalink.com",
         /** Where blocked or lost users are told to write. */
         supportAddress: "support@suzalink.com",
         /** Email domains offered first in address pickers. */
-        domains: ["captainprospect.fr", "suzaliconseil.com"],
+        domains: ["suzalink.com", "suzaliconseil.com", "captainprospect.fr"],
     },
 
     locale: {
@@ -55,11 +55,15 @@ export const brandConfig = {
         /**
          * Structure colour: sidebar, hero cards, primary buttons. Pick the
          * darkest colour of the logo; it lands on the shade that matches its
-         * lightness (navy #263460 → primary-900).
+         * lightness (Suzalink navy #06103A → primary-950).
+         *
+         * Suzalink: navy for structure, pink for the signal (the action that
+         * matters, focus, progress). The accent never carries meaning on its
+         * own: always with an icon or a label.
          */
-        primary: "#263460",
+        primary: "#06103A",
         /** Highlight colour: active nav, selection, focus ring, AI features. */
-        accent: "#C64B8B",
+        accent: "#FF0A80",
         /** How much of the primary hue tints the greys: 0 = pure grey, 1 = slate-like. */
         neutralTint: 1,
     },
@@ -77,8 +81,8 @@ export const brandConfig = {
         /** Browser tab icon and apple-touch icon. */
         favicon: "/brand/favicon.png",
         /** Intrinsic size of `full` (keeps next/image from shifting layout). */
-        fullWidth: 2460,
-        fullHeight: 758,
+        fullWidth: 1723,
+        fullHeight: 600,
     },
 } as const;
 

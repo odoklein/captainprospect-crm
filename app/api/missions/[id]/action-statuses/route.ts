@@ -8,6 +8,7 @@ import {
     NotFoundError,
 } from "@/lib/api-utils";
 import { z } from "zod";
+import { ActionValidationError, resolveActionResult } from "@/lib/actions/action-result";
 import type { ActionScopeType, ActionPriorityLabel } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -95,6 +96,33 @@ export const PUT = withErrorHandler(async (request: NextRequest, { params }: Rou
         return errorResponse(msg, 400);
     }
     const { statuses } = parsed.data;
+
+    // Mission statuses are configurable, but Action.result can only store enum
+    // values. Canonicalize before persisting so the SDR never selects a code
+    // that the API cannot save.
+    for (const status of statuses) {
+        try {
+            status.code = resolveActionResult(status.code, { code: status.code, label: status.label });
+        } catch (error) {
+            if (error instanceof ActionValidationError) {
+                return errorResponse(
+                    `Code de statut invalide : "${status.code}". Choisissez un libellé de résultat reconnu.`,
+                    400
+                );
+            }
+            throw error;
+        }
+    }
+    const seenCodes = new Set<string>();
+    for (const status of statuses) {
+        if (seenCodes.has(status.code)) {
+            return errorResponse(
+                `Deux statuts correspondent au même résultat : "${status.code}".`,
+                400
+            );
+        }
+        seenCodes.add(status.code);
+    }
 
     await prisma.$transaction(async (tx) => {
         await tx.actionStatusDefinition.deleteMany({

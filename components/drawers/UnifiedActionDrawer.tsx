@@ -46,6 +46,9 @@ import {
     Video,
     UserX,
     XCircle,
+    IdCard,
+    ScrollText,
+    MessageSquareText,
 } from "lucide-react";
 import { AiMark } from "@/components/ui/AiMark";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
@@ -88,7 +91,18 @@ import {
 } from "@/lib/query-keys";
 import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openreplay/events";
 import { openReplayTracker } from "@/lib/openreplay/tracker";
+import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
+import { AccountMap } from "@/components/sdr/workspace/AccountMap";
+import { ActivityTimeline, actionsToEvents } from "@/components/sdr/workspace/ActivityTimeline";
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
+import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { SmsThread } from "@/components/messaging/SmsThread";
+import { ResultPicker } from "./ResultPicker";
+import { ProspectCallStrip } from "./ProspectCallStrip";
+import { PaneTabs } from "./PaneTabs";
+import type { ScriptVars } from "@/lib/sdr-queue/script-fill";
+import { Kbd } from "@/components/ui/Kbd";
+
 
 // ============================================
 // TYPES
@@ -110,6 +124,7 @@ interface Contact {
 }
 
 interface Company {
+    email?: string | null;
     id: string;
     name: string;
     industry: string | null;
@@ -158,6 +173,8 @@ interface UnifiedActionDrawerProps {
     onBookingDialogOpenChange?: (isOpen: boolean) => void;
     /** When the Allo call-picker modal opens, parent can hide overlapping UI (e.g. ScriptCompanionDrawer). */
     onAlloDialogOpenChange?: (isOpen: boolean) => void;
+    /** The integrated-phone call this drawer qualifies: the saved outcome is linked to it exactly. */
+    telephonyCallId?: string | null;
     enableGooglePhoneLookup?: boolean;
     /** AI web-search panel for incomplete company sheets. Defaults to the value of enableGooglePhoneLookup (same SDR pages). */
     enableCompanyAiEnrichment?: boolean;
@@ -165,6 +182,17 @@ interface UnifiedActionDrawerProps {
      *  absent RDV). When set, the drawer reads summary → history → action, the
      *  contact/company sheet moving below the action form. */
     summary?: ReactNode;
+    /**
+     * Docked beside the list (Appeler) instead of over it: no backdrop, tabs
+     * Appel / Fiche / Script, the result first with its save button pinned.
+     */
+    docked?: boolean;
+    /**
+     * Content of the « Script » tab (docked only), e.g. <ScriptCompanionContent />.
+     * A function receives the prospect on screen, to fill {prénom}, {société}…
+     */
+    script?: ReactNode | ((vars: ScriptVars) => ReactNode);
+
 }
 
 interface AlloCallItem {
@@ -392,7 +420,7 @@ function InfoRow({
         >
             <div
                 className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200",
+                    "uad-row-icon w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200",
                     iconBg
                 )}
                 aria-hidden="true"
@@ -400,7 +428,7 @@ function InfoRow({
                 <Icon className={cn("w-3.5 h-3.5", iconColor)} />
             </div>
             <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-0.5" id={`field-label-${label.replace(/\s/g, "-").toLowerCase()}`}>
+                <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-0.5" id={`field-label-${label.replace(/\s/g, "-").toLowerCase()}`}>
                     {label}
                 </p>
                 {children}
@@ -479,9 +507,13 @@ export function UnifiedActionDrawer({
     onContactSelect,
     onBookingDialogOpenChange,
     onAlloDialogOpenChange,
+    telephonyCallId,
     enableGooglePhoneLookup = false,
     enableCompanyAiEnrichment,
     summary,
+    docked = false,
+    script,
+
 }: UnifiedActionDrawerProps) {
     const { success, error: showError, info: showInfo } = useToast();
     const { data: session } = useSession();
@@ -497,6 +529,8 @@ export function UnifiedActionDrawer({
         createdAt: string;
         callbackDate?: string | null;
         channel?: string;
+        duration?: number | null;
+        callSummary?: string | null;
         meetingType?: string | null;
         meetingAddress?: string | null;
         campaign?: { name: string };
@@ -669,6 +703,7 @@ export function UnifiedActionDrawer({
         statuses: Array<{
             code: string;
             label: string;
+            color?: string | null;
             requiresNote: boolean;
             triggersCallback?: boolean;
             triggersExclusion?: boolean;
@@ -759,7 +794,7 @@ export function UnifiedActionDrawer({
         enabled: isOpen && !!companyId,
         staleTime: 60_000,
     });
-    const canAddProspect = !!prospectContext && prospectContext.mode !== "OFF" && prospectContext.lists.length > 0;
+    const canAddProspect = !!prospectContext && prospectContext.mode !== "OFF" && (prospectContext.lists?.length ?? 0) > 0;
     const prospectOrigin = prospectContext?.origin ?? null;
 
     const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
@@ -912,6 +947,7 @@ export function UnifiedActionDrawer({
                 body: JSON.stringify({
                     contactId: targetContactId || contactId || undefined,
                     companyId: (targetContactId || contactId) ? undefined : companyId,
+                    ...(telephonyCallId ? { telephonyCallId } : {}),
                     campaignId,
                     channel,
                     result: "BAD_CONTACT",
@@ -1059,6 +1095,27 @@ export function UnifiedActionDrawer({
         );
     }, [statusLabels]);
 
+    const { dial: softphoneDial, call: softphoneCall, hangup: softphoneHangup, enabled: softphoneEnabled } = useSoftphone();
+
+    // Docked pane tabs. A new prospect opens on « Appel »; a call to this
+    // prospect brings up the script while talking, and the result once it ends.
+    const [paneTab, setPaneTab] = useState<"appel" | "fiche" | "script" | "sms">("appel");
+    const paneProspectKey = `${contactId ?? ""}|${companyId}`;
+    const [paneProspect, setPaneProspect] = useState(paneProspectKey);
+    const callHere: "none" | "live" | "ended" =
+        softphoneCall && softphoneCall.target.companyId === companyId ? (isCallActive(softphoneCall) ? "live" : "ended") : "none";
+    const [seenCallHere, setSeenCallHere] = useState(callHere);
+    if (paneProspect !== paneProspectKey) {
+        setPaneProspect(paneProspectKey);
+        setPaneTab("appel");
+    }
+    if (seenCallHere !== callHere) {
+        setSeenCallHere(callHere);
+        if (callHere === "live" && script) setPaneTab("script");
+        else if (callHere === "ended") setPaneTab("appel");
+    }
+    /** Shown in the current tab (always true for the classic drawer). */
+    const inPane = (tab: "appel" | "fiche" | "script" | "sms") => !docked || paneTab === tab;
     const primaryPhone = useMemo(() => {
         if (contact?.phone) return { number: contact.phone, label: "Contact" };
         if (company?.phone) return { number: company.phone, label: "Société" };
@@ -1147,7 +1204,7 @@ export function UnifiedActionDrawer({
         },
         onSuccess: (rule) => {
             success(
-                "Ne plus contacter",
+                "Blacklist",
                 `${rule?.label ?? "Exclusion enregistrée"} — retiré de la file d'appel.`
             );
             setExcludeDialogOpen(false);
@@ -1189,9 +1246,9 @@ export function UnifiedActionDrawer({
             case "DISQUALIFIED": return "Pourquoi ce contact est-il disqualifié ?";
             case "MEETING_BOOKED": return "Détails du rendez-vous planifié...";
             case "ENVOIE_MAIL": return "Objet et résumé de l'email envoyé...";
-            default: return "Ajouter une note optionnelle...";
+            default: return textFieldRequiredForResult ? "Note requise pour ce résultat : ce qu'il faut retenir…" : "Ajouter une note optionnelle...";
         }
-    }, [newActionResult]);
+    }, [newActionResult, textFieldRequiredForResult]);
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -1208,7 +1265,7 @@ export function UnifiedActionDrawer({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     text: payload.text || undefined,
-                    channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : channel,
+                    channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : (campaigns[0]?.mission?.channel ?? "CALL"),
                     resultCode: newActionResult || undefined,
                     resultLabel: newActionResult ? (statusLabels[newActionResult] ?? newActionResult) : undefined,
                     callSummary: payload.linkedCall?.summary ?? undefined,
@@ -1348,6 +1405,7 @@ export function UnifiedActionDrawer({
                     contactId: contactId || undefined,
                     companyId: contactId ? undefined : companyId,
                     campaignId,
+                    ...(telephonyCallId && newActionResult !== "ENVOIE_MAIL" ? { telephonyCallId } : {}),
                     channel: newActionResult === "ENVOIE_MAIL" ? "EMAIL" : channel,
                     result: newActionResult,
                     note: newActionNote.trim() || undefined,
@@ -1460,14 +1518,20 @@ export function UnifiedActionDrawer({
         },
     });
 
-    const canOpenClientCalendar = hasClientCalendar && Boolean((contactId && contact) || (companyId && company));
+    // The booking drawer opens for every RDV. With a client calendar the SDR books the
+    // slot in it (that is where the commercial is picked); without one they enter the
+    // date, type and place by hand. Saving "RDV pris" with only a note would create a
+    // meeting with no date.
+    const canOpenBooking = Boolean((contactId && contact) || (companyId && company));
     const handleAddAction = (andNext?: boolean) => {
-        // An RDV must go through the calendar: that is where the commercial is picked
-        // (list's commercials first, others as fallback). Saving "RDV pris" with only a
-        // note would create a meeting with no commercial and no slot.
-        if (newActionResult === "MEETING_BOOKED" && canOpenClientCalendar) {
+        if (newActionResult === "MEETING_BOOKED" && canOpenBooking) {
             setShowBookingDrawer(true);
-            showInfo("Choisissez le créneau", "Le RDV est enregistré une fois le créneau réservé dans le calendrier.");
+            showInfo(
+                hasClientCalendar ? "Choisissez le créneau" : "Renseignez le RDV",
+                hasClientCalendar
+                    ? "Le RDV est enregistré une fois le créneau réservé dans le calendrier."
+                    : "Pas de calendrier client : indiquez la date et le type du RDV, puis confirmez.",
+            );
             return;
         }
         addActionMutation.mutate({ andNext });
@@ -1644,10 +1708,6 @@ export function UnifiedActionDrawer({
 
     const handleSaveCompany = () => saveCompanyMutation.mutate();
 
-    // ── Render guards ──────────────────────────────────────────────────────────
-
-    if (!isOpen) return null;
-
     const canSubmit =
         !!newActionResult &&
         !requiresSavedInterlocutorBeforeSubmit &&
@@ -1669,78 +1729,189 @@ export function UnifiedActionDrawer({
     }, [actions, isCallbackResult]);
     const visibleActions = historyExpanded ? sortedHistoryActions : sortedHistoryActions.slice(0, 5);
 
+    // Docked pane: Ctrl / ⌘ + Entrée saves from anywhere in the pane, the note included
+    // (and moves on to the next prospect when the page offers it).
+    useEffect(() => {
+        if (!isOpen || !docked || newActionResult === "ENVOIE_MAIL") return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || e.defaultPrevented) return;
+            if (document.querySelector('[aria-modal="true"]')) return;
+            if (!canSubmit) return;
+            e.preventDefault();
+            handleAddAction(!!onValidateAndNext);
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    });
+
+    // ── Render guards (after every hook) ───────────────────────────────────────
+
+    if (!isOpen) return null;
+
+    // Docked: the save lives in the pane footer, outside the scroll, on the « Appel » tab.
+    const selectedColor = newActionResult ? statusConfig?.statuses?.find((st) => st.code === newActionResult)?.color ?? null : null;
+    const paneFooter =
+        docked && paneTab === "appel" && newActionResult !== "ENVOIE_MAIL" && !campaignsLoading && campaigns.length > 0 ? (
+            <div className="flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                    {newActionResult ? (
+                        <p className="flex min-w-0 items-center gap-2 text-[13px] font-medium text-ink">
+                            <span className="size-2 shrink-0 rounded-full" style={{ background: selectedColor ?? "var(--ds-line-strong)" }} aria-hidden />
+                            <span className="truncate">{statusLabels[newActionResult] ?? newActionResult}</span>
+                        </p>
+                    ) : (
+                        <p className="text-[12.5px] text-ink-3">Choisissez un résultat pour enregistrer</p>
+                    )}
+                    {newActionResult && (
+                        <p className="mt-0.5 text-[11px] text-ink-4">
+                            {!canSubmit && textFieldRequiredForResult && !newActionNote.trim() ? (
+                                <span className="text-warning-ink">Une note est requise</span>
+                            ) : (
+                                <>
+                                    <Kbd className="h-4 px-1">Ctrl</Kbd> + <Kbd className="h-4 px-1">Entrée</Kbd> pour {onValidateAndNext ? "valider et passer au suivant" : "enregistrer"}
+                                </>
+                            )}
+                        </p>
+                    )}
+                </div>
+                {onValidateAndNext ? (
+                    <>
+                        <Button type="button" variant="secondary" size="sm" onClick={() => handleAddAction(false)} disabled={!canSubmit} className="shrink-0">
+                            Enregistrer
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleAddAction(true)}
+                            disabled={!canSubmit}
+                            isLoading={addActionMutation.isPending}
+                            className="shrink-0 gap-1.5"
+                        >
+                            Valider &amp; suivant
+                            <ChevronRight className="size-4" aria-hidden="true" />
+                        </Button>
+                    </>
+                ) : (
+                    <Button type="button" variant="primary" size="sm" onClick={() => handleAddAction(false)} disabled={!canSubmit} isLoading={addActionMutation.isPending} className="shrink-0 gap-1.5">
+                        <Check className="size-4" aria-hidden="true" />
+                        Enregistrer
+                    </Button>
+                )}
+            </div>
+        ) : undefined;
+
     // Quick actions + contact/company sheet. Rendered between the history and the
     // action form by default; below the form when a summary is passed (RDV view).
     const ficheSections = (
         <>
-            {/* ── Quick Action Bar ── */}
-            <section
-                aria-label="Actions rapides"
-                className="flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60"
-                style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
-            >
-                {primaryPhone && (
-                    <button
-                        type="button"
-                        aria-label={`Appeler ${primaryPhone.number}`}
-                        onClick={() => {
-                            window.open(`tel:${primaryPhone.number}`, "_self");
+            {company && inPane("fiche") && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact={["BAD_CONTACT","MAUVAIS_INTERLOCUTEUR"].includes(newActionResult)} onSelect={onContactSelect} />}
+            {/* ── Quick Action Bar ── (docked: one compact call strip) */}
+            {docked ? (
+                inPane("appel") && (
+                    <ProspectCallStrip
+                        phone={primaryPhone?.number ?? null}
+                        phoneKind={primaryPhone?.label === "Société" ? "Standard" : "Direct"}
+                        live={callHere === "live"}
+                        onHangup={softphoneHangup}
+                        onCall={() => {
+                            if (!primaryPhone) return;
+                            const handled = softphoneDial({
+                                phone: primaryPhone.number,
+                                contactId: primaryPhone.label === "Société" ? null : contactId,
+                                companyId,
+                                campaignId: campaigns[0]?.id ?? null,
+                                label: displayName,
+                                sublabel: company?.name && company.name !== displayName ? company.name : null,
+                            });
+                            if (!handled) window.open(`tel:${primaryPhone.number}`, "_self");
                         }}
-                        className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    >
-                        <PhoneCall className="w-4 h-4" aria-hidden="true" />
-                        <span>Appeler</span>
-                        {primaryPhone.label === "Société" && (
-                            <span className="text-xs opacity-75 font-normal">
-                                (société)
-                            </span>
-                        )}
-                    </button>
-                )}
+                        email={primaryEmail}
+                        linkedin={contact?.linkedin ?? null}
+                        website={company?.website ?? null}
+                    />
+                )
+            ) : (
+                <section
+                    aria-label="Actions rapides"
+                    className={cn("flex flex-wrap gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-200/60", docked && "rounded-xl p-2", !inPane("appel") && "hidden")}
+                    style={{ animation: "uadSectionIn 250ms 50ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
+                >
+                    {primaryPhone && (
+                        <button
+                            type="button"
+                            aria-label={`Appeler ${primaryPhone.number}`}
+                            onClick={() => {
+                                const handled = softphoneDial({
+                                    phone: primaryPhone.number,
+                                    contactId: primaryPhone.label === "Société" ? null : contactId,
+                                    companyId,
+                                    campaignId: campaigns[0]?.id ?? null,
+                                    label: displayName,
+                                    sublabel: company?.name && company.name !== displayName ? company.name : null,
+                                });
+                                if (!handled) window.open(`tel:${primaryPhone.number}`, "_self");
+                            }}
+                            className="flex-1 min-w-[130px] flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                        >
+                            <PhoneCall className="w-4 h-4" aria-hidden="true" />
+                            <span>Appeler</span>
+                            {primaryPhone.label === "Société" && (
+                                <span className="text-xs opacity-75 font-normal">
+                                    (société)
+                                </span>
+                            )}
+                        </button>
+                    )}
 
-                {primaryEmail && (
-                    <a
-                        href={`mailto:${primaryEmail}`}
-                        aria-label={`Envoyer un email à ${primaryEmail}`}
-                        className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    >
-                        <Send className="w-4 h-4" aria-hidden="true" />
-                        Email
-                    </a>
-                )}
+                    {primaryEmail && (
+                        <a
+                            href={`mailto:${primaryEmail}`}
+                            aria-label={`Envoyer un email à ${primaryEmail}`}
+                            className="flex-1 min-w-[110px] flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white rounded-xl font-semibold text-sm shadow-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 active:scale-[0.98]"
+                        >
+                            <Send className="w-4 h-4" aria-hidden="true" />
+                            Email
+                        </a>
+                    )}
 
-                {(contact?.linkedin || company?.website) && (
-                    <a
-                        href={
-                            contact?.linkedin
-                                ? contact.linkedin.startsWith("http")
-                                    ? contact.linkedin
-                                    : `https://${contact.linkedin}`
-                                : company?.website?.startsWith("http")
-                                    ? company.website
-                                    : `https://${company?.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={contact?.linkedin ? "Ouvrir le profil LinkedIn" : "Ouvrir le site web"}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
-                    >
-                        {contact?.linkedin ? (
-                            <Linkedin className="w-4 h-4 text-blue-600" aria-hidden="true" />
-                        ) : (
-                            <Globe className="w-4 h-4 text-slate-500" aria-hidden="true" />
-                        )}
-                        {contact?.linkedin ? "LinkedIn" : "Site web"}
-                    </a>
-                )}
-            </section>
+                    {(contact?.linkedin || company?.website) && (
+                        <a
+                            href={
+                                contact?.linkedin
+                                    ? contact.linkedin.startsWith("http")
+                                        ? contact.linkedin
+                                        : `https://${contact.linkedin}`
+                                    : company?.website?.startsWith("http")
+                                        ? company.website
+                                        : `https://${company?.website}`
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={contact?.linkedin ? "Ouvrir le profil LinkedIn" : "Ouvrir le site web"}
+                            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl font-semibold text-sm shadow-sm hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2 active:scale-[0.98]"
+                        >
+                            {contact?.linkedin ? (
+                                <Linkedin className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                            ) : (
+                                <Globe className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                            )}
+                            {contact?.linkedin ? "LinkedIn" : "Site web"}
+                        </a>
+                    )}
+                </section>
+            )}
 
             {/* ── Tab Navigation ── */}
             {contact && (
                 <div
                     role="tablist"
                     aria-label="Informations contact ou société"
-                    className="flex rounded-xl bg-slate-100/80 p-1 gap-1 border border-slate-200/60"
+                    className={cn(
+                        "flex gap-1",
+                        docked ? "self-start rounded-lg bg-surface-2 p-0.5 ring-1 ring-inset ring-line-subtle" : "rounded-xl bg-slate-100/80 p-1 border border-slate-200/60",
+                        !inPane("fiche") && "hidden",
+                    )}
                     style={{ animation: "uadSectionIn 250ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     onKeyDown={(e) => {
                         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -1759,10 +1930,10 @@ export function UnifiedActionDrawer({
                         tabIndex={activeTab === "contact" ? 0 : -1}
                         onClick={() => setActiveTab("contact")}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
-                            activeTab === "contact"
-                                ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
-                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                            "flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
+                            docked
+                                ? cn("h-7 gap-1.5 rounded-md px-3 text-[12.5px] font-medium", activeTab === "contact" ? "bg-surface text-ink shadow-xs ring-1 ring-line-subtle" : "text-ink-3 hover:text-ink")
+                                : cn("flex-1 gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold", activeTab === "contact" ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100" : "text-slate-500 hover:text-slate-800 hover:bg-white/50"),
                         )}
                     >
                         <User className="w-4 h-4" aria-hidden="true" />
@@ -1776,10 +1947,10 @@ export function UnifiedActionDrawer({
                         tabIndex={activeTab === "company" ? 0 : -1}
                         onClick={() => setActiveTab("company")}
                         className={cn(
-                            "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
-                            activeTab === "company"
-                                ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100"
-                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                            "flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
+                            docked
+                                ? cn("h-7 gap-1.5 rounded-md px-3 text-[12.5px] font-medium", activeTab === "company" ? "bg-surface text-ink shadow-xs ring-1 ring-line-subtle" : "text-ink-3 hover:text-ink")
+                                : cn("flex-1 gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold", activeTab === "company" ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100" : "text-slate-500 hover:text-slate-800 hover:bg-white/50"),
                         )}
                     >
                         <Building2 className="w-4 h-4" aria-hidden="true" />
@@ -1795,7 +1966,7 @@ export function UnifiedActionDrawer({
                     role="tabpanel"
                     aria-labelledby="tab-contact"
                     tabIndex={0}
-                    className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1"
+                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("fiche") && "hidden")}
                     style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                 >
                     {/* Contact header */}
@@ -2016,7 +2187,7 @@ export function UnifiedActionDrawer({
                             : Array.isArray(contact.additionalPhones) &&
                             contact.additionalPhones.filter(Boolean).length > 0) && (
                                 <div className="px-4 py-3 border-b border-slate-100">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                    <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
                                         <Phone className="w-3 h-3 text-emerald-500" aria-hidden="true" />
                                         Autres numéros
                                     </p>
@@ -2084,7 +2255,7 @@ export function UnifiedActionDrawer({
                             )}
                         {isEditingContact && (editContactData.additionalPhones?.length ?? 0) === 0 && (
                             <div className="px-4 py-3 border-b border-slate-100">
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
+                                <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
                                     Autres numéros
                                 </p>
                                 <button
@@ -2109,7 +2280,7 @@ export function UnifiedActionDrawer({
                             : Array.isArray(contact.additionalEmails) &&
                             contact.additionalEmails.filter(Boolean).length > 0) && (
                                 <div className="px-4 py-3 border-b border-slate-100">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                    <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
                                         <Mail className="w-3 h-3 text-primary-500" aria-hidden="true" />
                                         Autres emails
                                     </p>
@@ -2180,7 +2351,7 @@ export function UnifiedActionDrawer({
                             )}
                         {isEditingContact && (editContactData.additionalEmails?.length ?? 0) === 0 && (
                             <div className="px-4 py-3 border-b border-slate-100">
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
+                                <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2">
                                     Autres emails
                                 </p>
                                 <button
@@ -2258,7 +2429,7 @@ export function UnifiedActionDrawer({
                             Object.keys(contact.customData).length > 0 &&
                             !isEditingContact && (
                                 <div className="px-4 py-3 bg-slate-50/60">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                    <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
                                         <FileText className="w-3 h-3" aria-hidden="true" />
                                         Infos supplémentaires
                                     </p>
@@ -2305,7 +2476,7 @@ export function UnifiedActionDrawer({
                     role="tabpanel"
                     aria-labelledby="tab-company"
                     tabIndex={0}
-                    className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1"
+                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("fiche") && "hidden")}
                     style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                 >
                     {/* No contact prompt */}
@@ -2572,7 +2743,7 @@ export function UnifiedActionDrawer({
                             <div className="flex items-center gap-3 px-4 py-3 border-r border-slate-100 hover:bg-slate-50/60 transition-colors">
                                 <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
                                 <div className="w-full">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Pays</p>
+                                    <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Pays</p>
                                     {isEditingCompany ? (
                                         <input
                                             type="text"
@@ -2592,7 +2763,7 @@ export function UnifiedActionDrawer({
                             <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
                                 <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
                                 <div className="w-full">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Effectif</p>
+                                    <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Effectif</p>
                                     {isEditingCompany ? (
                                         <input
                                             type="text"
@@ -2614,7 +2785,7 @@ export function UnifiedActionDrawer({
                                 <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/60 transition-colors">
                                     <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
                                     <div className="w-full">
-                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Chiffre d&apos;affaires</p>
+                                        <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Chiffre d&apos;affaires</p>
                                         <p className="text-sm font-medium text-slate-700">{companyRevenueText(company.customData)}</p>
                                     </div>
                                 </div>
@@ -2627,7 +2798,7 @@ export function UnifiedActionDrawer({
                             Object.keys(company.customData).length > 0 &&
                             !isEditingCompany && (
                                 <div className="px-4 py-3 bg-slate-50/60">
-                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                    <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
                                         <FileText className="w-3 h-3" aria-hidden="true" />
                                         Infos supplémentaires
                                     </p>
@@ -2655,7 +2826,7 @@ export function UnifiedActionDrawer({
                         {/* Other contacts */}
                         {company.contacts?.length > 0 && (
                             <div className="px-4 py-3 border-t border-slate-100">
-                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
+                                <p className="uad-label text-[10px] text-slate-400 uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5">
                                     <Users className="w-3 h-3" aria-hidden="true" />
                                     Autres contacts ({company.contacts.length})
                                 </p>
@@ -2795,9 +2966,14 @@ export function UnifiedActionDrawer({
         <Drawer
             isOpen={isOpen}
             onClose={onClose}
-            title={displayName}
-            description={missionName ? `Mission : ${missionName}` : undefined}
+            title={<ProspectIdentity name={contact ? displayName : null} company={company?.name} role={contact?.title} website={company?.website} compact />}
+            // Docked: the identity alone (the mission is already chosen in the page toolbar).
+            description={missionName && !docked ? `Mission : ${missionName}` : undefined}
             size="lg"
+            docked={docked}
+            bodyClassName={docked ? "p-0" : undefined}
+            footer={paneFooter}
+
         >
             <style>{`
                 @keyframes uadSectionIn {
@@ -2809,6 +2985,22 @@ export function UnifiedActionDrawer({
                     50% { opacity: 0.5; }
                 }
             `}</style>
+            {docked && (
+                <div className="sticky top-0 z-[2]">
+                    <PaneTabs
+                        label="Panneau prospect"
+                        value={paneTab}
+                        onChange={setPaneTab}
+                        tabs={[
+                            { id: "appel", label: "Appel", icon: PhoneCall, live: callHere === "live" },
+                            { id: "fiche", label: "Fiche", icon: IdCard },
+                            ...(script ? [{ id: "script" as const, label: "Script", icon: ScrollText }] : []),
+                            { id: "sms", label: "SMS", icon: MessageSquareText },
+                        ]}
+                    />
+                </div>
+            )}
+            <div className={cn(docked && "px-5 pb-8 pt-5")}>
             {loading ? (
                 <div className="space-y-5 p-1" role="status" aria-label="Chargement des données">
                     <div className="flex gap-3">
@@ -2842,11 +3034,12 @@ export function UnifiedActionDrawer({
                     </Button>
                 </div>
             ) : (
-                <div className="flex flex-col gap-4 pb-4" role="main" aria-label="Actions sur le contact">
+                <div className={cn("flex flex-col pb-4", docked ? "gap-6" : "gap-4")} role="main" aria-label="Actions sur le contact">
 
                     {/* An excluded prospect stays open and readable — only the
                         queue drops it. The banner is the first thing read, so
                         nobody calls anyway or files a ticket about a "bug". */}
+                    <div className={cn("contents", docked && (paneTab === "script" || paneTab === "sms") && "hidden")}>
                     {activeExclusion && (
                         <ExclusionBanner
                             info={{
@@ -2868,9 +3061,10 @@ export function UnifiedActionDrawer({
                             {summary}
                         </div>
                     )}
+                    </div>
 
                     {!activeExclusion && company && (
-                        <div className="flex justify-end -mb-2">
+                        <div className={cn("flex justify-end -mb-2", !inPane("fiche") && "hidden")}>
                             <button
                                 type="button"
                                 onClick={() => setExcludeDialogOpen(true)}
@@ -2878,15 +3072,18 @@ export function UnifiedActionDrawer({
                                 title={contactId ? "Blacklister ce contact ou toute la société" : "Blacklister cette société"}
                             >
                                 <Ban className="w-3.5 h-3.5" aria-hidden="true" />
-                                Ne plus contacter
+                                Blacklister
                             </button>
                         </div>
                     )}
 
+                    <div className={cn(docked && "order-3 border-t border-line-subtle pt-6", !inPane("appel") && "hidden")}>
+                        <ActivityTimeline companyId={companyId ?? undefined} events={actionsToEvents(actions,statusLabels)} loading={actionsLoading} />
+                        <details className="sdr-history-management"><summary>Gérer les activités · modifier ou supprimer</summary>
                     {/* ── Unified history section (moved to top) ── */}
                     <section
                         aria-label="Historique des actions"
-                        className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                        className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden", docked && "order-3 rounded-xl shadow-none", !inPane("appel") && "hidden")}
                         style={{ animation: "uadSectionIn 250ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                     >
                         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-slate-50">
@@ -2960,7 +3157,7 @@ export function UnifiedActionDrawer({
                             {actionsLoading ? (
                                 <div role="status" aria-label="Chargement de l'historique">
                                     <ListSkeleton items={3} hasAvatar={false} className="py-1" />
-                                    <span className="sr-only">Chargement de l'historique...</span>
+                                    <span className="sr-only">Chargement de l’historique…</span>
                                 </div>
                             ) : actions.length === 0 ? (
                                 <div className="flex flex-col items-center py-10 text-slate-400">
@@ -3246,15 +3443,23 @@ export function UnifiedActionDrawer({
                         </div>
                     </section>
 
+                        </details>
+                    </div>
+
                     {!summary && ficheSections}
 
                     {/* ── Record Action Section ── */}
                     <section
                         aria-label="Enregistrer une action"
-                        className="rounded-2xl border border-primary-100 bg-white shadow-sm overflow-hidden ring-1 ring-primary-50"
+                        className={cn(
+                            "rounded-2xl border border-primary-100 bg-white shadow-sm overflow-hidden ring-1 ring-primary-50",
+                            // Result first; overflow-clip (not hidden) keeps the save bar sticky.
+                            docked && "order-2 rounded-none border-0 bg-transparent shadow-none ring-0 !overflow-visible",
+                            !inPane("appel") && "hidden",
+                        )}
                         style={{ animation: "uadSectionIn 250ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     >
-                        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-primary-100 bg-primary-50/50">
+                        <div className={cn("flex items-center gap-3 px-4 py-3.5 border-b border-primary-100 bg-primary-50/50", docked && "hidden")}>
                             <div
                                 className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center shadow-sm"
                                 aria-hidden="true"
@@ -3269,7 +3474,8 @@ export function UnifiedActionDrawer({
                             )}
                         </div>
 
-                        <div className="p-4">
+                        <div className={docked ? "p-0" : "p-4"}>
+                            {company && ["BAD_CONTACT", "MAUVAIS_INTERLOCUTEUR"].includes(newActionResult) && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact onSelect={onContactSelect} />}
                             {campaignsLoading ? (
                                 <div className="space-y-3 py-2">
                                     <TextSkeleton lines={1} className="h-9 w-full" />
@@ -3280,76 +3486,99 @@ export function UnifiedActionDrawer({
                                     Aucune campagne disponible pour cette mission.
                                 </p>
                             ) : (
-                                <div className="space-y-4">
-                                    {/* Outcome chips */}
-                                    <fieldset>
-                                        <legend className="text-xs font-bold text-slate-700 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
-                                            Résultat <span className="text-red-500" aria-hidden="true">*</span>
-                                            <span className="sr-only">(obligatoire)</span>
-                                        </legend>
-                                        <div
-                                            className="flex flex-wrap gap-2"
-                                            role="radiogroup"
-                                            aria-label="Sélectionnez le résultat de l'action"
-                                            aria-required="true"
-                                        >
-                                            {statusOptions.map((opt) => {
-                                                const cfg =
-                                                    RESULT_CHIP_CONFIG[opt.value] ||
-                                                    RESULT_CHIP_CONFIG.NO_RESPONSE;
-                                                const Icon = cfg.icon;
-                                                const isSelected = newActionResult === opt.value;
-                                                const chipButton = (
-                                                    <button
-                                                        key={opt.value}
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={isSelected}
-                                                        onClick={() => {
-                                                            setNewActionResult(opt.value);
-                                                        }}
-                                                        className={cn(
-                                                            "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
-                                                            isSelected
-                                                                ? cn(
-                                                                    cfg.selectedBg,
-                                                                    cfg.selectedText,
-                                                                    cfg.selectedBorder,
-                                                                    "ring-1 shadow-sm scale-[1.02]",
-                                                                    `focus-visible:ring-${cfg.dot.replace("bg-", "")}`
-                                                                )
-                                                                : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm active:scale-[0.98]"
-                                                        )}
-                                                    >
-                                                        <Icon
-                                                            className={cn("w-3.5 h-3.5 shrink-0", isSelected ? cfg.selectedText : "text-slate-400")}
-                                                            aria-hidden="true"
-                                                        />
-                                                        {opt.label}
-                                                    </button>
-                                                );
-                                                if (!opt.title) return chipButton;
-                                                return (
-                                                    <Tooltip
-                                                        key={`${opt.value}-tooltip`}
-                                                        position="top"
-                                                        maxWidth="max-w-sm"
-                                                        content={
-                                                            <div className="space-y-1">
-                                                                {opt.title.split("\n").map((line, idx) => (
-                                                                    <p key={`${opt.value}-${idx}`} className="text-xs leading-relaxed">
-                                                                        {line}
-                                                                    </p>
-                                                                ))}
-                                                            </div>
-                                                        }
-                                                    >
-                                                        {chipButton}
-                                                    </Tooltip>
-                                                );
-                                            })}
+                                <div className={docked ? "space-y-6" : "space-y-4"}>
+                                    {/* Outcome: docked → the 6 most-used first, keys 1–6 */}
+                                    {docked ? (
+                                        <div>
+                                            <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                                                <h3 className="text-[13px] font-semibold text-ink">
+                                                    Résultat de l&apos;appel<span className="sr-only"> (obligatoire)</span>
+                                                </h3>
+                                                <span className="text-[11.5px] text-ink-4">
+                                                    Touches <Kbd className="h-4 min-w-4 px-1">1</Kbd>–<Kbd className="h-4 min-w-4 px-1">6</Kbd>
+                                                </span>
+                                            </div>
+                                            <ResultPicker
+                                                options={statusOptions}
+                                                value={newActionResult}
+                                                keys={paneTab === "appel"}
+                                                colorFor={(code) => statusConfig?.statuses?.find((st) => st.code === code)?.color ?? null}
+                                                onChange={(code) => {
+                                                    setNewActionResult(code);
+                                                    if (getRequiresNote(code)) setTimeout(() => noteRef.current?.focus(), 0);
+                                                }}
+                                            />
                                         </div>
-                                    </fieldset>
+                                    ) : (
+                                        <fieldset>
+                                            <legend className="text-xs font-bold text-slate-700 mb-2.5 uppercase tracking-wider flex items-center gap-1.5">
+                                                Résultat <span className="text-red-500" aria-hidden="true">*</span>
+                                                <span className="sr-only">(obligatoire)</span>
+                                            </legend>
+                                            <div
+                                                className="flex flex-wrap gap-2"
+                                                role="radiogroup"
+                                                aria-label="Sélectionnez le résultat de l'action"
+                                                aria-required="true"
+                                            >
+                                                {statusOptions.map((opt) => {
+                                                    const cfg =
+                                                        RESULT_CHIP_CONFIG[opt.value] ||
+                                                        RESULT_CHIP_CONFIG.NO_RESPONSE;
+                                                    const Icon = cfg.icon;
+                                                    const isSelected = newActionResult === opt.value;
+                                                    const chipButton = (
+                                                        <button
+                                                            key={opt.value}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={isSelected}
+                                                            onClick={() => {
+                                                                setNewActionResult(opt.value);
+                                                            }}
+                                                            className={cn(
+                                                                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1",
+                                                                isSelected
+                                                                    ? cn(
+                                                                        cfg.selectedBg,
+                                                                        cfg.selectedText,
+                                                                        cfg.selectedBorder,
+                                                                        "ring-1 shadow-sm scale-[1.02]",
+                                                                        `focus-visible:ring-${cfg.dot.replace("bg-", "")}`
+                                                                    )
+                                                                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm active:scale-[0.98]"
+                                                            )}
+                                                        >
+                                                            <Icon
+                                                                className={cn("w-3.5 h-3.5 shrink-0", isSelected ? cfg.selectedText : "text-slate-400")}
+                                                                aria-hidden="true"
+                                                            />
+                                                            {opt.label}
+                                                        </button>
+                                                    );
+                                                    if (!opt.title) return chipButton;
+                                                    return (
+                                                        <Tooltip
+                                                            key={`${opt.value}-tooltip`}
+                                                            position="top"
+                                                            maxWidth="max-w-sm"
+                                                            content={
+                                                                <div className="space-y-1">
+                                                                    {opt.title.split("\n").map((line, idx) => (
+                                                                        <p key={`${opt.value}-${idx}`} className="text-xs leading-relaxed">
+                                                                            {line}
+                                                                        </p>
+                                                                    ))}
+                                                                </div>
+                                                            }
+                                                        >
+                                                            {chipButton}
+                                                        </Tooltip>
+                                                    );
+                                                })}
+                                            </div>
+                                        </fieldset>
+                                    )}
 
                                     {/* ── Inline email panel: mailbox + template picker ── */}
                                     {newActionResult === "ENVOIE_MAIL" && (
@@ -3531,11 +3760,13 @@ export function UnifiedActionDrawer({
                                     {/* Contextual: meeting booking — always shown for MEETING_BOOKED */}
                                     {newActionResult === "MEETING_BOOKED" && (
                                         <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-3.5 space-y-3">
-                                            {/* Calendar button — only when a booking URL or at least one interlocuteur calendar exists */}
-                                            {canOpenClientCalendar && (
+                                            {/* Booking: in the client calendar when there is one, by hand otherwise */}
+                                            {canOpenBooking && (
                                                 <>
                                                     <p className="text-xs text-primary-700">
-                                                        Réservez le créneau dans le calendrier : le RDV est enregistré à la confirmation.
+                                                        {hasClientCalendar
+                                                            ? "Réservez le créneau dans le calendrier : le RDV est enregistré à la confirmation."
+                                                            : "Ce client n'a pas de calendrier : renseignez la date, le type et le lieu du RDV, il est enregistré dans le CRM."}
                                                     </p>
                                                     <Button
                                                         type="button"
@@ -3544,7 +3775,7 @@ export function UnifiedActionDrawer({
                                                         className="gap-2 w-full"
                                                     >
                                                         <Calendar className="w-4 h-4" aria-hidden="true" />
-                                                        Ouvrir le calendrier client
+                                                        {hasClientCalendar ? "Ouvrir le calendrier client" : "Saisir le RDV"}
                                                     </Button>
                                                 </>
                                             )}
@@ -3630,7 +3861,10 @@ export function UnifiedActionDrawer({
                                     <div>
                                         <label
                                             htmlFor="action-note"
-                                            className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider"
+                                            className={cn(
+                                                "block",
+                                                docked ? "mb-2 text-[13px] font-semibold text-ink" : "text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider",
+                                            )}
                                         >
                                             {isRefusalResult ? "Raison du refus" : isOutOfTargetResult ? "Raison du hors cible" : "Note"}
                                             {textFieldRequiredForResult && (
@@ -3651,7 +3885,12 @@ export function UnifiedActionDrawer({
                                                 maxLength={500}
                                                 aria-required={textFieldRequiredForResult}
                                                 aria-describedby="note-char-count"
-                                                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400 resize-none transition-all"
+                                                className={cn(
+                                                    "w-full px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none transition-all",
+                                                    docked
+                                                        ? "rounded-lg border border-line bg-surface leading-relaxed text-ink placeholder:text-ink-4 focus:border-primary-400 focus:ring-4 focus:ring-primary-500/10"
+                                                        : "border border-slate-200 rounded-xl bg-white focus:ring-2 focus:ring-primary-400/30 focus:border-primary-400",
+                                                )}
                                             />
                                         </div>
                                         {linkedAlloCall && (
@@ -3708,7 +3947,8 @@ export function UnifiedActionDrawer({
                                                 )}
                                                 {summarizeNoteMutation.isPending ? "Résumé en cours…" : "Résumer avec l'IA"}
                                             </button>
-                                            {isCallCampaign && (
+                                            {/* Twilio links the call by itself: the Allo matcher is for Allo users only. */}
+                                            {isCallCampaign && !softphoneEnabled && (
                                                 <button
                                                     type="button"
                                                     onClick={openAlloDialog}
@@ -3729,7 +3969,7 @@ export function UnifiedActionDrawer({
                                             )}
                                             <p
                                                 id="note-char-count"
-                                                className="text-xs text-slate-400 ml-auto"
+                                                className={cn("text-xs text-slate-400 ml-auto tabular-nums", docked && newActionNote.length < 400 && "sr-only")}
                                                 aria-live="polite"
                                                 aria-atomic="true"
                                             >
@@ -3758,9 +3998,14 @@ export function UnifiedActionDrawer({
                                         />
                                     )}
 
-                                    {/* Submit — hidden when ENVOIE_MAIL (email panel has its own send) */}
-                                    {newActionResult !== "ENVOIE_MAIL" && (
-                                    <div className="flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-primary-100">
+                                    {/* Submit — hidden when ENVOIE_MAIL (email panel has its own send).
+                                        Docked: in the pane footer instead, always in reach. */}
+                                    {newActionResult !== "ENVOIE_MAIL" && !docked && (
+                                    <div
+                                        className={cn(
+                                            "flex flex-col sm:flex-row gap-2 pt-3 mt-1 border-t border-primary-100",
+                                        )}
+                                    >
                                         <Button
                                             type="button"
                                             variant="primary"
@@ -3798,8 +4043,32 @@ export function UnifiedActionDrawer({
 
                     {summary && ficheSections}
 
+                    {docked && script && (
+                        <div className={cn(paneTab !== "script" && "hidden")}>
+                            {typeof script === "function"
+                                ? script({
+                                      firstName: contact?.firstName ?? null,
+                                      lastName: contact?.lastName ?? null,
+                                      company: company?.name ?? null,
+                                      me: session?.user?.name?.trim().split(/\s+/)[0] ?? null,
+                                  })
+                                : script}
+                        </div>
+                    )}
+                    {/* SMS: mounted only while open (it polls for replies), full height under the tabs. */}
+                    {docked && paneTab === "sms" && (
+                        <SmsThread
+                            contactId={contactId}
+                            companyId={companyId}
+                            campaignId={campaigns[0]?.id ?? null}
+                            firstName={contact?.firstName ?? null}
+                            // Cancels the pane body's padding: full height under the header (56 px) and the tabs (45 px).
+                            className="-mx-5 -mb-12 -mt-5 h-[calc(100vh-101px)]"
+                        />
+                    )}
                 </div>
             )}
+            </div>
 
             {/* ── Modals ── */}
             {company && (
@@ -3842,7 +4111,7 @@ export function UnifiedActionDrawer({
                 />
             )}
 
-            {(contactId && contact || companyId && company) && hasClientCalendar && (
+            {canOpenBooking && (
                 <BookingDrawer
                     isOpen={showBookingDrawer}
                     onClose={() => setShowBookingDrawer(false)}

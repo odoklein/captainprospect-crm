@@ -47,11 +47,12 @@ const put = (values: Record<string, string | null>) =>
 const shortDate = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
 
-export function IntegrationKeysPanel() {
+export function IntegrationKeysPanel({ onlyGroup, initialTool }: { onlyGroup?: IntegrationGroup; initialTool?: string } = {}) {
     const [keys, setKeys] = useState<IntegrationKeyStatus[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     // ?tool=fireflies (the « Nouveau client » wizard's « Connecter »): that row opens, scrolled into view.
-    const focusTool = useSearchParams().get("tool");
+    const queryTool = useSearchParams().get("tool");
+    const focusTool = initialTool ?? queryTool;
 
     useEffect(() => {
         call<IntegrationKeyStatus[]>()
@@ -65,10 +66,11 @@ export function IntegrationKeysPanel() {
     }, [keys, focusTool]);
 
     const groups = useMemo(
-        () => GROUP_ORDER.map((g) => ({ group: g, items: (keys ?? []).filter((k) => k.group === g) })).filter((g) => g.items.length),
-        [keys],
+        () => GROUP_ORDER.filter(g => !onlyGroup || g === onlyGroup).map((g) => ({ group: g, items: (keys ?? []).filter((k) => k.group === g) })).filter((g) => g.items.length),
+        [keys, onlyGroup],
     );
-    const active = keys?.filter((k) => k.source !== "none").length ?? 0;
+    const visibleKeys = keys?.filter(k => !onlyGroup || k.group === onlyGroup) ?? [];
+    const active = visibleKeys.filter(k => k.source !== "none").length;
 
     if (loadError) return <Notice tone="rose">{loadError}</Notice>;
     if (!keys) return <Shimmer className="h-64 rounded-3xl" />;
@@ -79,7 +81,7 @@ export function IntegrationKeysPanel() {
                 <p className="font-bold text-zinc-900">Vos clés, chiffrées dans votre base.</p>
                 <p>
                     Une clé enregistrée ici s&apos;applique en quelques secondes, sans redémarrage, et n&apos;est plus jamais
-                    affichée. Sans clé, la fonction correspondante est désactivée. {active}/{keys.length} configurées.
+                    affichée. Sans clé, la fonction correspondante est désactivée. {active}/{visibleKeys.length} configurées.
                 </p>
             </Notice>
             {groups.map(({ group, items }) => {

@@ -338,7 +338,7 @@ export function CampaignTable({ campaigns, clients, onLink, linkingId, showClien
                                                     ))}
                                                 </select>
                                                 {c.client && (
-                                                    <Link href={`/manager/clients/${c.client.id}`} className="mt-1 inline-block text-[11px] font-medium text-link hover:underline">
+                                                    <Link href={`/manager/clients?client=${c.client.id}`} className="mt-1 inline-block text-[11px] font-medium text-link hover:underline">
                                                         Fiche client
                                                     </Link>
                                                 )}
@@ -346,7 +346,7 @@ export function CampaignTable({ campaigns, clients, onLink, linkingId, showClien
                                         ) : showClient ? (
                                             <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
                                                 {c.client ? (
-                                                    <Link href={`/manager/clients/${c.client.id}`} className="text-sm font-medium text-link hover:underline">{c.client.name}</Link>
+                                                    <Link href={`/manager/clients?client=${c.client.id}`} className="text-sm font-medium text-link hover:underline">{c.client.name}</Link>
                                                 ) : (
                                                     <span className="text-xs text-ink-4">Non liée</span>
                                                 )}

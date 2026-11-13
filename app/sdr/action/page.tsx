@@ -26,11 +26,9 @@ import {
     SkipForward,
     History,
     PhoneCall,
-    Eye,
     Copy,
     ArrowDownUp,
     PhoneOff,
-    MailOpen,
     PenLine,
     BarChart2,
     Trash2,
@@ -39,16 +37,30 @@ import {
     ThumbsUp,
     Briefcase,
     FileText,
+    Pause,
+    Play,
+    X,
+    Ellipsis,
+    Keyboard,
+    Rows3,
+    SquareUser,
 } from "lucide-react";
-import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, IconButton, SegmentedControl } from "@/components/ui";
+import { isCallActive, useIslandExtra, useSoftphone, type IslandAction } from "@/components/telephony/SoftphoneProvider";
+import { useCallQualified } from "@/components/telephony/PostCallSuggestion";
+import { Card, Badge, Button, LoadingState, EmptyState, Tabs, Drawer, DataTable, Select, useToast, TableSkeleton, CardSkeleton, Modal, DateTimePicker, SegmentedControl } from "@/components/ui";
 import type { Column } from "@/components/ui/DataTable";
 import dynamic from "next/dynamic";
 import { CompanyDrawer, ContactDrawer } from "@/components/drawers";
 import { BookingDrawer } from "@/components/sdr/BookingDrawer";
 import { AlloCallPickerModal } from "@/components/sdr/AlloCallPickerModal";
-import { ScriptCompanionDrawer } from "@/components/sdr/ScriptCompanionDrawer";
+import { ScriptCompanionContent } from "@/components/sdr/ScriptCompanionDrawer";
 import { AlreadyContactedModal, type AlreadyContactedInfo } from "@/components/sdr/AlreadyContactedModal";
 import { ActionQueueToolbar } from "@/components/sdr/ActionQueueToolbar";
+import { LastExchangeCell, NextStepCell, OpenCell, PhoneCell, ProspectCell } from "@/components/sdr/queue/QueueCells";
+import { QualificationExplain } from "@/components/sdr/focus/QualificationExplain";
+import type { QualificationView } from "@/lib/qualification/types";
+import { AppelerGuide, AppelerShortcutsSheet, useAppelerGuide, useQuestionMarkKey } from "@/components/sdr/queue/AppelerHelp";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn";
 import { AbsentsToTreatButton, ABSENTS_TO_TREAT_QUERY_KEY, type AbsentToTreat } from "@/components/sdr/AbsentsToTreat";
 import { DEFAULT_QUEUE_FILTERS, hasAnyQueueFilter, matchesQueueFilters, prepareSearch, type QueueFilters } from "@/lib/sdr-queue/queue-filters";
 import type { PausedSummary } from "@/lib/sdr-queue/cooldown";
@@ -62,6 +74,7 @@ import { QuickEmailModal } from "@/components/email/QuickEmailModal";
 import type { ActionResult, Channel } from "@/lib/types";
 import { ACTION_RESULT_LABELS, CHANNEL_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { matchesCallTarget } from "@/lib/telephony/client-state";
 import { contactedWarningContext } from "@/lib/sdr-queue/last-action";
 import {
     sdrActionQueueKey,
@@ -179,6 +192,8 @@ interface ListItem {
 }
 
 interface QueueItem {
+    /** Explained qualification (lib/qualification); null when scoring is off or failed. */
+    qualification?: QualificationView | null;
     contactId: string | null;
     companyId: string;
     contact: NextActionData["contact"] | null;
@@ -565,6 +580,22 @@ function ActionStatsModalBody({
     );
 }
 
+/**
+ * Missions the SDR may pick: strictly today's planning (no fallback to the rest of
+ * the week), or every running mission when they hold « changer de mission sans
+ * planning » (the server sends the allowed set; /api/sdr/today-blocks).
+ */
+function selectableMissionIdsOf(data: {
+    hasBlocksToday: boolean;
+    todayMissionIds: string[];
+    freeMissionSwitch?: boolean;
+    allowedMissionIds?: string[];
+}): Set<string> {
+    if (data.freeMissionSwitch && data.allowedMissionIds) return new Set(data.allowedMissionIds);
+    if (data.hasBlocksToday && data.todayMissionIds.length > 0) return new Set(data.todayMissionIds);
+    return new Set<string>();
+}
+
 export default function SDRActionPage() {
     const { setCollapsed } = useSidebar();
     const { data: session } = useSession();
@@ -605,6 +636,8 @@ export default function SDRActionPage() {
         todayMissionIds: string[];
         weekBlocks: Array<{ id: string; date: string; startTime: string; endTime: string; mission: { id: string; name: string; channel: string } }>;
         hasBlocksToday: boolean;
+        freeMissionSwitch?: boolean;
+        allowedMissionIds?: string[];
     } | null>(null);
     const [todayBlocksLoading, setTodayBlocksLoading] = useState(true);
     const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
@@ -831,18 +864,9 @@ export default function SDRActionPage() {
                     setMissions(allMissions);
 
                     const saved = localStorage.getItem("sdr_selected_mission");
-                    const allowedMissionIds = (() => {
-                        // Strictly today's planning only — no fallback to the rest of the week.
-                        if (!todayJson.success || !todayJson.data) return new Set<string>();
-                        const planningData = todayJson.data as {
-                            hasBlocksToday: boolean;
-                            todayMissionIds: string[];
-                        };
-                        if (planningData.hasBlocksToday && planningData.todayMissionIds.length > 0) {
-                            return new Set(planningData.todayMissionIds);
-                        }
-                        return new Set<string>();
-                    })();
+                    const allowedMissionIds = todayJson.success && todayJson.data
+                        ? selectableMissionIdsOf(todayJson.data)
+                        : new Set<string>();
                     const availableMissions = allMissions.filter((m: Mission) => allowedMissionIds.has(m.id));
                     const missionId = (saved && availableMissions.some((m: Mission) => m.id === saved))
                         ? saved
@@ -875,14 +899,7 @@ export default function SDRActionPage() {
     }, [showError]);
 
     useEffect(() => {
-        // Strictly today's planning only — no fallback to the rest of the week.
-        const allowedMissionIds = (() => {
-            if (!todayBlocksData) return null;
-            if (todayBlocksData.hasBlocksToday && todayBlocksData.todayMissionIds.length > 0) {
-                return new Set(todayBlocksData.todayMissionIds);
-            }
-            return new Set<string>();
-        })();
+        const allowedMissionIds = todayBlocksData ? selectableMissionIdsOf(todayBlocksData) : null;
 
         const availableMissions = allowedMissionIds
             ? missions.filter((mission) => allowedMissionIds.has(mission.id))
@@ -961,7 +978,7 @@ export default function SDRActionPage() {
         lastAction?: {
             result: string;
             note?: string | null;
-            createdAt?: string;
+            createdAt: string;
             callbackDate?: string | null;
             scope?: "CONTACT" | "COMPANY" | null;
         } | null;
@@ -993,6 +1010,26 @@ export default function SDRActionPage() {
         return isRecent || hasComment;
     }, [session?.user?.id]);
 
+    // In-app softphone when Twilio is set up for this user, tel: (Allo) otherwise.
+    const { dial: softphoneDial, enabled: softphoneOn, call: softCall } = useSoftphone();
+
+    // In-context help: the first-run guide (steps tick themselves) and the « ? » sheet.
+    const guide = useAppelerGuide(session?.user?.id);
+    if (softCall && !guide.state.called) guide.mark("called");
+    const [shortcutsOpen, setShortcutsOpen] = useState(false);
+    const openShortcuts = useCallback(() => setShortcutsOpen(true), []);
+    useQuestionMarkKey(openShortcuts, viewMode === "table");
+    const placeCall = useCallback((phone: string, context?: Pick<PhoneAttemptContext, "contactId" | "companyId" | "targetName" | "companyName">) => {
+        const handled = softphoneDial({
+            phone,
+            contactId: context?.contactId ?? null,
+            companyId: context?.companyId ?? null,
+            label: context?.targetName ?? null,
+            sublabel: context?.companyName && context.companyName !== context.targetName ? context.companyName : null,
+        });
+        if (!handled) window.location.href = `tel:${phone}`;
+    }, [softphoneDial]);
+
     const handlePhoneCallAttempt = useCallback((
         e: React.MouseEvent,
         phone: string,
@@ -1019,8 +1056,8 @@ export default function SDRActionPage() {
             return;
         }
 
-        window.location.href = `tel:${phone}`;
-    }, [isRecentlyContacted, session?.user?.id, statusLabels]);
+        placeCall(phone, context);
+    }, [isRecentlyContacted, session?.user?.id, statusLabels, placeCall]);
 
     const copyToClipboard = useCallback(async (
         value: string,
@@ -1057,7 +1094,12 @@ export default function SDRActionPage() {
         const { phone, actionIntent } = alreadyContactedModalInfo;
         setAlreadyContactedModalInfo(null);
         if (actionIntent === "CALL") {
-            window.location.href = `tel:${phone}`;
+            placeCall(phone, {
+                contactId: alreadyContactedDetailsTarget?.contactId,
+                companyId: alreadyContactedDetailsTarget?.companyId,
+                targetName: alreadyContactedModalInfo.targetName,
+                companyName: alreadyContactedModalInfo.companyName,
+            });
         } else {
             try {
                 await navigator.clipboard.writeText(phone);
@@ -1066,7 +1108,7 @@ export default function SDRActionPage() {
                 showError("Impossible de copier");
             }
         }
-    }, [alreadyContactedModalInfo, success, showError]);
+    }, [alreadyContactedModalInfo, alreadyContactedDetailsTarget, placeCall, success, showError]);
 
     const handleAlreadyContactedOpenDetails = useCallback(() => {
         if (alreadyContactedDetailsTarget?.contactId) {
@@ -1081,14 +1123,10 @@ export default function SDRActionPage() {
         ["INTERESTED", "CALLBACK_REQUESTED", "ENVOIE_MAIL"].includes(code)
         , [statusConfig]);
 
-    const selectableMissionIds = useMemo(() => {
-        // Strictly today's planning only — no fallback to the rest of the week.
-        if (!todayBlocksData) return null;
-        if (todayBlocksData.hasBlocksToday && todayBlocksData.todayMissionIds.length > 0) {
-            return new Set(todayBlocksData.todayMissionIds);
-        }
-        return new Set<string>();
-    }, [todayBlocksData]);
+    const selectableMissionIds = useMemo(
+        () => (todayBlocksData ? selectableMissionIdsOf(todayBlocksData) : null),
+        [todayBlocksData],
+    );
 
     const selectableMissions = useMemo(() => {
         if (!selectableMissionIds) return missions;
@@ -1445,6 +1483,7 @@ export default function SDRActionPage() {
     }, [viewMode, unifiedDrawerOpen, setCollapsed]);
 
     const openDrawerForRow = (row: QueueItem) => {
+        guide.mark("opened");
         setDrawerRow(row);
         setUnifiedDrawerContactId(row.contactId || null);
         setUnifiedDrawerCompanyId(row.companyId);
@@ -1474,7 +1513,163 @@ export default function SDRActionPage() {
         setUnifiedDrawerCompanyId(null);
         setUnifiedDrawerMissionId(undefined);
         setUnifiedDrawerMissionName(undefined);
+        // Closing the drawer by hand ends the automatic session.
+        setAutoMode(false);
+        setAutoCountdown(null);
     };
+
+    // ============================================
+    // MODE AUTO (table view) — open the next row, call it after a visible
+    // countdown, show the outcome (AI summary of the transcript) when the
+    // call ends, move on once the SDR has saved a result.
+    // ============================================
+    const AUTO_DIAL_SECONDS = 3;
+    const [autoMode, setAutoMode] = useState(false);
+    const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
+    const [autoCallId, setAutoCallId] = useState<string | null>(null);
+    // Row whose automatic call is used up (dialled or cancelled): only a new row re-arms it.
+    const autoDialedFor = useRef<string | null>(null);
+
+    const rowPhone = (row: QueueItem | null) => (row ? row.contact?.phone || row.company?.phone || null : null);
+    const autoRowKey = drawerRow ? queueRowKey(drawerRow) : null;
+    const autoPhone = rowPhone(drawerRow);
+    const autoCallActive = isCallActive(softCall);
+    const autoCallIsOurs = Boolean(softCall && drawerRow && matchesCallTarget(softCall.target, {
+        companyId: drawerRow.companyId,
+        contactId: drawerRow.contact?.phone ? drawerRow.contactId : null,
+    }));
+    useEffect(() => {
+        if (autoMode && autoCallIsOurs && softCall?.callId) setAutoCallId(softCall.callId);
+    }, [autoMode, autoCallIsOurs, softCall?.callId]);
+
+    /** Opens the row after `fromKey` that has a number (or the first one). */
+    const openAutoRow = (fromKey: string | null) => {
+        if (autoCallActive) return;
+        const list = filteredQueueItems;
+        let idx = fromKey ? list.findIndex((r) => queueRowKey(r) === fromKey) + 1 : 0;
+        while (idx < list.length && !rowPhone(list[idx])) idx++;
+        autoDialedFor.current = null;
+        setAutoCallId(null);
+        if (idx <= 0 && fromKey) idx = list.length; // current row vanished from the list
+        if (idx >= list.length) {
+            setAutoMode(false);
+            setAutoCountdown(null);
+            closeUnifiedDrawer();
+            success("Mode auto terminé", "Plus de prospect avec un numéro dans la liste affichée.");
+            return;
+        }
+        openDrawerForRow(list[idx]);
+    };
+
+    const startAutoMode = () => {
+        setAutoMode(true);
+        if (drawerRow) {
+            autoDialedFor.current = null;
+            setAutoCallId(null);
+        } else {
+            openAutoRow(null);
+        }
+    };
+
+    const stopAutoMode = () => {
+        setAutoMode(false);
+        setAutoCountdown(null);
+    };
+
+    const cancelAutoDial = () => {
+        autoDialedFor.current = autoRowKey;
+        setAutoCountdown(null);
+    };
+
+    const autoDial = () => {
+        if (!drawerRow || !autoPhone || autoCallActive || !autoMode || !unifiedDrawerOpen) return;
+        autoDialedFor.current = autoRowKey;
+        setAutoCountdown(null);
+        softphoneDial({
+            phone: autoPhone,
+            contactId: drawerRow.contact?.phone ? drawerRow.contactId : null,
+            companyId: drawerRow.companyId,
+            campaignId: drawerRow.campaignId,
+            label: drawerRow._displayName ?? drawerRow.company?.name ?? null,
+            sublabel: drawerRow.contactId ? drawerRow._companyName ?? drawerRow.company?.name ?? null : null,
+            showOutcome: true,
+        });
+    };
+
+    // Arm the countdown when an auto row is on screen and has not been called yet.
+    useEffect(() => {
+        if (!autoMode || !unifiedDrawerOpen || !autoPhone || !softphoneOn || autoCallActive || unifiedBookingDialogOpen) {
+            setAutoCountdown(null);
+            return;
+        }
+        if (autoDialedFor.current === autoRowKey) return;
+        setAutoCountdown(AUTO_DIAL_SECONDS);
+    }, [autoMode, unifiedDrawerOpen, autoPhone, softphoneOn, autoCallActive, unifiedBookingDialogOpen, autoRowKey]);
+
+    useEffect(() => {
+        if (autoCountdown === null) return;
+        if (autoCountdown <= 0) {
+            autoDial();
+            return;
+        }
+        const t = setTimeout(() => setAutoCountdown((c) => (c === null ? null : c - 1)), 1000);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoCountdown]);
+
+    useEffect(() => {
+        if (!autoMode) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && autoCountdown !== null) {
+                e.preventDefault();
+                e.stopPropagation();
+                cancelAutoDial();
+            }
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [autoMode, autoCountdown, autoRowKey]);
+
+    // Mode auto lives in the call Island: its status between calls, its actions on the outcome card.
+    const autoName = drawerRow?._displayName ?? drawerRow?.company?.name ?? "ce prospect";
+    // A call confirmed from the island's suggestion: the queue moves on like a
+    // save from the pane (Mode auto: next row; otherwise the pane closes).
+    useCallQualified((q) => {
+        queryClient.invalidateQueries({ queryKey: queueQueryKey });
+        setActionsCompleted((c) => c + 1);
+        refreshQueue();
+        if (!unifiedDrawerOpen || q.companyId !== unifiedDrawerCompanyId) return;
+        if (autoMode) openAutoRow(autoRowKey);
+        else closeUnifiedDrawer();
+    });
+
+    useIslandExtra(
+        autoMode && drawerRow
+            ? (() => {
+                  const stop: IslandAction = { label: "Arrêter", onClick: stopAutoMode };
+                  const skip: IslandAction = { label: "Passer", onClick: () => openAutoRow(autoRowKey) };
+                  if (autoCountdown !== null) {
+                      return {
+                          tag: "Auto",
+                          text: `Appel de ${autoName} dans ${autoCountdown} s`,
+                          countdown: { seconds: AUTO_DIAL_SECONDS, key: autoRowKey ?? "" },
+                          actions: [{ label: "Annuler", onClick: cancelAutoDial }, skip, stop],
+                      };
+                  }
+                  if (!autoPhone) return { tag: "Auto", text: `Pas de numéro pour ${autoName}`, actions: [skip, stop] };
+                  // The result itself is proposed under the island (PostCallSuggestion): confirming it moves on.
+                  if (autoCallId) {
+                      return { tag: "Auto", text: "Confirmez le résultat proposé pour passer au suivant", actions: [skip, stop] };
+                  }
+                  return {
+                      tag: "Auto",
+                      text: `Prêt à appeler ${autoName}`,
+                      actions: [{ label: "Appeler", onClick: autoDial, tone: "success" }, skip, stop],
+                  };
+              })()
+            : null,
+    );
 
     const [emailModalPreferredMailboxId, setEmailModalPreferredMailboxId] = useState<string | null>(null);
 
@@ -1544,54 +1739,6 @@ export default function SDRActionPage() {
     const handleContactFromCompany = (contact: { id: string }) => {
         setDrawerCompanyId(null);
         setDrawerContactId(contact.id);
-    };
-
-    const handleQuickAction = async (row: QueueItem, result: ActionResult) => {
-        // For MEETING_BOOKED, open the full drawer so SDR can use the booking flow
-        if (result === "MEETING_BOOKED") {
-            openDrawerForRow(row);
-            return;
-        }
-        // For ENVOIE_MAIL, open choice modal: note only (Mail à envoyer) or send email (Mail envoyé)
-        if (result === "ENVOIE_MAIL") {
-            setMailToSendChoiceRow(row);
-            setMailToSendChoiceNote("");
-            setShowMailToSendChoiceModal(true);
-            return;
-        }
-
-        const key = queueRowKey(row);
-        setSubmittingRowKey(key);
-        const noteRequired = getRequiresNote(result);
-        const note = noteRequired
-            ? (isCallbackResult(result) ? "Rappel demandé" : statusLabels[result] ?? "Note")
-            : undefined;
-        try {
-            const res = await fetch("/api/actions", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contactId: row.contactId ?? undefined,
-                    companyId: row.companyId,
-                    campaignId: row.campaignId,
-                    channel: row.channel,
-                    result,
-                    note: note ?? undefined,
-                    callbackDate: isCallbackResult(result) ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined,
-                }),
-            });
-            const json = await res.json();
-            if (json.success) {
-                queryClient.invalidateQueries({ queryKey: queueQueryKey });
-                setActionsCompleted((c) => c + 1);
-            } else {
-                showError(json.error || "Erreur lors de l'enregistrement");
-            }
-        } catch {
-            showError("Erreur de connexion");
-        } finally {
-            setSubmittingRowKey(null);
-        }
     };
 
     // Queue: save "Mail à envoyer" with note only (no email sent)
@@ -2062,307 +2209,97 @@ export default function SDRActionPage() {
 
     // ========== TABLE VIEW ==========
     if (viewMode === "table") {
+        // With the pane open, the number and the call button live in the pane:
+        // the list keeps who, what happened last and what is due.
+        const paneOpen = unifiedDrawerOpen;
+        const statusColor = new Map((statusConfig?.statuses ?? []).map((st) => [st.code, st.color] as const));
         const queueColumns: Column<QueueItem>[] = [
             {
                 key: "name",
-                header: "Contact / Société",
-                render: (_, row) => {
-                    const name = row.contact
-                        ? `${row.contact.firstName || ""} ${row.contact.lastName || ""}`.trim() || row.company.name
-                        : row.company.name;
-                    return (
-                        <div className="flex items-center gap-3">
-                            <div className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border transition-colors",
-                                row.priority === "ABSENT_RDV"
-                                    ? "bg-red-100/70 border-red-200 text-red-600"
-                                    : row.contactId
-                                        ? "bg-primary-50 border-primary-100 text-primary-600"
-                                        : "bg-slate-50 border-slate-200 text-slate-500"
-                            )}>
-                                {row.contactId ? (
-                                    <User className="w-4.5 h-4.5" />
-                                ) : (
-                                    <Building2 className="w-4.5 h-4.5" />
-                                )}
-                            </div>
-                            <div className="min-w-0">
-                                <p className="font-semibold text-slate-900 truncate max-w-[220px]">{name}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    {row.contact && row.company.name !== name && (
-                                        <span className="text-xs text-slate-500 truncate max-w-[140px] flex items-center gap-1">
-                                            <Building2 className="w-3 h-3 flex-shrink-0" />
-                                            {row.company.name}
-                                        </span>
-                                    )}
-                                    {row.contact?.title && (
-                                        <span className="text-xs text-slate-400 truncate max-w-[120px]">
-                                            · {row.contact.title}
-                                        </span>
-                                    )}
-                                </div>
-                                {row.hasContactInfo === false && (
-                                    <span
-                                        className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5"
-                                        title="Aucun téléphone / email / LinkedIn renseigné — à enrichir"
-                                    >
-                                        <AlertCircle className="w-2.5 h-2.5" />
-                                        Coordonnées manquantes
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    );
-                },
+                header: "Prospect",
+                render: (_, row) => (
+                    <ProspectCell
+                        firstName={row.contact?.firstName}
+                        lastName={row.contact?.lastName}
+                        companyName={row.company.name}
+                        title={row.contact?.title}
+                        isCompany={!row.contactId}
+                        missingInfo={row.hasContactInfo === false}
+                        absent={row.priority === "ABSENT_RDV"}
+                    />
+                ),
             },
-            {
-                key: "_phone",
-                header: "Téléphone",
-                render: (_, row) => {
-                    const phone = row._phone || row.contact?.phone || row.company?.phone;
-                    if (!phone) return (
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400 px-2 py-1 rounded-md bg-slate-50 border border-slate-100">
-                            <PhoneOff className="w-3 h-3" /> Aucun
-                        </span>
-                    );
-                    const callContext = {
-                        ...contactedWarningContext(row),
-                        targetName: row._displayName,
-                        companyName: row._companyName || row.company?.name,
-                        contactId: row.contactId ?? undefined,
-                        companyId: row.companyId,
-                    };
-                    return (
-                        <div className="inline-flex items-center gap-1">
-                            <a
-                                href={`tel:${phone}`}
-                                onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/60 rounded-lg transition-all duration-150 hover:shadow-sm group"
-                                title="Cliquer pour appeler"
-                            >
-                                <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="font-mono tracking-tight">{phone}</span>
-                            </a>
-                            {row.contactId && !row.contact?.phone && (
-                                <span
-                                    className="px-1.5 py-0.5 rounded-md border border-line bg-surface-2 text-[10px] font-semibold uppercase tracking-wide text-ink-3"
-                                    title="Le contact n'a pas de numéro : c'est le standard de la société"
-                                >
-                                    Standard
-                                </span>
-                            )}
-                            {row.sharedPhoneCall && (
-                                <SharedPhoneBadge call={row.sharedPhoneCall} currentUserId={session?.user?.id} compact />
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => copyToClipboard(phone, callContext)}
-                                title="Copier le numéro"
-                                className="p-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-accent-600 hover:bg-accent-50 transition-colors"
-                            >
-                                <Copy className="w-3.5 h-3.5" />
-                            </button>
-                        </div>
-                    );
-                },
-            },
-            {
-                key: "channel",
-                header: "Canal",
-                render: (v) => {
-                    const channelConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
-                        CALL: { icon: <Phone className="w-3.5 h-3.5" />, color: "bg-primary-50 text-primary-700 border-primary-200", label: "Appel" },
-                        EMAIL: { icon: <MailOpen className="w-3.5 h-3.5" />, color: "bg-blue-50 text-blue-700 border-blue-200", label: "Email" },
-                        LINKEDIN: { icon: <Linkedin className="w-3.5 h-3.5" />, color: "bg-sky-50 text-sky-700 border-sky-200", label: "LinkedIn" },
-                    };
-                    const cfg = channelConfig[v as string] || { icon: <Globe className="w-3.5 h-3.5" />, color: "bg-slate-50 text-slate-600 border-slate-200", label: v };
-                    return (
-                        <Badge className={cn("text-xs gap-1 font-medium border", cfg.color)}>
-                            {cfg.icon}
-                            {cfg.label}
-                        </Badge>
-                    );
-                },
-            },
+            ...(paneOpen
+                ? []
+                : [
+                      {
+                          key: "_phone",
+                          header: "Téléphone",
+                          width: "176px",
+                          render: (_: unknown, row: QueueItem) => {
+                              const phone = row._phone || row.contact?.phone || row.company?.phone;
+                              const callContext = {
+                                  ...contactedWarningContext(row),
+                                  targetName: row._displayName,
+                                  companyName: row._companyName || row.company?.name,
+                                  contactId: row.contactId ?? undefined,
+                                  companyId: row.companyId,
+                              };
+                              return (
+                                  <PhoneCell
+                                      phone={phone}
+                                      isSwitchboard={!!row.contactId && !row.contact?.phone}
+                                      alreadyCalled={row.sharedPhoneCall ? sharedPhoneLabel(row.sharedPhoneCall, session?.user?.id) : null}
+                                      onCall={(e) => phone && handlePhoneCallAttempt(e, phone, callContext)}
+                                      onCopy={() => phone && copyToClipboard(phone, callContext)}
+                                  />
+                              );
+                          },
+                      } satisfies Column<QueueItem>,
+                  ]),
             {
                 key: "lastAction",
-                header: "Dernière action",
+                header: "Dernier échange",
                 render: (_, row) => {
-                    if (!row.lastAction) {
-                        return (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-400 italic px-2 py-1 rounded-lg bg-slate-50 border border-slate-100">
-                                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                Jamais contacté
-                            </span>
-                        );
-                    }
-                    const resultColor: Record<string, { badge: string; dot: string }> = {
-                        NO_RESPONSE: { badge: "bg-slate-50 text-slate-600 border-slate-200", dot: "bg-slate-400" },
-                        BAD_CONTACT: { badge: "bg-red-50 text-red-600 border-red-200", dot: "bg-red-400" },
-                        INTERESTED: { badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
-                        CALLBACK_REQUESTED: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
-                        RELANCE: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
-                        RAPPEL: { badge: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-400" },
-                        MEETING_BOOKED: { badge: "bg-primary-50 text-primary-700 border-primary-200", dot: "bg-primary-400" },
-                        DISQUALIFIED: { badge: "bg-slate-100 text-slate-500 border-slate-200", dot: "bg-slate-400" },
-                        ENVOIE_MAIL: { badge: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-400" },
-                        MAIL_ENVOYE: { badge: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-400" },
-                    };
-                    const color = resultColor[row.lastAction.result] || { badge: "bg-slate-100 text-slate-600 border-slate-200", dot: "bg-slate-400" };
-                    const contactedByOther = row.lastActionBy?.id && row.lastActionBy.id !== session?.user?.id;
+                    const last = row.lastAction;
+                    const byOther = row.lastActionBy?.id && row.lastActionBy.id !== session?.user?.id ? row.lastActionBy.name : null;
                     return (
-                        <div className="space-y-1.5">
-                            <Badge className={cn("text-xs border font-medium", color.badge)}>
-                                {RESULT_ICON_MAP[row.lastAction.result]}
-                                <span className="ml-1">{statusLabels[row.lastAction.result] ?? row.lastAction.result}</span>
-                            </Badge>
-                            {contactedByOther && row.lastActionBy?.name && (
-                                <p className="text-[11px] text-amber-700 font-medium">
-                                    Contacté par {row.lastActionBy.name}
-                                </p>
-                            )}
-                            {row.lastAction.note && (
-                                <div className="flex items-start gap-1.5 max-w-[220px]" title={row.lastAction.note}>
-                                    <MessageSquare className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
-                                    <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
-                                        {row.lastAction.note}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
+                        <LastExchangeCell
+                            result={last?.result ?? null}
+                            label={last ? statusLabels[last.result] ?? last.result : null}
+                            color={last ? statusColor.get(last.result) ?? null : null}
+                            at={last?.createdAt ?? null}
+                            note={last?.note ?? null}
+                            byOther={byOther ?? null}
+                        />
                     );
                 },
             },
             {
                 key: "priority",
-                header: "Urgence",
-                render: (_, row) => {
-                    if (row.priority === "ABSENT_RDV") {
-                        return (
-                            <div className="flex flex-col items-start gap-1">
-                                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-600 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                                    RDV absent
-                                </span>
-                                <p className="pl-1 text-[11px] font-medium text-red-700">À rappeler en priorité</p>
-                            </div>
-                        );
-                    }
-                    const isCallbackRow = !!row.lastAction && isCallbackResult(row.lastAction.result);
-                    const callbackDateRaw = row.lastAction?.callbackDate;
-                    const callbackTs = callbackDateRaw ? new Date(callbackDateRaw).getTime() : NaN;
-                    const now = Date.now();
-                    const oneDayMs = 24 * 60 * 60 * 1000;
-                    const threeDaysMs = 3 * oneDayMs;
-
-                    if (!isCallbackRow || !Number.isFinite(callbackTs)) {
-                        return (
-                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-500 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200">
-                                Non planifié
-                            </span>
-                        );
-                    }
-
-                    const isOverdue = callbackTs < now;
-                    const isCritical = callbackTs <= now + oneDayMs;
-                    const isSoon = callbackTs <= now + threeDaysMs;
-                    const urgencyLabel = isOverdue ? "En retard" : isCritical ? "Urgent" : isSoon ? "Bientot" : "Planifié";
-                    const urgencyClass = isOverdue
-                        ? "bg-rose-50 text-rose-700 border-rose-200"
-                        : isCritical
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : isSoon
-                                ? "bg-primary-50 text-primary-700 border-primary-200"
-                                : "bg-emerald-50 text-emerald-700 border-emerald-200";
-
-                    return (
-                        <div className="space-y-1">
-                            <time className="block text-[11px] font-medium text-slate-600">
-                                {new Date(callbackDateRaw as string).toLocaleDateString("fr-FR", {
-                                    day: "2-digit",
-                                    month: "short",
-                                    year: "numeric",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                })}
-                            </time>
-                            <Badge className={cn("text-xs font-medium border", urgencyClass)}>
-                                {urgencyLabel}
-                            </Badge>
-                        </div>
-                    );
-                },
+                header: "Priorité",
+                width: "220px",
+                render: (_, row) => (
+                    row.qualification ? (
+                        <QualificationExplain q={row.qualification} compact />
+                    ) : (
+                        <NextStepCell
+                            absent={row.priority === "ABSENT_RDV"}
+                            callbackAt={row.lastAction && isCallbackResult(row.lastAction.result) ? row.lastAction.callbackDate ?? null : null}
+                        />
+                    )
+                ),
             },
             {
-                key: "quickActions",
-                header: "Actions rapides",
-                render: (_, row) => {
-                    const key = queueRowKey(row);
-                    const submitting = submittingRowKey === key;
-                    // Show only the most common 4 actions inline, rest via drawer  
-                    const primaryActions = resultOptions.slice(0, 5);
-                    return (
-                        <div className="flex items-center gap-1">
-                            {submitting && (
-                                <span className="flex items-center justify-center w-8 h-8 text-primary-500">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                </span>
-                            )}
-                            {primaryActions.map((opt) => {
-                                const actionColors: Record<string, string> = {
-                                    NO_RESPONSE: "hover:border-slate-400 hover:bg-slate-50 hover:text-slate-700 hover:shadow-sm",
-                                    BAD_CONTACT: "hover:border-red-300 hover:bg-red-50 hover:text-red-600",
-                                    INTERESTED: "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600",
-                                    CALLBACK_REQUESTED: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600",
-                                    RELANCE: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600",
-                                    RAPPEL: "hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600",
-                                    MEETING_BOOKED: "hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600",
-                                    DISQUALIFIED: "hover:border-slate-400 hover:bg-slate-100 hover:text-slate-600 hover:shadow-sm",
-                                    ENVOIE_MAIL: "hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600",
-                                    MAIL_ENVOYE: "hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600",
-                                };
-                                return (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleQuickAction(row, opt.value);
-                                        }}
-                                        disabled={submitting}
-                                        title={`${opt.label} (${opt.key})`}
-                                        className={cn(
-                                            "w-8 h-8 rounded-lg border flex items-center justify-center transition-all duration-150",
-                                            "border-slate-200 text-slate-400 bg-white",
-                                            actionColors[opt.value] || "hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600",
-                                            submitting && "opacity-40 pointer-events-none",
-                                            "active:scale-95"
-                                        )}
-                                    >
-                                        {opt.icon}
-                                    </button>
-                                );
-                            })}
-                            {/* Open drawer for full control */}
-                            <button
-                                type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    openDrawerForRow(row);
-                                }}
-                                title="Voir la fiche complète"
-                                className="w-8 h-8 rounded-lg border border-dashed border-slate-200 flex items-center justify-center text-slate-400 hover:border-primary-300 hover:bg-primary-50 hover:text-primary-600 transition-all duration-150 active:scale-95"
-                            >
-                                <Eye className="w-4 h-4" />
-                            </button>
-                        </div>
-                    );
-                },
+                key: "_open",
+                header: <span className="sr-only">Ouvrir</span>,
+                width: "40px",
+                render: () => <OpenCell label="Ouvrir le prospect" />,
             },
         ];
 
         return (
-            <div className="space-y-4">
+            <div className="space-y-3">
                 <ActionQueueToolbar
                     items={queueItems}
                     filteredCount={filteredQueueItems.length}
@@ -2383,51 +2320,89 @@ export default function SDRActionPage() {
                     statusLabels={statusLabels}
                     priorityLabels={PRIORITY_LABELS}
                     channelLabels={CHANNEL_LABELS}
+                    meta={
+                        actionsCompleted > 0 ? (
+                            <span className="text-xs text-ink-3 tabular-nums" title="Actions enregistrées pendant cette session">
+                                <span className="font-semibold text-success-ink">{actionsCompleted}</span> traitée{actionsCompleted > 1 ? "s" : ""} ·
+                            </span>
+                        ) : null
+                    }
                     trailing={
                         <>
-                            <AbsentsToTreatButton onOpen={openAbsentFromButton} />
-                            <span
-                                className="inline-flex h-9 items-center gap-1.5 rounded-control border border-success-line bg-success-soft px-2.5 text-[13px] font-semibold text-success-ink tabular-nums"
-                                title="Actions enregistrées pendant cette session"
-                            >
-                                <CheckCircle2 className="size-3.5" aria-hidden />
-                                {actionsCompleted}
-                            </span>
+                            <AbsentsToTreatButton onOpen={openAbsentFromButton} hideWhenEmpty />
                             <button
                                 type="button"
-                                onClick={handleSyncCalls}
-                                disabled={isSyncingCalls}
-                                title="Synchroniser les résumés et transcriptions d'appels Allo (24 dernières heures)"
-                                className="inline-flex h-9 items-center gap-1.5 rounded-control border border-line bg-surface px-3 text-[13px] font-medium text-ink-2 shadow-2xs transition-colors hover:border-line-strong hover:text-ink disabled:opacity-60"
-                            >
-                                {isSyncingCalls ? <Loader2 className="size-3.5 animate-spin" /> : <PhoneCall className="size-3.5" />}
-                                {isSyncingCalls ? "Synchro…" : "Sync appels"}
-                                {syncResult && !isSyncingCalls && (
-                                    <span className={cn("rounded-full px-1.5 text-[10px] font-bold tabular-nums", syncResult.enriched > 0 ? "bg-success-soft text-success-ink" : "bg-surface-3 text-ink-3")}>
-                                        {syncResult.enriched}/{syncResult.total}
-                                    </span>
+                                onClick={() => (autoMode ? stopAutoMode() : startAutoMode())}
+                                disabled={!softphoneOn || filteredQueueItems.length === 0}
+                                aria-pressed={autoMode}
+                                title={
+                                    softphoneOn
+                                        ? "Ouvre chaque prospect de la liste et l'appelle automatiquement"
+                                        : "Nécessite le téléphone intégré (un numéro Twilio attribué)"
+                                }
+                                className={cn(
+                                    "cp-press inline-flex h-9 items-center gap-1.5 rounded-control border px-3 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                                    autoMode ? "border-primary bg-primary text-primary-fg" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
                                 )}
+                            >
+                                {autoMode ? <Pause className="size-3.5" aria-hidden /> : <Play className="size-3.5" aria-hidden />}
+                                Mode auto
                             </button>
-                            <IconButton icon={BarChart2} label="Statistiques" variant="outline" onClick={() => setShowStatsModal(true)} />
-                            <IconButton icon={RefreshCw} label="Actualiser la file" variant="outline" onClick={() => refreshQueue()} />
                             <SegmentedControl<"card" | "table">
                                 ariaLabel="Affichage"
                                 value={viewMode}
                                 onChange={setViewMode}
                                 options={[
-                                    { value: "card", label: "Carte", icon: User },
-                                    { value: "table", label: "Tableau", icon: Building2 },
+                                    { value: "card", label: "Fiche", icon: SquareUser },
+                                    { value: "table", label: "Liste", icon: Rows3 },
                                 ]}
                             />
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        type="button"
+                                        aria-label="Plus d'actions"
+                                        title="Plus d'actions"
+                                        className="grid size-9 place-items-center rounded-control border border-line bg-surface text-ink-3 transition-colors hover:border-line-strong hover:text-ink data-[state=open]:border-line-strong data-[state=open]:text-ink"
+                                    >
+                                        {isSyncingCalls ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Ellipsis className="size-4" aria-hidden />}
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-64">
+                                    <DropdownMenuItem onSelect={() => refreshQueue()}>
+                                        <RefreshCw /> Actualiser la file
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => setShowStatsModal(true)}>
+                                        <BarChart2 /> Statistiques de la file
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={openShortcuts}>
+                                        <Keyboard /> Raccourcis clavier
+                                        <span className="ml-auto pl-3 text-xs text-ink-4">?</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem disabled={isSyncingCalls} onSelect={() => void handleSyncCalls()}>
+                                        <PhoneCall />
+                                        <span className="min-w-0 flex-1">
+                                            Synchroniser les appels Allo
+                                            <span className="block text-xs text-ink-4">
+                                                {syncResult ? `${syncResult.enriched} enrichi${syncResult.enriched > 1 ? "s" : ""} sur ${syncResult.total}` : "Résumés et transcriptions des 24 dernières heures"}
+                                            </span>
+                                        </span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </>
                     }
                 />
 
+                {guide.visible && <AppelerGuide state={guide.state} onHide={guide.hide} onShortcuts={openShortcuts} />}
+                <AppelerShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
                 {/* Bulk delete bar */}
                 {tableSelectedIds.size > 0 && (
-                    <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-xl bg-primary-50 border border-primary-200 mb-4">
-                        <span className="text-sm font-medium text-primary-800">
-                            {tableSelectedIds.size} élément(s) sélectionné(s)
+                    <div className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface-2 px-3 py-2">
+                        <span className="text-[13px] font-medium text-ink-2 tabular-nums">
+                            {tableSelectedIds.size} prospect{tableSelectedIds.size > 1 ? "s" : ""} sélectionné{tableSelectedIds.size > 1 ? "s" : ""}
                         </span>
                         <div className="flex items-center gap-2">
                             <Button
@@ -2457,9 +2432,9 @@ export default function SDRActionPage() {
                 )}
 
                 {/* Data Table */}
-                <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                <div className="overflow-hidden rounded-xl border border-line bg-surface">
                     {queueInitialLoading ? (
-                        <TableSkeleton columns={6} rows={12} className="rounded-2xl" />
+                        <TableSkeleton columns={5} rows={12} />
                     ) : queueFetchError ? (
                         <EmptyState
                             icon={RefreshCw}
@@ -2508,30 +2483,26 @@ export default function SDRActionPage() {
                             columns={queueColumns}
                             keyField={(row) => queueRowKey(row)}
                             resetPageKey={tableFiltersKey}
+                            density="compact"
+                            layout="fixed"
                             pagination
-                            pageSize={15}
+                            pageSize={25}
                             emptyMessage="Aucun contact dans la file. Changez de mission ou liste."
                             onRowClick={openDrawerForRow}
-                            enableSecondaryColumnsToggle
+                            activeRowKey={paneOpen && drawerRow ? queueRowKey(drawerRow) : null}
+                            keyboardNav={!overlayOpen}
                             selectable
                             selectedIds={tableSelectedIds}
                             onSelectionChange={(ids) => setTableSelectedIds(new Set(ids))}
                             getRowClassName={(row) => {
+                                // One quiet bar on the left, never a wash over the whole row.
                                 if (recentlyUpdatedRowKeys.has(queueRowKey(row))) {
-                                    return "!bg-emerald-50/80 border-l-4 border-l-emerald-500 animate-fade-in";
+                                    return "animate-fade-in bg-success-soft/50 [&>td:first-child]:shadow-[inset_2px_0_0_var(--color-success)]";
                                 }
                                 if (row.priority === "ABSENT_RDV") {
-                                    // Soft wash + a 3px accent bar drawn inside the first cell, so the
-                                    // row keeps its geometry (no border shift) and reads at a glance.
-                                    return "!bg-red-50/70 hover:!bg-red-50 [&>td:first-child]:shadow-[inset_3px_0_0_var(--color-red-500)]";
+                                    return "[&>td:first-child]:shadow-[inset_2px_0_0_var(--color-danger)]";
                                 }
-                                const isCallbackRow = !!row.lastAction && isCallbackResult(row.lastAction.result);
-                                if (!isCallbackRow) return "";
-                                const callbackTs = row.lastAction?.callbackDate ? new Date(row.lastAction.callbackDate).getTime() : NaN;
-                                const in3Days = Number.isFinite(callbackTs) && callbackTs <= Date.now() + 3 * 24 * 60 * 60 * 1000;
-                                return in3Days
-                                    ? "!bg-amber-100/80 border-l-8 border-l-amber-500 ring-1 ring-amber-200/70"
-                                    : "!bg-amber-50/60 border-l-8 border-l-amber-300 ring-1 ring-amber-100/70";
+                                return "";
                             }}
                         />
                     )}
@@ -2542,10 +2513,18 @@ export default function SDRActionPage() {
                         <UnifiedActionDrawer
                             isOpen={unifiedDrawerOpen}
                             onClose={closeUnifiedDrawer}
+                            // Beside the list, not over it: the next row stays visible and clickable.
+                            docked
+                            script={
+                                unifiedDrawerMissionId ? (
+                                    (vars) => <ScriptCompanionContent missionId={unifiedDrawerMissionId} campaignId={drawerRow?.campaignId ?? null} vars={vars} inPane />
+                                ) : undefined
+                            }
                             contactId={unifiedDrawerContactId}
                             companyId={unifiedDrawerCompanyId}
                             missionId={unifiedDrawerMissionId}
                             missionName={unifiedDrawerMissionName}
+                            telephonyCallId={autoMode ? autoCallId : undefined}
                             enableGooglePhoneLookup
                             clientBookingUrl={unifiedDrawerClientBookingUrl || undefined}
                             clientInterlocuteurs={unifiedDrawerInterlocuteurs}
@@ -2557,11 +2536,14 @@ export default function SDRActionPage() {
                                 setUnifiedDrawerContactId(newContactId);
                             }}
                             onActionRecorded={() => {
+                                guide.mark("saved");
                                 const rowKey = unifiedDrawerContactId ?? unifiedDrawerCompanyId ?? "";
                                 if (rowKey) {
                                     queryClient.invalidateQueries({ queryKey: queueQueryKey });
                                     setActionsCompleted((c) => c + 1);
                                 }
+                                // Mode auto: the result is saved, next row (computed before the queue refreshes).
+                                if (autoMode && !autoCallActive) openAutoRow(autoRowKey);
                                 refreshQueue();
                             }}
                             onProspectAdded={() => {
@@ -2573,6 +2555,8 @@ export default function SDRActionPage() {
                                 setUnifiedDrawerContactId(contactId ?? null);
                             }}
                             onValidateAndNext={() => {
+                                // Mode auto already moved on when the result was recorded.
+                                if (autoMode) return;
                                 if (!drawerRow) return;
                                 const key = queueRowKey(drawerRow);
                                 const idx = filteredQueueItems.findIndex((row) => queueRowKey(row) === key);
@@ -2589,21 +2573,6 @@ export default function SDRActionPage() {
                         />
                     )
                 }
-
-                {/* Script companion drawer (table view only), synchronized with unified drawer */}
-                {unifiedDrawerOpen && unifiedDrawerMissionId && (
-                    <ScriptCompanionDrawer
-                        isOpen={
-                            unifiedDrawerOpen &&
-                            !unifiedBookingDialogOpen &&
-                            !unifiedAlloDialogOpen
-                        }
-                        onClose={closeUnifiedDrawer}
-                        missionId={unifiedDrawerMissionId}
-                        missionName={unifiedDrawerMissionName}
-                        campaignId={drawerRow?.campaignId ?? null}
-                    />
-                )}
 
                 <QuickEmailModal
                     isOpen={showQuickEmailModal}
@@ -2736,16 +2705,16 @@ export default function SDRActionPage() {
                             </div>
                             <div>
                                 <h1 className="text-[22px] font-medium text-white leading-tight">Actions</h1>
-                                <p className="text-[13px] text-white/50">File d'actions</p>
+                                <p className="text-[13px] text-white/50">File d&apos;actions</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
                                 <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
-                                    <User className="w-3.5 h-3.5" /> Carte
+                                    <SquareUser className="w-3.5 h-3.5" /> Fiche
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
-                                    <Building2 className="w-3.5 h-3.5" /> Tableau
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", "text-white/60 hover:text-white hover:bg-white/10")}>
+                                    <Rows3 className="w-3.5 h-3.5" /> Liste
                                 </button>
                             </div>
                             <Select variant="header-dark" value={selectedMissionId || ""} onChange={(id) => { setSelectedMissionId(id); localStorage.setItem("sdr_selected_mission", id); const firstList = lists.find((l) => l.mission.id === id); setSelectedListId(firstList?.id ?? null); }} options={selectableMissions.map((m) => ({ value: m.id, label: m.name }))} placeholder="Mission" className="min-w-[160px]" />
@@ -2823,10 +2792,10 @@ export default function SDRActionPage() {
                             {/* View Toggle */}
                             <div className="flex rounded-xl border border-white/10 p-0.5 bg-white/5">
                                 <button type="button" onClick={() => setViewMode("card")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "card" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
-                                    <User className="w-3.5 h-3.5" /> Carte
+                                    <SquareUser className="w-3.5 h-3.5" /> Fiche
                                 </button>
-                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", viewMode === "table" ? "bg-white text-slate-900 shadow-md" : "text-white/60 hover:text-white hover:bg-white/10")}>
-                                    <Building2 className="w-3.5 h-3.5" /> Tableau
+                                <button type="button" onClick={() => setViewMode("table")} className={cn("px-3 py-1.5 text-[13px] font-medium rounded-lg transition-all flex items-center gap-1.5", "text-white/60 hover:text-white hover:bg-white/10")}>
+                                    <Rows3 className="w-3.5 h-3.5" /> Liste
                                 </button>
                             </div>
 
@@ -2991,7 +2960,8 @@ export default function SDRActionPage() {
                                                 <div className="flex items-stretch gap-2">
                                                     <a
                                                         href={`tel:${phone}`}
-                                                        onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
+                                                        data-softphone="managed"
+                                onClick={(e) => handlePhoneCallAttempt(e, phone, callContext)}
                                                         className="flex flex-1 items-center justify-center gap-2.5 h-12 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                     >
                                                         <Phone className="w-4 h-4" />
@@ -3174,7 +3144,8 @@ export default function SDRActionPage() {
                                                     <div className="flex items-stretch gap-2">
                                                         <a
                                                             href={`tel:${currentAction.company.phone}`}
-                                                            onClick={(e) => handlePhoneCallAttempt(e, currentAction.company.phone!, callContext)}
+                                                            data-softphone="managed"
+                                onClick={(e) => handlePhoneCallAttempt(e, currentAction.company!.phone!, callContext)}
                                                             className="flex flex-1 items-center justify-center gap-2 h-11 text-sm font-medium text-white bg-primary-hover hover:bg-primary rounded-xl transition-all shadow-sm active:scale-[0.98]"
                                                         >
                                                             <Phone className="w-4 h-4" />
@@ -3229,7 +3200,7 @@ export default function SDRActionPage() {
                                     </div>
                                     {currentAction.lastAction.note && (
                                         <p className="mt-2 text-[13px] text-amber-900 italic leading-relaxed pl-3 border-l-2 border-amber-300">
-                                            "{currentAction.lastAction.note}"
+                                            « {currentAction.lastAction.note} »
                                         </p>
                                     )}
                                 </div>
@@ -3249,7 +3220,7 @@ export default function SDRActionPage() {
                                         <FileText className="w-4 h-4 text-white" />
                                     </div>
                                     <div>
-                                        <h3 className="text-[16px] font-medium text-neutral-900">Script d'appel</h3>
+                                        <h3 className="text-[16px] font-medium text-neutral-900">Script d&apos;appel</h3>
                                         <p className="text-xs text-slate-400">Guide conversationnel</p>
                                     </div>
                                 </div>
@@ -3319,7 +3290,7 @@ export default function SDRActionPage() {
                                 <CheckCircle2 className="w-4.5 h-4.5 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-[16px] font-medium text-neutral-900 leading-tight">Résultat de l'action</h3>
+                                <h3 className="text-[16px] font-medium text-neutral-900 leading-tight">Résultat de l&apos;action</h3>
                                 <p className="text-xs text-slate-400 mt-0.5">Sélectionnez ou tapez le chiffre correspondant</p>
                             </div>
                         </div>

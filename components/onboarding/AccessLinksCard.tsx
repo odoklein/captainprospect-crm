@@ -1,6 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+import { Drawer } from "@/components/ui/Drawer";
+import { ClientVaultWorkspace } from "@/components/manager/ClientVaultWorkspace";
+import ManagerFilesWorkspace from "@/components/files/ManagerFilesWorkspace";
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, FolderOpen, KeyRound } from "lucide-react";
 
@@ -24,7 +27,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 /** « Accès & liens » of a client: vault entries (never a password) + shortcuts. */
 export function AccessLinksCard({ clientId }: { clientId: string }) {
-    const { data: credentials = [], isLoading } = useQuery<Credential[]>({
+    const [panel, setPanel] = useState<"vault" | "files" | null>(null);
+    const { data: credentials = [], isLoading, refetch } = useQuery<Credential[]>({
         queryKey: ["vault-credentials", clientId],
         queryFn: async () => {
             const res = await fetch(`/api/manager/vault?clientId=${encodeURIComponent(clientId)}`);
@@ -35,18 +39,19 @@ export function AccessLinksCard({ clientId }: { clientId: string }) {
     });
 
     return (
+        <>
         <section className="rounded-xl border border-line bg-surface p-4">
             <div className="flex items-center justify-between gap-2">
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
                     <KeyRound className="h-4 w-4 text-ink-3" aria-hidden /> Accès &amp; liens
                 </h3>
                 <div className="flex gap-3 text-xs font-medium">
-                    <Link href="/manager/acces" className="text-link hover:underline">
+                    <button type="button" onClick={() => setPanel("vault")} className="text-link hover:underline">
                         Gérer les accès
-                    </Link>
-                    <Link href="/manager/files" className="inline-flex items-center gap-1 text-link hover:underline">
+                    </button>
+                    <button type="button" onClick={() => setPanel("files")} className="inline-flex items-center gap-1 text-link hover:underline">
                         <FolderOpen className="h-3.5 w-3.5" aria-hidden /> Fichiers du client
-                    </Link>
+                    </button>
                 </div>
             </div>
             {isLoading ? (
@@ -80,5 +85,10 @@ export function AccessLinksCard({ clientId }: { clientId: string }) {
                 </ul>
             )}
         </section>
+        <Drawer isOpen={panel !== null} onClose={() => { setPanel(null); void refetch(); }} title={panel === "vault" ? "Coffre d’accès du client" : "Fichiers du client"} size="full" closeOnOverlay={false} bodyClassName="p-5">
+            {panel === "vault" && <ClientVaultWorkspace key={clientId} fixedClientId={clientId} />}
+            {panel === "files" && <ManagerFilesWorkspace key={clientId} fixedClientId={clientId} />}
+        </Drawer>
+        </>
     );
 }

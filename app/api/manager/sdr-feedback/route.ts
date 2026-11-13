@@ -13,6 +13,7 @@ const querySchema = z.object({
     from: z.string().optional(),
     to: z.string().optional(),
     missionId: z.string().optional(),
+    clientId: z.string().optional(),
     sdrId: z.string().optional(),
     search: z.string().trim().max(200).optional(),
     minScore: z.coerce.number().int().min(1).max(5).optional(),
@@ -54,6 +55,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         from: searchParams.get("from") ?? undefined,
         to: searchParams.get("to") ?? undefined,
         missionId: searchParams.get("missionId") ?? undefined,
+        clientId: searchParams.get("clientId") ?? undefined,
         sdrId: searchParams.get("sdrId") ?? undefined,
         search: searchParams.get("search") ?? undefined,
         minScore: searchParams.get("minScore") ?? undefined,
@@ -98,6 +100,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const whereClauses: Array<Record<string, unknown>> = [
         submittedAtFilter,
         missionFilter,
+        parsed.data.clientId ? {
+            OR: [
+                { mission: { clientId: parsed.data.clientId } },
+                { missions: { some: { mission: { clientId: parsed.data.clientId } } } },
+            ],
+        } : {},
         sdrId ? { sdrId } : {},
         scoreFilter,
         parsed.data.withObjections === "true"

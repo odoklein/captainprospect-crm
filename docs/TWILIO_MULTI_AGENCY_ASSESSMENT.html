@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One Twilio account, many agencies — voice architecture assessment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#263460;
+    --navy-2:#1b2547;
+    --magenta:#C64B8B;
+    --magenta-ink:#a83a72;
+    --magenta-soft:#f6e7ef;
+    --ink:#151827;
+    --ink-2:#3c4157;
+    --muted:#646a80;
+    --line:#ddd8d1;
+    --line-2:#ebe7e1;
+    --paper:#fbfaf7;
+    --wash:#f3f0eb;
+    --ok:#2f6b4f;
+    --warn:#9a5b1e;
+    --bad:#8e2f3c;
+    --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --body:"Inter", "Segoe UI", system-ui, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;color-scheme:light}
+  body{
+    margin:0;
+    background:#e7e2db;
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:15px;
+    line-height:1.62;
+    font-weight:400;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sheet{
+    width:min(920px, calc(100% - 40px));
+    margin:32px auto;
+    background:var(--paper);
+    padding:64px 72px 56px;
+    box-shadow:0 24px 70px rgba(24,20,14,.14), 0 2px 6px rgba(24,20,14,.06);
+  }
+  p{margin:0 0 14px}
+  a{color:inherit}
+  strong{font-weight:600;color:var(--ink)}
+  em{font-style:normal;color:var(--ink-2)}
+
+  /* ---------- cover ---------- */
+  .topline{display:flex;justify-content:space-between;align-items:center;gap:24px;margin-bottom:56px}
+  .wordmark{font-family:var(--display);font-weight:700;letter-spacing:-.02em;font-size:17px}
+  .wordmark span{color:var(--magenta-ink)}
+  .doc-type{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:right}
+  .eyebrow{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--magenta-ink);font-weight:600;margin-bottom:18px}
+  h1{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:clamp(38px,6vw,58px);
+    line-height:1.02;
+    letter-spacing:-.035em;
+    margin:0 0 26px;
+    max-width:100%;
+    text-wrap:balance;
+  }
+  h1 .thin{color:var(--navy);opacity:.55}
+  .standfirst{
+    font-size:19px;
+    line-height:1.5;
+    color:var(--ink-2);
+    max-width:56ch;
+    margin:0 0 34px;
+    font-weight:300;
+  }
+  .meta{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:18px;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:18px 0;
+    margin-bottom:36px;
+  }
+  .meta div{font-size:11.5px;line-height:1.45;color:var(--ink-2)}
+  .meta b{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:5px}
+  .bottom-line{
+    display:flex;gap:16px;align-items:flex-start;
+    background:var(--wash);
+    border-left:3px solid var(--magenta);
+    padding:18px 20px;
+    font-size:14.5px;
+    line-height:1.5;
+  }
+  .bottom-line b{font-family:var(--display);font-weight:600}
+
+  /* ---------- sections ---------- */
+  section{margin-top:54px}
+  .sec-head{display:flex;gap:18px;align-items:baseline;border-top:1px solid var(--ink);padding-top:12px;margin-bottom:22px}
+  .sec-num{font-family:var(--display);font-size:12px;font-weight:600;letter-spacing:.1em;color:var(--magenta-ink);padding-top:3px;min-width:26px}
+  h2{font-family:var(--display);font-size:28px;line-height:1.15;letter-spacing:-.025em;font-weight:600;margin:0}
+  h3{font-family:var(--display);font-size:17px;line-height:1.3;letter-spacing:-.01em;font-weight:600;margin:26px 0 8px}
+  .lede{font-size:16.5px;line-height:1.6;color:var(--ink-2);max-width:66ch;margin-bottom:18px}
+  .small{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .kicker{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 8px}
+
+  /* ---------- verdict cards ---------- */
+  .moves{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0 26px}
+  .move{border:1px solid var(--line);padding:18px 17px 16px;background:#fff}
+  .move .n{font-family:var(--display);font-size:11px;font-weight:700;color:var(--magenta-ink);letter-spacing:.1em;margin-bottom:9px}
+  .move h4{font-family:var(--display);font-size:15px;font-weight:600;margin:0 0 6px;line-height:1.3}
+  .move p{font-size:12.8px;line-height:1.55;color:var(--ink-2);margin:0}
+
+  .dont{margin:8px 0 0;padding:0;list-style:none}
+  .dont li{position:relative;padding-left:20px;margin-bottom:7px;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+  .dont li::before{content:"×";position:absolute;left:2px;top:-1px;color:var(--magenta-ink);font-weight:600;font-size:15px}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;margin:14px 0 8px;font-size:12.4px;line-height:1.45}
+  th{
+    text-align:left;font-weight:600;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);border-bottom:1px solid var(--ink);padding:0 10px 8px 0;vertical-align:bottom;
+  }
+  td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line-2);vertical-align:top;color:var(--ink-2)}
+  td:first-child{color:var(--ink);font-weight:500}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.05em;padding:2px 6px;border:1px solid;line-height:1.4;white-space:nowrap}
+  .tag.good{color:var(--ok);border-color:#b9d2c4;background:#f2f7f4}
+  .tag.mid{color:var(--warn);border-color:#e2cbb0;background:#fbf5ed}
+  .tag.bad{color:var(--bad);border-color:#e0bcc2;background:#fbf1f2}
+
+  /* ---------- diagram ---------- */
+  .diagram{border:1px solid var(--line);background:#fff;padding:22px 20px 18px;margin:18px 0 10px}
+  .diagram-title{font-family:var(--display);font-size:13px;font-weight:600;margin-bottom:16px;display:flex;justify-content:space-between;gap:16px;align-items:baseline}
+  .diagram-title span{font-family:var(--body);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .flow{display:flex;align-items:stretch;gap:0}
+  .node{
+    flex:1;border:1px solid var(--line);padding:12px 11px;background:var(--paper);min-width:0;
+  }
+  .node.dark{background:var(--navy);border-color:var(--navy);color:#fff}
+  .node.dark .n-sub{color:rgba(255,255,255,.62)}
+  .node .n-k{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px}
+  .node .n-t{font-family:var(--display);font-size:12.5px;font-weight:600;line-height:1.25}
+  .node .n-sub{font-size:10.5px;line-height:1.4;color:var(--muted);margin-top:4px}
+  .node.dark .n-k{color:rgba(255,255,255,.78)}
+  .arrow{display:flex;align-items:center;justify-content:center;width:26px;color:var(--magenta-ink);font-size:15px;flex:0 0 26px}
+  .flow-notes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .flow-note{border-top:2px solid var(--magenta);padding-top:7px;font-size:11px;line-height:1.45;color:var(--ink-2);overflow-wrap:anywhere}
+  .flow-note b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink);margin-bottom:2px}
+
+  /* ---------- callout ---------- */
+  .callout{border:1px solid var(--line);border-left:3px solid var(--navy);background:#fff;padding:16px 18px;margin:18px 0;font-size:13.2px;line-height:1.55;color:var(--ink-2)}
+  .callout b{color:var(--ink)}
+  .callout.mag{border-left-color:var(--magenta-ink)}
+  .callout.warn{border-left-color:var(--warn);background:#fdf9f3}
+
+  /* ---------- model cards ---------- */
+  .models{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+  .model{border:1px solid var(--line);background:#fff;padding:32px 18px 18px;position:relative}
+  .model.pick{border-color:var(--navy);box-shadow:inset 0 3px 0 var(--navy)}
+  .model .m-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}
+  .model h4{font-family:var(--display);font-size:15.5px;font-weight:600;margin:0;line-height:1.28}
+  .model .m-letter{font-family:var(--display);font-size:11px;font-weight:700;color:var(--magenta-ink);letter-spacing:.1em}
+  .model p{font-size:12.3px;line-height:1.55;color:var(--ink-2);margin:0 0 10px}
+  .model .m-fit{font-size:11.5px;line-height:1.45;color:var(--muted);border-top:1px solid var(--line-2);padding-top:8px}
+  .model .m-fit b{color:var(--ink)}
+  .ribbon{position:absolute;top:-1px;right:-1px;background:var(--navy);color:#fff;font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px}
+
+  /* ---------- risk list ---------- */
+  .risks{margin:12px 0 0}
+  .risk{display:grid;grid-template-columns:26px 1fr;gap:12px;padding:13px 0;border-bottom:1px solid var(--line-2)}
+  .risk:last-child{border-bottom:none}
+  .risk .r-n{font-family:var(--display);font-size:11px;font-weight:700;color:var(--magenta-ink);padding-top:2px}
+  .risk h4{font-family:var(--display);font-size:14px;font-weight:600;margin:0 0 3px;line-height:1.3}
+  .risk p{font-size:12.4px;line-height:1.5;color:var(--ink-2);margin:0}
+  .risk p b{color:var(--ink)}
+
+  /* ---------- architecture layers ---------- */
+  .layers{margin:18px 0}
+  .layer{display:grid;grid-template-columns:132px 1fr;gap:16px;padding:12px 0;border-top:1px solid var(--line-2)}
+  .layer:first-child{border-top:1px solid var(--ink)}
+  .layer .l-name{font-family:var(--display);font-size:12.5px;font-weight:600;line-height:1.35}
+  .layer .l-name span{display:block;font-family:var(--body);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:2px;font-weight:600}
+  .layer p{font-size:12.4px;line-height:1.55;color:var(--ink-2);margin:0}
+  code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;background:var(--wash);padding:1px 5px;border:1px solid var(--line-2);color:var(--ink);overflow-wrap:anywhere}
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--magenta);outline-offset:3px}
+
+  /* ---------- timeline ---------- */
+  .timeline{margin:16px 0 6px;border-top:1px solid var(--ink)}
+  .tl-row{display:grid;grid-template-columns:86px 1fr;gap:16px;padding:11px 0;border-bottom:1px solid var(--line-2)}
+  .tl-when{font-family:var(--display);font-size:11px;font-weight:600;color:var(--magenta-ink);line-height:1.4;padding-top:1px}
+  .tl-what{font-size:12.6px;line-height:1.5;color:var(--ink-2)}
+  .tl-what b{color:var(--ink);display:block;font-size:12.8px;margin-bottom:1px}
+  .tl-what .done{color:var(--muted);font-size:11.3px;display:block;margin-top:2px}
+
+  /* ---------- checklist ---------- */
+  .qlist{counter-reset:q;list-style:none;padding:0;margin:14px 0}
+  .qlist li{counter-increment:q;position:relative;padding:9px 0 9px 34px;border-bottom:1px solid var(--line-2);font-size:12.8px;line-height:1.5;color:var(--ink-2)}
+  .qlist li::before{content:counter(q,decimal-leading-zero);position:absolute;left:0;top:10px;font-family:var(--display);font-size:10px;font-weight:600;color:var(--magenta-ink)}
+  .qlist li b{color:var(--ink)}
+
+  .endnote{border-top:1px solid var(--ink);margin-top:52px;padding-top:14px;display:flex;justify-content:space-between;gap:20px;font-size:10.5px;color:var(--muted);letter-spacing:.02em}
+  .endnote b{color:var(--ink);font-weight:600}
+  .table-scroll{max-width:100%}
+  @media (max-width:760px){
+    .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .table-scroll table.wide{min-width:640px}
+  }
+
+  /* ---------- dark screen theme (print stays light) ---------- */
+  @media screen and (prefers-color-scheme: dark){
+    :root{
+      --ink:#eef0f6;
+      --ink-2:#c6cbd9;
+      --muted:#a3a9bc;
+      --line:#3d4356;
+      --line-2:#2b3040;
+      --paper:#171a23;
+      --wash:#20242f;
+      --magenta:#e58ab8;
+      --magenta-ink:#e58ab8;
+    }
+    html{color-scheme:dark}
+    body{background:#0e1016}
+    .sheet{background:var(--paper);box-shadow:0 24px 70px rgba(0,0,0,.5)}
+    h1 .thin{color:#aab4dd;opacity:1}
+    .move,.model,.diagram,.callout,.node{background:#1d212c}
+    .node.dark{background:#2f3f74;border-color:#2f3f74}
+    .callout{border-left-color:#8f9bd0}
+    .callout.warn{background:#241f18;border-left-color:#c99a5e}
+    .bottom-line{background:var(--wash)}
+    .model.pick{border-color:#8f9bd0;box-shadow:inset 0 3px 0 #8f9bd0}
+    .ribbon{background:#8f9bd0;color:#10131c}
+    code{background:#242836;border-color:#3a4052;color:var(--ink)}
+    .tag.good{color:#9fd3b7;background:#17241d;border-color:#355745}
+    .tag.mid{color:#e0b57c;background:#241d15;border-color:#5a4630}
+    .tag.bad{color:#e7a5af;background:#24171a;border-color:#5a343b}
+  }
+
+  /* ---------- print ---------- */
+  @page{size:A4;margin:15mm 14mm 16mm}
+  @media print{
+    body{background:#fff;font-size:10.2pt;line-height:1.5}
+    .sheet{width:100%;margin:0;padding:0;box-shadow:none}
+    .topline{margin-bottom:30px}
+    h1{font-size:34pt}
+    .standfirst{font-size:12.5pt}
+    section{margin-top:26px}
+    h1,h2,h3,h4,.sec-head{break-after:avoid}
+    table,.diagram,.callout,.model,.move,.risk,.tl-row,.layer,.bottom-line{break-inside:avoid}
+    .models{grid-template-columns:1fr 1fr}
+    a{text-decoration:none}
+  }
+  @media (max-width:760px){
+    .sheet{padding:34px 22px;margin:14px auto;width:calc(100% - 20px)}
+    .meta{grid-template-columns:1fr 1fr}
+    .moves,.models,.flow-notes{grid-template-columns:1fr}
+    .flow{flex-direction:column}
+    .arrow{width:100%;height:22px;transform:rotate(90deg)}
+    .layer{grid-template-columns:1fr;gap:4px}
+    .tl-row{grid-template-columns:64px 1fr}
+    .topline{flex-direction:column;align-items:flex-start;gap:6px}
+    .doc-type{text-align:left}
+    h1{max-width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="topline">
+    <div class="wordmark">Suzalink<span>.</span></div>
+    <div class="doc-type">Technical assessment · Internal</div>
+  </div>
+
+  <div class="eyebrow">Voice architecture · Multi-agency CRM</div>
+  <h1>One Twilio account,<br><span class="thin">many agencies.</span></h1>
+  <p class="standfirst">Your Twilio calling works. The tenancy around it does not scale. This is how other platforms wire voice into a multi-agency CRM, where your current setup will break first, and the shortest reliable path from here.</p>
+
+  <div class="meta">
+    <div><b>Prepared for</b>Odo · Captain Prospect / Suzalink</div>
+    <div><b>Scope</b>app.suzalink.com, the Console, the agency fleet</div>
+    <div><b>Date</b>6 November 2026</div>
+    <div><b>Evidence</b>Repository architecture, fleet topology, Twilio integration</div>
+  </div>
+
+  <div class="bottom-line">
+    <b>Bottom line.</b>
+    <span>Keep Twilio. Change the account model, not the vendor. One subaccount per agency, one voice adapter in the shared image, and the CRM as system of record. That is roughly ten working days of work, not a migration project.</span>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">01</div>
+      <h2>The verdict</h2>
+    </div>
+
+    <p class="lede">You integrated Twilio as a product feature inside one CRM. That instinct is right. The tenancy boundary is wrong. In a platform where every agency gets its own container, database and bucket, voice is still wired as a single-tenant service: one account, one set of credentials, one number pool, one webhook. It is invisible while Suzalink is the only caller. It becomes the first thing that breaks when agency number two starts dialling.</p>
+
+    <div class="moves">
+      <div class="move">
+        <div class="n">MOVE 01</div>
+        <h4>One subaccount per agency</h4>
+        <p>The Console creates it at provisioning. Master credentials never leave the Console; the agency container holds only its own subaccount key, auth token and TwiML app.</p>
+      </div>
+      <div class="move">
+        <div class="n">MOVE 02</div>
+        <h4>One adapter, not per-agency code</h4>
+        <p>A narrow <code>lib/voice/</code> interface in the shared image. Twilio first, bring-your-own-carrier second. The agency fleet runs the same code, so a fix ships everywhere at once.</p>
+      </div>
+      <div class="move">
+        <div class="n">MOVE 03</div>
+        <h4>Own the call, not just the button</h4>
+        <p>Twilio is the carrier, not the system of record. Write the call row before dialling, keep the recording in the agency's MinIO, and reconcile anything the webhooks miss.</p>
+      </div>
+    </div>
+
+    <p class="kicker">What I would not do</p>
+    <ul class="dont">
+      <li><strong>Do not migrate CPaaS to save money before fixing tenancy.</strong> Twilio is not your bottleneck, and a provider migration adds a second variable to a problem you have not measured yet.</li>
+      <li><strong>Do not build a shared voice microservice yet.</strong> It centralises the blast radius, adds a single point of failure, and duplicates tenant knowledge the Console already owns.</li>
+      <li><strong>Do not resell minutes without per-agency usage records.</strong> You cannot invoice, defend a dispute, or explain a spike you cannot attribute.</li>
+      <li><strong>Do not rotate caller IDs to dodge spam labelling.</strong> In France that is precisely what the authentication rules target, and it makes the problem worse.</li>
+    </ul>
+
+    <div class="callout mag">
+      <b>The one-sentence version.</b> Your integration is a good single-tenant integration; the platform is multi-tenant. Move the account boundary, keep the code, and make the CRM own the call record and the recording — that is both the faster and the more reliable path.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">02</div>
+      <h2>What is actually wired today</h2>
+    </div>
+
+    <p class="lede">The fleet model is clear from the repository and the deployment: one image, one container, one Postgres database and one MinIO bucket per agency, with the Console as the control plane. Each container receives its own environment, including its own integration keys. Isolation is the database and the container — there is deliberately no <code>tenantId</code>.</p>
+
+    <div class="diagram">
+      <div class="diagram-title">Current voice path <span>Single-tenant service inside a multi-tenant fleet</span></div>
+      <div class="flow">
+        <div class="node">
+          <div class="n-k">Client</div>
+          <div class="n-t">SDR browser</div>
+          <div class="n-sub">Voice SDK or click-to-call</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <div class="n-k">Per agency</div>
+          <div class="n-t">CRM container</div>
+          <div class="n-sub">Same image, own env</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node dark">
+          <div class="n-k">Shared</div>
+          <div class="n-t">One Twilio account</div>
+          <div class="n-sub">One credential set, one pool</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <div class="n-k">Destination</div>
+          <div class="n-t">French PSTN</div>
+          <div class="n-sub">Prospect mobile or fixed</div>
+        </div>
+      </div>
+      <div class="flow-notes">
+        <div class="flow-note"><b>Whose number?</b>The caller ID belongs to the platform, not the agency that bought the relationship.</div>
+        <div class="flow-note"><b>Whose invoice?</b>Every agency's minutes land on one bill, with no native attribution.</div>
+        <div class="flow-note"><b>Whose recording?</b>The call record lives in one bucket, under one account, outside the agency's data boundary.</div>
+      </div>
+    </div>
+
+    <p>That topology is excellent for the rest of the product. It is why an agency's prospects can never leak into another agency's queries. Voice is the one integration that steps outside it, because the carrier account is shared even though the CRM is not.</p>
+
+    <p>Two details in the repository matter for what comes next. First, the in-app telephony layer today is Allo plus call-vault, with a per-user number and a webhook pipeline that already normalises call events and writes <code>IncomingCall</code> rows. Second, <code>docs/VOIP_SOFTPHONE_PLAN.md</code> already specifies the right shape: a provider-agnostic <code>lib/voip/</code> adapter, a short-lived client token, signed webhooks, a <code>VoipCall</code> lifecycle and recording ingestion. The Twilio adapter is not in this tree, but the plan around it is sound — this assessment builds on that plan rather than replacing it.</p>
+
+    <div class="callout">
+      <b>What the plan already gets right.</b> Short-lived tokens, signature verification, idempotent events, a durable recording copy, server-side dial guards, and an instant fallback to the existing <code>tel:</code> path. Those are exactly the pieces that make voice reliable. The missing piece is the <em>account boundary per agency</em>.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">03</div>
+      <h2>How other agencies do it</h2>
+    </div>
+
+    <p class="lede">There are four patterns in the market. They differ less in carrier than in where the account boundary sits — and that boundary decides who owns the number, the invoice, the recording and the incident.</p>
+
+    <div class="models">
+      <div class="model">
+        <div class="m-top"><h4>A · Shared global account</h4><div class="m-letter">STATUS QUO</div></div>
+        <p>One Twilio account, one credential set, one number pool, every agency calls through it. The integration is built once and works immediately for the first tenant.</p>
+        <p>The platform pays, the platform owns the numbers, and nothing distinguishes one agency's traffic from another's until someone asks for a report.</p>
+        <div class="m-fit"><b>Fit:</b> a single-brand product. <b>Not fit:</b> a fleet you bill per agency.</div>
+      </div>
+
+      <div class="model pick">
+        <div class="ribbon">Recommended</div>
+        <div class="m-top"><h4>B · Master account, subaccount per agency</h4><div class="m-letter">SAAS PATTERN</div></div>
+        <p>Twilio's own model for platforms. Each agency is a subaccount with its own numbers, usage records, API keys, webhook configuration and recording settings. The master only provisions and pays.</p>
+        <p>You keep one commercial relationship, one invoice from Twilio, and full per-agency attribution underneath it.</p>
+        <div class="m-fit"><b>Fit:</b> your default. <b>Cost:</b> one extra provisioning step in the Console.</div>
+      </div>
+
+      <div class="model">
+        <div class="m-top"><h4>C · Bring your own carrier</h4><div class="m-letter">BYOC</div></div>
+        <p>The agency connects its own Twilio, Telnyx or SIP trunk. Credentials are encrypted in the instance, numbers stay in the agency's name, and the minutes sit on the agency's bill.</p>
+        <p>You carry no telecom liability and no fraud exposure. You also carry every carrier-specific support ticket.</p>
+        <div class="m-fit"><b>Fit:</b> large agencies and enterprise deals. <b>Ship it:</b> after subaccounts, behind the same adapter.</div>
+      </div>
+
+      <div class="model">
+        <div class="m-top"><h4>D · Embed a white-label voice vendor</h4><div class="m-letter">BUY</div></div>
+        <p>Aircall, Ringover, CloudTalk and similar vendors sell partner or white-label programmes with a ready softphone, numbers and compliance. Integration is usually a screen-pop and a click-to-call link.</p>
+        <p>Fastest commercial launch, least control: per-seat pricing, the vendor owns the number and the recording, and the deep CRM workflow stays shallow.</p>
+        <div class="m-fit"><b>Fit:</b> an agency that wants voice as a checkbox. <b>Not fit:</b> voice as your differentiator.</div>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+    <table class="wide">
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Adding an agency</th>
+          <th>Tenant isolation</th>
+          <th>Margin visibility</th>
+          <th>Number ownership</th>
+          <th>Compliance load</th>
+          <th>Blast radius</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>A · Shared account</td>
+          <td><span class="tag good">Minutes</span></td>
+          <td><span class="tag bad">None</span></td>
+          <td><span class="tag bad">Guesswork</span></td>
+          <td>Platform</td>
+          <td><span class="tag bad">Platform</span></td>
+          <td><span class="tag bad">Fleet-wide</span></td>
+        </tr>
+        <tr>
+          <td>B · Subaccounts</td>
+          <td><span class="tag mid">One API call</span></td>
+          <td><span class="tag good">Account-level</span></td>
+          <td><span class="tag good">Per agency</span></td>
+          <td>Platform, agency KYC</td>
+          <td><span class="tag mid">Platform, per DPA</span></td>
+          <td><span class="tag good">One agency</span></td>
+        </tr>
+        <tr>
+          <td>C · BYOC</td>
+          <td><span class="tag mid">Agency-driven</span></td>
+          <td><span class="tag good">Account-level</span></td>
+          <td><span class="tag bad">Not yours</span></td>
+          <td>Agency</td>
+          <td><span class="tag good">Agency</span></td>
+          <td><span class="tag good">One agency</span></td>
+        </tr>
+        <tr>
+          <td>D · Voice vendor</td>
+          <td><span class="tag good">Contract only</span></td>
+          <td><span class="tag mid">Vendor-defined</span></td>
+          <td><span class="tag bad">Thin</span></td>
+          <td>Vendor</td>
+          <td><span class="tag good">Vendor</span></td>
+          <td><span class="tag mid">Vendor-wide</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p class="small">"Adding an agency" measures operational effort, not commercial onboarding. The comparison is about architecture, not a recommendation to change vendors.</p>
+
+    <h3>What mainstream CRMs actually do</h3>
+    <p>Close has long shipped calling inside the product and runs it on Twilio. HubSpot and Pipedrive treat telephony as a connected app or a partner carrier rather than owning the network. Salesforce exposes an Open CTI layer that plugs into a carrier or Amazon Connect. The consistent pattern is the same everywhere: <strong>the CRM owns the workflow and the record; the carrier owns the media.</strong> Almost nobody hardcodes one global carrier account across tenants — precisely because the first per-tenant invoice request breaks it.</p>
+
+    <div class="callout">
+      <b>What this means for you.</b> You are already at model A with a working product. Model B is a contained change to provisioning plus a credential split; model C is an option you can sell later through the same adapter. You do not need to choose between building and buying — you need to stop sharing one account.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">04</div>
+      <h2>Where it breaks first</h2>
+    </div>
+
+    <p class="lede">Most "Twilio incidents" in a CRM are not Twilio incidents. They are application-level misses around a carrier that is doing its job. In a multi-agency setup these seven surface in roughly this order.</p>
+
+    <div class="risks">
+      <div class="risk">
+        <div class="r-n">01</div>
+        <div>
+          <h4>Billing and margin</h4>
+          <p><b>Symptom:</b> one Twilio invoice at month end, and no defensible way to say which agency burned which minutes, numbers or recordings. A dispute becomes a spreadsheet reconstruction.<br><b>Fix:</b> subaccount usage records plus your own <code>VoiceCall</code> table; a nightly reconciliation job; a markup rule written down before the first resale.</p>
+        </div>
+      </div>
+      <div class="risk">
+        <div class="r-n">02</div>
+        <div>
+          <h4>Blast radius</h4>
+          <p><b>Symptom:</b> one leaked API key or browser token lets an attacker dial from every agency's numbers, and the fraud lands on the platform's bill and reputation.<br><b>Fix:</b> subaccount-scoped keys only; short-lived access tokens; server-side destination allowlist; per-agency daily minute and spend caps with a hard stop; rotate on offboarding.</p>
+        </div>
+      </div>
+      <div class="risk">
+        <div class="r-n">03</div>
+        <div>
+          <h4>Number ownership</h4>
+          <p><b>Symptom:</b> an agency leaves and wants "its" number. The number sits in the platform's account, the contract is silent, and porting becomes a commercial negotiation.<br><b>Fix:</b> decide ownership in the agency contract before the first number is bought; keep numbers in the agency's subaccount; collect agency KYC; define a port-out and a dormant-number release policy.</p>
+        </div>
+      </div>
+      <div class="risk">
+        <div class="r-n">04</div>
+        <div>
+          <h4>Webhook routing</h4>
+          <p><b>Symptom:</b> a shared endpoint infers the tenant from the dialled or calling number. One ambiguous match writes a call, a recording or a screen-pop into the wrong agency.<br><b>Fix:</b> one webhook URL per agency on its own domain (the container already gives you this); validate the Twilio signature with that subaccount's auth token; store <code>AccountSid</code> on every row and reject a mismatch.</p>
+        </div>
+      </div>
+      <div class="risk">
+        <div class="r-n">05</div>
+        <div>
+          <h4>Concurrency and rate limits</h4>
+          <p><b>Symptom:</b> one agency's power-dialer campaign hits the account's concurrent-call ceiling and every other agency gets a busy signal or a failed setup.<br><b>Fix:</b> per-agency concurrency budgets, a queue in front of the dial, and an alert when an agency approaches its share. Subaccounts also make the ceiling visible per tenant.</p>
+        </div>
+      </div>
+      <div class="risk">
+        <div class="r-n">06</div>
+        <div>
+          <h4>Compliance and data residency</h4>
+          <p><b>Symptom:</b> recordings of French prospects sit in a storage region nobody documented, under a DPA signed by the platform, while the agency believes the data is its own.<br><b>Fix:</b> a per-agency DPA and retention policy; EU media edge; recordings copied to the agency's MinIO and served through a CRM proxy; a consent announcement switch per agency.</p>
+        </div>
+      </div>
+      <div class="risk">
+        <div class="r-n">07</div>
+        <div>
+          <h4>Support and forensics</h4>
+          <p><b>Symptom:</b> "the call dropped at 14:32" is untraceable because the Twilio console shows one account and the CRM kept no CallSid.<br><b>Fix:</b> persist <code>CallSid</code>, status history and quality stats; a per-agency voice health page (token failures, setup rate, webhook lag, recording ingest failures); alerts on answer-rate drops per number.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">05</div>
+      <h2>The target architecture</h2>
+    </div>
+
+    <p class="lede">The shape below keeps your fleet model intact. The Console provisions the carrier account the same way it provisions the database and the bucket; the agency container gets only its own credentials; the call record and the recording stay inside the agency's boundary.</p>
+
+    <div class="diagram">
+      <div class="diagram-title">Target voice path <span>Account boundary per agency, shared code</span></div>
+      <div class="flow">
+        <div class="node dark">
+          <div class="n-k">Control plane</div>
+          <div class="n-t">Console</div>
+          <div class="n-sub">Master key · creates subaccount, numbers, TwiML app</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <div class="n-k">Per agency</div>
+          <div class="n-t">CRM container</div>
+          <div class="n-sub">Subaccount key + auth token + app SID</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <div class="n-k">Per agency</div>
+          <div class="n-t">Twilio subaccount</div>
+          <div class="n-sub">Numbers, usage, recordings, webhooks</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="node">
+          <div class="n-k">Destination</div>
+          <div class="n-t">French PSTN</div>
+          <div class="n-sub">Same media path for every tenant</div>
+        </div>
+      </div>
+      <div class="flow-notes">
+        <div class="flow-note"><b>Credential split</b>Master auth token exists only in the Console. The tenant container cannot create accounts or read another agency.</div>
+        <div class="flow-note"><b>Webhook</b>Twilio calls <code>crm.agency.fr/api/webhooks/twilio</code>. The hostname already identifies the tenant; the signature proves the account.</div>
+        <div class="flow-note"><b>Record</b>The call row, the recording and the transcript live in the agency's database and bucket, not in Twilio.</div>
+      </div>
+    </div>
+
+    <div class="layers">
+      <div class="layer">
+        <div class="l-name">Provisioning<span>Console</span></div>
+        <p>One idempotent step added to the existing wizard: create the subaccount by a deterministic friendly name, buy or attach the agreed numbers, create one API key and one TwiML app, write the five instance variables, then call <code>/api/instance/health</code> and a new voice self-test. Retry-safe, like the thirteen steps already there.</p>
+      </div>
+      <div class="layer">
+        <div class="l-name">Provider adapter<span>lib/voice</span></div>
+        <p>A narrow interface: <code>mintToken</code>, <code>verifyWebhook</code>, <code>parseEvent</code>, <code>fetchCall</code>, <code>downloadRecording</code>, <code>startBridge</code>. Twilio is the first implementation; BYOC is a second credential set behind the same interface, not a second code path in the UI.</p>
+      </div>
+      <div class="layer">
+        <div class="l-name">Token endpoint<span>API</span></div>
+        <p>Authenticated session, feature flag and seat check, then a one-hour Twilio Access Token with a <code>VoiceGrant</code> bound to the agency's TwiML app. The API secret never reaches the browser, and the token cannot outlive the shift.</p>
+      </div>
+      <div class="layer">
+        <div class="l-name">Call creation<span>API</span></div>
+        <p>Server-side only: re-run the existing guards (opt-out, recently contacted, shared phone, 24-hour pause), enforce the destination allowlist and spend cap, write the <code>VoiceCall</code> row, return the call id. The browser passes it to <code>device.connect({ params: { callId } })</code> so the TwiML handler can attach the leg to the right record without guessing by phone number.</p>
+      </div>
+      <div class="layer">
+        <div class="l-name">TwiML &amp; webhooks<span>API</span></div>
+        <p>TwiML returns a <code>&lt;Dial&gt;</code> with the agency's caller ID, dual-channel recording and status callbacks — or a <code>&lt;Conference&gt;</code> if supervision is in scope. The webhook validates <code>X-Twilio-Signature</code> against the public URL built from <code>APP_URL</code>, not the Host header, and is idempotent on <code>CallSid</code> plus a status rank.</p>
+      </div>
+      <div class="layer">
+        <div class="l-name">Recording<span>Worker</span></div>
+        <p>On <code>recordingStatusCallback</code>, download once, store under the agency's MinIO key, write the key on the call row, and serve playback through an authorised CRM proxy. Twilio's URL is treated as a short-lived source, never as the archive. Retention and deletion follow the agency's policy.</p>
+      </div>
+      <div class="layer">
+        <div class="l-name">Reconciliation<span>Cron</span></div>
+        <p>A sweeper closes calls stuck in dialling, ringing or answered for more than three hours, using the provider's call resource; a nightly job compares subaccount usage with the internal call table and flags gaps. This is what makes the system reliable when a webhook is lost, not retried, or delivered out of order.</p>
+      </div>
+    </div>
+
+    <h3>The five variables an agency container needs</h3>
+    <table>
+      <thead><tr><th>Variable</th><th>What it is</th><th>Why it must be per agency</th></tr></thead>
+      <tbody>
+        <tr><td><code>TWILIO_ACCOUNT_SID</code></td><td>Subaccount SID (<code>AC…</code>)</td><td>Scopes numbers, calls, usage and recordings to one agency.</td></tr>
+        <tr><td><code>TWILIO_AUTH_TOKEN</code></td><td>Subaccount auth token</td><td>Twilio signs webhooks with it; without it you cannot verify delivery.</td></tr>
+        <tr><td><code>TWILIO_API_KEY_SID</code> / <code>TWILIO_API_SECRET</code></td><td>Subaccount API key (<code>SK…</code>)</td><td>Used for REST calls and token minting; revocable without rotating the account.</td></tr>
+        <tr><td><code>TWILIO_TWIML_APP_SID</code></td><td>Voice app (<code>AP…</code>)</td><td>Points the browser leg at this agency's TwiML URL and caller-ID policy.</td></tr>
+        <tr><td><code>TWILIO_CALLER_ID</code> / pool</td><td>Default number or number set</td><td>Caller ID is a property of the agency's number pool, never of the SDR's location.</td></tr>
+      </tbody>
+    </table>
+
+    <p class="small">The master account SID and auth token belong in the Console only. They are never injected into a tenant container, never bundled into the image, and never readable through the instance API.</p>
+
+    <div class="callout warn">
+      <b>Two details that cause most production bugs.</b> Twilio request validation uses the <em>account auth token</em>, not the API key secret — storing only an API key leaves you unable to verify webhooks. And behind Traefik the request URL your framework sees is not always the public URL Twilio signed; reconstruct it from <code>APP_URL</code> plus path and query, or every signature check fails intermittently.
+    </div>
+
+    <h3>Supervision changes one decision now</h3>
+    <p>If managers must listen, whisper or barge, the call has to live in a Twilio Conference rather than a simple <code>&lt;Dial&gt;</code>. Listen is a muted participant, whisper uses the participant's coach attribute, barge is an unmuted join. Each supervisor adds one billed leg and one audit row. Retrofitting conference onto a dial-based call flow is a rewrite of the call-control layer, so decide before phase one — not when the supervision screen is designed.</p>
+
+    <h3>Why not a shared voice microservice</h3>
+    <p>It is the obvious refactor, and it is the wrong first move. A single service holding every agency's carrier credentials becomes the highest-value target in the platform, a single point of failure for all calls, and a second place that must know which tenant a call belongs to. Your per-agency containers already provide the isolation for free. Put the shared logic in the image and revisit a central service only when number inventory or carrier contracts genuinely need one.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">06</div>
+      <h2>The shortest reliable path</h2>
+    </div>
+
+    <p class="lede">One engineer who knows the repository, ten working days, no carrier migration. The estimate assumes the pilot numbers already work on Twilio; if French mobile caller IDs are a hard requirement, resolve that question first — it can change the provider, not the code.</p>
+
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-when">Days 1–2</div>
+        <div class="tl-what"><b>Audit and one subaccount</b>Inventory every call site, token, number and webhook. Create the Suzalink subaccount, move or re-point the numbers, store the credentials in the Console.<span class="done">Done when a call still connects and the usage appears under the new subaccount.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Days 3–4</div>
+        <div class="tl-what"><b>Adapter, token, TwiML</b>The <code>lib/voice</code> interface, the Twilio implementation, <code>/api/voice/token</code>, the TwiML handler, and a call row written before dialling.<span class="done">Done when a browser call reaches a French mobile and the row carries a CallSid.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Day 5</div>
+        <div class="tl-what"><b>Webhooks and reconciliation</b>Signature validation on the public URL, idempotency on CallSid, status ranking, and the stuck-call sweeper.<span class="done">Done when replaying out-of-order events leaves exactly the same final state.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Day 6</div>
+        <div class="tl-what"><b>Recording ownership</b>Dual-channel recording, status callback, download into the agency bucket, playback through the CRM proxy, retention policy.<span class="done">Done when playback works after the Twilio recording URL has expired.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Day 7</div>
+        <div class="tl-what"><b>Console provisioning</b>The subaccount step, environment write, voice self-test, and teardown when an agency is deleted.<span class="done">Done when a second test agency gets working voice with zero manual Twilio steps.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Day 8</div>
+        <div class="tl-what"><b>Guards, caps, number health</b>Destination allowlist, per-agency spend and minute caps, concurrency budget, answer-rate monitoring per number.<span class="done">Done when a blocked destination and a capped user both fail closed.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Day 9</div>
+        <div class="tl-what"><b>Fallback and supervision</b>The phone-bridge fallback for failed WebRTC, and conference-based listen/whisper/barge if supervision is in scope.<span class="done">Done when a failed preflight still produces a logged, recorded call.</span></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-when">Day 10</div>
+        <div class="tl-what"><b>Runbook and pilot</b>Alerts, a voice health page per agency, on-call notes, and one pilot agency running live.<span class="done">Done when a manager can answer "what happened on this call" from the CRM alone.</span></div>
+      </div>
+    </div>
+
+    <p class="small">This is an estimate for planning, not a commitment. The two items that can move it are French number eligibility and whether supervision is required in the first release.</p>
+
+    <div class="callout mag">
+      <b>If you only do three things this sprint:</b> create the first subaccount, split the credentials so the tenant no longer holds the master, and write the call row before the dial. Those three remove most of the isolation and forensics risk without touching the UI.
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">07</div>
+      <h2>France is the constraint, not Twilio</h2>
+    </div>
+
+    <p class="lede">Your own VoIP plan already names the hard part: SDRs in Algeria, France and Madagascar calling French prospects, with a caller ID that must work regardless of where the SDR sits. That is a numbering and authentication problem before it is a software problem.</p>
+
+    <table>
+      <thead><tr><th>Requirement</th><th>What to verify in writing</th><th>Where it lands</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>French mobile caller ID (06/07)</td>
+          <td>Arcep reserves 06/07 for interpersonal communication; business and automated traffic is pushed to 09. Twilio's French inventory is built mainly around geographic and non-geographic fixed numbers — do not assume mobile is available. Ask which allocation, which KYC, which paperwork.</td>
+          <td>Provider choice; possibly a French operator behind an Elastic SIP Trunk, keeping one Twilio API.</td>
+        </tr>
+        <tr>
+          <td>Caller-ID authenticity</td>
+          <td>Attestation level (STIR/SHAKEN or the French mechanism), and what Orange, SFR and Bouygues actually display to the callee. Number rotation is not a remedy; it is the behaviour the rules target.</td>
+          <td>Number pool policy, answer-rate monitoring, no automatic rotation.</td>
+        </tr>
+        <tr>
+          <td>Agents outside France</td>
+          <td>Does the acceptable-use policy allow agents connecting from Algeria or Madagascar, with a French legal entity and French staff? Get a written answer, not a support thread.</td>
+          <td>Provider contract; preflight test from each country.</td>
+        </tr>
+        <tr>
+          <td>Recording consent</td>
+          <td>CNIL and the secrecy of correspondence generally require informing the callee. Your decision is to record without an announcement; keep it a per-agency switch and treat the legal call as the agency's, documented.</td>
+          <td>Config switch, call announcement, DPA, retention.</td>
+        </tr>
+        <tr>
+          <td>Data residency</td>
+          <td>Where the recording is stored by default, whether the region can be pinned to the EU, and what the DPA covers per subaccount.</td>
+          <td>EU media edge, MinIO in the EU, per-agency DPA.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout warn">
+      <b>The decision that can invalidate the plan.</b> If 06/07 mobile caller ID is non-negotiable and Twilio cannot provide it for agents outside France, no amount of application work fixes that. Resolve it with the carrier in writing before phase one. The adapter keeps that decision reversible; the number strategy does not.
+    </div>
+
+    <p>There is a middle path worth pricing: keep Twilio for the API, SDK, webhooks and recording pipeline, and terminate the French leg through a French carrier over Elastic SIP Trunking. You get French numbers and CLI from an operator licensed for them, and one consistent application layer. It is more moving parts than a pure Twilio number, and less than a second voice stack.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">08</div>
+      <h2>What to ask Twilio before you build</h2>
+    </div>
+
+    <p class="lede">Ten questions, one email. The answers decide the number plan and the contract; they should not decide the code, because the adapter is designed to absorb them.</p>
+
+    <ol class="qlist">
+      <li><b>French 06/07:</b> can you provision mobile French numbers on a subaccount for outbound caller ID, under which allocation, with what KYC and paperwork?</li>
+      <li><b>Attestation:</b> what attestation do those numbers carry, and what do French carriers display to the callee? Can you share real test calls to Orange, SFR and Bouygues?</li>
+      <li><b>Remote agents:</b> does your acceptable-use policy allow agents connecting from Algeria and Madagascar for a French legal entity? Any clause about the agent's location or IP?</li>
+      <li><b>Recording region:</b> where are recordings stored by default, can the region be pinned to the EU, and what is the retention and deletion model?</li>
+      <li><b>DPA:</b> can each subaccount sit under its own data processing agreement with the agency as controller, or only under the master?</li>
+      <li><b>Subaccount operations:</b> are per-subaccount API keys, usage records and webhook configuration fully supported at fleet scale? Any limit on subaccounts?</li>
+      <li><b>Concurrency:</b> what are the account and subaccount concurrency limits, and can they be raised per tenant?</li>
+      <li><b>Portability:</b> who is the legal holder of a number, and what is the port-in and port-out process when an agency leaves?</li>
+      <li><b>SIP trunking:</b> can we terminate French numbers from a local carrier over Elastic SIP Trunking while keeping your Voice SDK and webhooks? What changes in caller ID and attestation?</li>
+      <li><b>Commercials:</b> per-minute rates to French mobile and fixed, number fees, recording storage, and volume tiers for a fleet of agencies.</li>
+    </ol>
+
+    <p class="small">Ask for the answers that matter in writing, from the account team rather than support. The two that can change the architecture are 1 and 3; the rest are contract and cost details.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">09</div>
+      <h2>The decision</h2>
+    </div>
+
+    <p class="lede">You do not have a Twilio problem. You have a boundary problem that Twilio makes visible. The integration works because one account is doing all the work; it stops working when the platform has to explain, bill, isolate and support that work per agency.</p>
+
+    <p>The reliable path is conservative: keep the vendor, move each agency into its own subaccount, put one adapter in the shared image, and make the CRM own the call and the recording. It is less work than a migration, it preserves the isolation model you already built everywhere else, and it turns voice from a hidden shared dependency into a provisioned, billable, supportable part of the product.</p>
+
+    <div class="bottom-line">
+      <b>Next action.</b>
+      <span>Create the Suzalink subaccount and split the credentials this week. Everything else — recording, supervision, BYOC, the Console step — can follow without reopening that decision.</span>
+    </div>
+  </section>
+
+  <div class="endnote">
+    <div><b>One Twilio account, many agencies</b> · Technical assessment</div>
+    <div>Suzalink · 6 November 2026</div>
+  </div>
+
+</div>
+</body>
+</html>

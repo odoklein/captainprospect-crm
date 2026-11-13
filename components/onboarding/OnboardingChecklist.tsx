@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Check, Pencil, Plus, Rocket, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronRight, Pencil, Plus, Rocket, Trash2 } from "lucide-react";
 import { Button, Callout, Checkbox, IconButton, Input, Select, useToast } from "@/components/ui";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { cn } from "@/lib/utils";
-import type { ChecklistSectionView, ChecklistStepView, ChecklistView } from "@/lib/onboarding/checklist-service";
+import type { ChecklistStepView, ChecklistView } from "@/lib/onboarding/checklist-service";
 
 export const onboardingChecklistKey = (clientId: string) => ["onboarding-checklist", clientId] as const;
 
@@ -42,6 +42,7 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
     const [adding, setAdding] = useState<string | "section" | null>(null);
     const [newTitle, setNewTitle] = useState("");
     const [newDue, setNewDue] = useState("");
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
     const { data, isLoading, isError, refetch } = useQuery<ChecklistView>({
         queryKey: key,
@@ -92,12 +93,12 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
     const patchStep = (step: { id: string }, body: Record<string, unknown>) =>
         call(`${base}/steps/${step.id}`, "PATCH", body);
 
-    if (isLoading) return <p className="text-sm text-ink-3">Chargement de l&apos;onboarding…</p>;
+    if (isLoading) return <p className="text-sm text-ink-3">Chargement de l’intégration…</p>;
     if (isError || !data) {
         return (
             <Callout
                 tone="danger"
-                title="Impossible de charger l'onboarding"
+                title="Impossible de charger l’intégration"
                 action={
                     <Button size="sm" variant="secondary" onClick={() => refetch()}>
                         Réessayer
@@ -111,7 +112,7 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
         return (
             <div className="rounded-xl border border-dashed border-line bg-surface-2 p-6 text-center">
                 <Rocket className="mx-auto h-6 w-6 text-ink-3" aria-hidden />
-                <p className="mt-2 text-sm font-semibold text-ink">Aucun onboarding démarré pour ce client.</p>
+                <p className="mt-2 text-sm font-semibold text-ink">L’intégration de ce client reste à démarrer.</p>
                 <p className="mt-1 text-xs text-ink-3">
                     Contractualisation, cadrage, équipe, lancement : chaque étape reçoit une échéance à partir de la date de démarrage.
                 </p>
@@ -125,7 +126,7 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                         disabled={!startDay}
                         onClick={() => call(base, "POST", { startDay }, "Onboarding démarré")}
                     >
-                        Démarrer l&apos;onboarding
+                        Démarrer l’intégration
                     </Button>
                 </div>
             </div>
@@ -134,10 +135,10 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
 
     const managerOptions = [{ value: "", label: "Non assignée" }, ...managers.map((m) => ({ value: m.id, label: m.name }))];
 
-    function renderStep(section: ChecklistSectionView, step: ChecklistStepView, index: number) {
+    function renderStep(step: ChecklistStepView, index: number) {
         const isEditing = editing === step.id;
         return (
-            <li key={step.id} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+            <li id={`onboarding-step-${step.id}`} tabIndex={-1} key={step.id} className="group flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                 <Checkbox
                     checked={step.done}
                     disabled={busy}
@@ -255,8 +256,27 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
         );
     }
 
+    const next = data.sections.flatMap((section) => section.steps.filter((step) => !step.done).map((step) => ({ section, step })))
+        .sort((a, b) => (a.step.dueDay ?? "9999").localeCompare(b.step.dueDay ?? "9999"))[0];
+
+    function goToStep(sectionId: string, stepId: string) {
+        setOpenSections((previous) => ({ ...previous, [sectionId]: true }));
+        requestAnimationFrame(() => {
+            const row = document.getElementById(`onboarding-step-${stepId}`);
+            row?.scrollIntoView({ block: "center" });
+            row?.focus({ preventScroll: true });
+        });
+    }
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
+            <div className="cw-panel cw-onboarding-overview">
+                {next && <div className="cw-onboarding-next">
+                    <small>{next.step.overdue ? "Étape en retard" : "Prochaine étape"}</small>
+                    <strong>{next.step.title}</strong>
+                    <p>{next.section.title} · {next.step.assignee?.name ?? "À attribuer"}{next.step.dueDay ? ` · ${formatDay(next.step.dueDay)}` : ""}</p>
+                    <button className="cw-text-button" onClick={() => goToStep(next.section.id, next.step.id)}>Voir l’étape <ChevronRight /></button>
+                </div>}
             <div className="flex flex-wrap items-end justify-between gap-3">
                 <div className="min-w-[220px] flex-1">
                     <p className="text-sm font-semibold text-ink">
@@ -290,10 +310,12 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                 </div>
             </div>
 
+            </div>
+
             {data.complete && data.onboardingStatus !== "ACTIVE" && (
                 <Callout
                     tone="success"
-                    title="Onboarding terminé"
+                    title="Intégration terminée"
                     action={
                         <Button size="sm" variant="primary" isLoading={busy} onClick={() => call(base, "PATCH", { activate: true }, "Client passé en Actif")}>
                             Passer le client en Actif
@@ -304,15 +326,14 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                 </Callout>
             )}
 
-            {data.sections.map((section, sIndex) => (
-                <section key={section.id} className="rounded-xl border border-line bg-surface p-4">
+            {data.sections.map((section, sIndex) => {
+                const expanded = openSections[section.id] ?? (section.done < section.total || section.total === 0);
+                return (
+                <section key={section.id} className="cw-panel cw-intake-section">
                     <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-ink">
-                            {section.title}{" "}
-                            <span className="font-normal text-ink-3">
-                                · {section.done}/{section.total}
-                            </span>
-                        </h3>
+                        <button className="cw-intake-toggle" aria-expanded={expanded} aria-controls={`onboarding-section-${section.id}`} onClick={() => setOpenSections((previous) => ({ ...previous, [section.id]: !expanded }))}>
+                            <ChevronRight /><strong>{section.title}</strong><small>{section.done} / {section.total}</small>
+                        </button>
                         <div className="flex gap-0.5">
                             <IconButton icon={ArrowUp} label="Monter la section" size="sm" disabled={sIndex === 0} onClick={() => patchStep(section, { move: "up" })} />
                             <IconButton
@@ -334,7 +355,8 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                             />
                         </div>
                     </div>
-                    <ul className="mt-1 divide-y divide-line">{section.steps.map((step, i) => renderStep(section, step, i))}</ul>
+                    <div hidden={!expanded} id={`onboarding-section-${section.id}`}>
+                    <ul className="mt-1 divide-y divide-line">{section.steps.map((step, i) => renderStep(step, i))}</ul>
                     {adding === section.id ? (
                         renderAddForm(section.id)
                     ) : (
@@ -352,8 +374,10 @@ export function OnboardingChecklist({ clientId }: { clientId: string }) {
                             Ajouter une étape
                         </Button>
                     )}
+                    </div>
                 </section>
-            ))}
+                );
+            })}
 
             {adding === "section" ? (
                 renderAddForm(null)

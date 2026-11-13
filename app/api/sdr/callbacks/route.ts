@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
-import { getTodaySdrMissionIds } from "@/lib/sdr-today-missions";
+import { getSdrMissionScope } from "@/lib/sdr-today-missions";
 
 // ============================================
 // GET /api/sdr/callbacks
@@ -105,7 +105,7 @@ export async function GET(request: Request) {
                 const allowedMissionIds = [...new Set([
                     ...assignedMissionIds,
                     ...teamLeadMissionIds,
-                    ...(await getTodaySdrMissionIds(session.user.id)),
+                    ...(await getSdrMissionScope(session.user.id)),
                 ])];
                 const scopedMissionIds = missionIdParam
                     ? allowedMissionIds.filter((id) => id === missionIdParam)
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
                 // Default: only the callbacks this SDR created, optionally for one mission
                 whereClause.sdrId = session.user.id;
                 if (plannedTodayOnly) {
-                    const plannedIds = await getTodaySdrMissionIds(session.user.id);
+                    const plannedIds = await getSdrMissionScope(session.user.id);
                     const scopedIds = missionIdParam
                         ? plannedIds.filter((id) => id === missionIdParam)
                         : plannedIds;

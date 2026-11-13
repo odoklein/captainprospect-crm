@@ -123,6 +123,8 @@ export interface PortalDatabaseResponse {
     exclusions: PortalExclusion[];
     /** Oldest first, fixed length, zero-filled. */
     activity: PortalActivityWeek[];
+    /** Whether a manager allowed this client to download its database. */
+    canExport: boolean;
     generatedAt: string;
 }
 

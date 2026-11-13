@@ -35,6 +35,13 @@ export const CRON_JOBS: CronJob[] = [
         run: async (r) => (await import("@/app/api/cron/email-sequences/route")).GET(r),
     },
     {
+        id: "dialer-sweep",
+        schedule: "* * * * *",
+        description: "Numérotation parallèle : clôt les lignes bloquées, les sessions abandonnées et libère les SDR réservés à tort.",
+        missedRun: "Une ligne dont Twilio n'a pas confirmé la fin reste comptée jusqu'au prochain battement de la page du SDR.",
+        run: async (r) => (await import("@/app/api/cron/dialer-sweep/route")).GET(r),
+    },
+    {
         id: "messaging-outbox",
         schedule: "* * * * *",
         description: "Publie dans Slack les notifications en attente (file d'envoi).",

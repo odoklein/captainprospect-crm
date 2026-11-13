@@ -45,6 +45,9 @@ import {
   Settings2,
   Tag,
   ListChecks,
+  Crosshair,
+  Headphones,
+  MessageSquareText,
 } from "lucide-react";
 import { UserRole } from "@prisma/client";
 import { AiMark } from "@/components/ui/AiMark";
@@ -112,7 +115,10 @@ export const MANAGER_NAV: NavSection[] = [
           { href: "/manager/lists", icon: Database, label: "Listes", permission: "pages.prospects", description: "Fichiers de prospects et leur préparation" },
           { href: "/manager/lists/sourcing", icon: ScanSearch, label: "Sourcing", permission: "pages.prospects", description: "Trouver des sociétés sur Google Maps, le registre et Apollo" },
           { href: "/manager/prospection", icon: Phone, label: "Appels", permission: "pages.missions", description: "Activité d'appel des SDR, mission par mission" },
-          { href: "/manager/exclusions", icon: Ban, label: "BlackList", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
+          { href: "/manager/appels", icon: Headphones, label: "Journal d'appels", permission: "pages.missions", description: "Chaque appel avec son statut, son enregistrement, sa transcription et son résumé IA" },
+          { href: "/manager/messages", icon: MessageSquareText, label: "Messages", permission: "pages.missions", description: "Vos SMS avec les prospects, depuis votre numéro Twilio" },
+          { href: "/manager/exclusions", icon: Ban, label: "Blacklist", permission: "pages.prospects", description: "Sociétés et contacts à ne jamais rappeler" },
+
         ],
       },
       {
@@ -245,6 +251,24 @@ export const SDR_NAV: NavSection[] = [
         href: "/sdr/action",
         icon: Phone,
         label: "Appeler",
+        permission: "pages.action",
+      },
+      {
+        href: "/sdr/focus",
+        icon: Crosshair,
+        label: "Mode Focus",
+        permission: "pages.action",
+      },
+      {
+        href: "/sdr/appels",
+        icon: Headphones,
+        label: "Mes appels",
+        permission: "pages.action",
+      },
+      {
+        href: "/sdr/messages",
+        icon: MessageSquareText,
+        label: "Messages",
         permission: "pages.action",
       },
       {
@@ -586,7 +610,7 @@ export const CLIENT_NAV: NavSection[] = [
       {
         href: "/client/portal/exclusions",
         icon: Ban,
-        label: "Ne plus contacter",
+        label: "Blacklist",
         permission: "pages.dashboard",
       },
     ],

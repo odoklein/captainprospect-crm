@@ -1,20 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Modal, ModalFooter, ConfirmModal, ContextMenu, useContextMenu, useToast, Tabs } from "@/components/ui";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { Modal, ModalFooter, ConfirmModal, ContextMenu, useContextMenu, useToast } from "@/components/ui";
 import { MissionStatusWorkflowDrawer } from "@/components/drawers";
 import {
-    ArrowLeft,
     Target,
     Users,
     Phone,
     Mail,
-    Linkedin,
     Edit,
     Trash2,
     Loader2,
-    PlayCircle,
-    PauseCircle,
     ListIcon,
     ChevronRight,
     FileText,
@@ -36,15 +32,32 @@ import {
     EyeOff,
     ShieldCheck,
     MoreHorizontal,
-    Maximize2,
-    Minimize2,
     AlertTriangle,
+    Rocket,
+    CalendarDays,
+    Database,
+    Link2,
 } from "lucide-react";
-import Link from "next/link";
+import { Upload } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
+import { MissionAudienceDrawer } from "./MissionAudienceDrawer";
+import { CSVImportDialog } from "@/components/dialogs/CSVImportDialog";
 import { cn } from "@/lib/utils";
 import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
-import { ReadinessPanel } from "./ReadinessPanel";
+import { MissionPulse, type PulseData, type PulsePeriod } from "./MissionPulse";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/lib/manager/workspace/http";
+import type { NextActionKind } from "@/lib/missions/pulse";
+import { LaunchChecklist, launchSteps, type LaunchList, type StrategyField } from "./ReadinessPanel";
+import { MissionSetupPanel, type SetupField } from "./MissionSetupPanel";
+import { Drawer } from "@/components/ui/Drawer";
+import { CrumbActions } from "@/components/manager/workspace/CrumbSlot";
+import { useFocusRequest } from "@/components/manager/workspace/focus";
+import { Button as CwButton, EmptyState, ErrorState, SkeletonDoc } from "@/components/manager/workspace/ui";
+import type { ClientPageSummary } from "@/components/manager/workspace/clientPages";
+import { PAGE_TEMPLATES, PAGE_TEMPLATE_IDS, type PageTemplate } from "@/lib/client-pages/blocks";
+import { StrategyEditorDrawer } from "./StrategyEditorDrawer";
 import { StrategyByListTab } from "./StrategyByListTab";
 import { ListCommercialsPicker } from "./ListCommercialsPicker";
 import { ProspectCreationSettingsCard } from "@/components/prospect-submissions/ProspectCreationSettingsCard";
@@ -110,6 +123,7 @@ interface Mission {
         name: string;
         type: string;
         isActive?: boolean;
+        isArchived?: boolean;
         contactsViewEnabled?: boolean;
         /** 24 h pause between two calls on this list's rows — on unless a manager switched it off. */
         queueCooldownEnabled?: boolean;
@@ -132,6 +146,7 @@ interface Mission {
             isActive: boolean;
         } | null;
         readiness?: {
+            inheritedCampaignId?: string | null;
             hasStrategy: boolean;
             hasIcp: boolean;
             hasPitch: boolean;
@@ -157,15 +172,18 @@ interface Mission {
         meetingsBooked: number;
         opportunities: number;
     };
+    targetMeetings?: number | null;
+    pulse?: PulseData;
     teamStats?: Array<{
         sdrId: string;
+        name?: string;
         actions: number;
         meetings: number;
         recentActions: number;
     }>;
     insights?: {
         windowDays: number;
-        series: Array<{ date: string; actions: number; meetings: number }>;
+        series: Array<{ date: string; actions: number; meetings: number; reached?: number }>;
         current: { actions: number; meetings: number; opportunities: number };
         previous: { actions: number; meetings: number; opportunities: number };
     };
@@ -234,12 +252,6 @@ interface MissionFeedbackItem extends DailyReportLike {
 // CHANNEL CONFIG
 // ============================================
 
-const CHANNEL_CONFIG = {
-    CALL: { icon: Phone, label: "Appel", className: "mgr-channel-call" },
-    EMAIL: { icon: Mail, label: "Email", className: "mgr-channel-email" },
-    LINKEDIN: { icon: Linkedin, label: "LinkedIn", className: "mgr-channel-linkedin" },
-};
-
 // ============================================
 // WORKSPACE PROPS
 // ============================================
@@ -252,9 +264,31 @@ export interface MissionWorkspaceProps {
     onMissionMutated?: () => void;
     activeTab: string;
     onTabChange: (tab: string) => void;
-    isExpanded?: boolean;
-    onToggleExpand?: () => void;
+    onClientOnboarding?: () => void;
+    /** Client pages linked to this mission (briefs, launch notes). */
+    linkedPages?: ClientPageSummary[];
+    onOpenPage?: (pageId: string) => void;
+    onCreatePage?: (template: PageTemplate) => void;
+    /** Opens another mission of the same client (after « Dupliquer »). */
+    onOpenMission?: (missionId: string) => void;
 }
+
+/** Substantial editors open in a drawer over the brief; `?tab=` names the open one. */
+const PANELS: Record<string, { title: string; description: string }> = {
+    audience: { title: "Bases de prospects", description: "Listes, contacts et commerciaux de chaque base" },
+    strategies: { title: "Ciblage et scripts", description: "Stratégie, ciblage, pitch et script de chaque base" },
+    strategy: { title: "Stratégie avancée", description: "Campagnes et modèles d’e-mails" },
+    equipe: { title: "Équipe", description: "SDR affectés à la mission" },
+    feedback: { title: "Avis SDR", description: "Retours de fin de journée sur cette mission" },
+    reglages: { title: "Administration", description: "Réglages sensibles de la mission" },
+};
+
+function initials(name: string) {
+    return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
+}
+
+const dayFr = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const dayShortFr = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 // ============================================
 // INSIGHTS PRIMITIVES
@@ -473,132 +507,6 @@ function KpiTile({
 // ============================================
 
 /** Mission name, renamed in place. Enter commits, Escape reverts. */
-function InlineTitle({ value, onSave }: { value: string; onSave: (next: string) => Promise<unknown> | void }) {
-    const [editing, setEditing] = useState(false);
-    const [draft, setDraft] = useState(value);
-
-    useEffect(() => {
-        setDraft(value);
-    }, [value]);
-
-    const commit = () => {
-        setEditing(false);
-        const next = draft.trim();
-        if (!next || next === value) {
-            setDraft(value);
-            return;
-        }
-        void onSave(next);
-    };
-
-    if (!editing) {
-        return (
-            <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="group flex max-w-full items-center gap-1.5 rounded px-0.5 text-left"
-                title="Renommer la mission"
-            >
-                <span className="truncate text-base font-bold text-slate-900">{value}</span>
-                <Pencil className="h-3 w-3 shrink-0 text-slate-300 transition-colors group-hover:text-slate-500" />
-            </button>
-        );
-    }
-
-    return (
-        <input
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-                if (e.key === "Enter") commit();
-                if (e.key === "Escape") {
-                    setDraft(value);
-                    setEditing(false);
-                }
-            }}
-            className="w-full max-w-sm rounded-md border border-primary-300 px-1.5 py-0.5 text-base font-bold text-slate-900 outline-none ring-2 ring-primary-500/20"
-        />
-    );
-}
-
-/** One click-to-edit property in the header row. */
-function PropertyField({
-    label,
-    type,
-    value,
-    display,
-    options,
-    onSave,
-}: {
-    label: string;
-    type: "date" | "select";
-    value: string;
-    display: string;
-    options?: Array<{ value: string; label: string }>;
-    onSave: (next: string) => Promise<unknown> | void;
-}) {
-    const [editing, setEditing] = useState(false);
-
-    const commit = (next: string) => {
-        setEditing(false);
-        if (next === value) return;
-        void onSave(next);
-    };
-
-    return (
-        <span className="flex items-center gap-1.5">
-            <span className="text-[11px] uppercase tracking-wide text-slate-400">{label}</span>
-            {editing ? (
-                type === "select" ? (
-                    <select
-                        autoFocus
-                        defaultValue={value}
-                        onBlur={(e) => commit(e.target.value)}
-                        onChange={(e) => commit(e.target.value)}
-                        className="rounded-md border border-primary-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none ring-2 ring-primary-500/20"
-                    >
-                        {options?.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
-                ) : (
-                    <input
-                        autoFocus
-                        type="date"
-                        defaultValue={value}
-                        onBlur={(e) => commit(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") commit((e.target as HTMLInputElement).value);
-                            if (e.key === "Escape") setEditing(false);
-                        }}
-                        className="rounded-md border border-primary-300 bg-white px-1.5 py-0.5 text-xs text-slate-900 outline-none ring-2 ring-primary-500/20"
-                    />
-                )
-            ) : (
-                <button
-                    type="button"
-                    onClick={() => setEditing(true)}
-                    className="rounded px-1 py-0.5 font-medium text-slate-700 transition-colors hover:bg-slate-100"
-                    title={`Modifier : ${label.toLowerCase()}`}
-                >
-                    {display}
-                </button>
-            )}
-        </span>
-    );
-}
-
-const STATUS_PILL_CLASS: Record<MissionStatusValue, string> = {
-    DRAFT: "bg-slate-100 text-slate-700 hover:bg-slate-200",
-    ACTIVE: "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
-    PAUSED: "bg-amber-100 text-amber-800 hover:bg-amber-200",
-    COMPLETED: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-    ARCHIVED: "bg-zinc-200 text-zinc-700 hover:bg-zinc-300",
-};
 
 /** Status pill that only offers the transitions the workflow allows. */
 function StatusSelect({
@@ -610,63 +518,24 @@ function StatusSelect({
     disabled?: boolean;
     onSelect: (next: MissionStatusValue) => void;
 }) {
-    const [open, setOpen] = useState(false);
     const allowed = MISSION_STATUS_TRANSITIONS[status] ?? [];
-
+    const tone = status === "ACTIVE" ? "success" : status === "PAUSED" ? "warning" : status === "COMPLETED" ? "info" : undefined;
+    const pill = <span className="cw-pill" data-tone={tone}><i />{MISSION_STATUS_CONFIG[status]?.label ?? status}</span>;
+    if (!allowed.length) return pill;
     return (
-        <div className="relative">
-            <button
-                type="button"
-                disabled={disabled || allowed.length === 0}
-                onClick={() => setOpen((v) => !v)}
-                className={cn(
-                    "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition-colors disabled:opacity-60",
-                    STATUS_PILL_CLASS[status]
-                )}
-                aria-expanded={open}
-                aria-label="Changer le statut de la mission"
-            >
-                {MISSION_STATUS_CONFIG[status]?.label ?? status}
-                {allowed.length > 0 && <ChevronRight className="h-3.5 w-3.5 rotate-90 opacity-60" />}
-            </button>
-            {open && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden="true" />
-                    <div className="absolute right-0 top-full z-20 mt-1 w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                        <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                            Transitions possibles
-                        </p>
-                        {allowed.map((next) => (
-                            <button
-                                key={next}
-                                type="button"
-                                onClick={() => {
-                                    setOpen(false);
-                                    onSelect(next);
-                                }}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                            >
-                                <span
-                                    className={cn(
-                                        "h-2 w-2 rounded-full",
-                                        next === "ACTIVE"
-                                            ? "bg-emerald-500"
-                                            : next === "PAUSED"
-                                                ? "bg-amber-500"
-                                                : next === "COMPLETED"
-                                                    ? "bg-blue-500"
-                                                    : next === "ARCHIVED"
-                                                        ? "bg-zinc-400"
-                                                        : "bg-slate-400"
-                                    )}
-                                />
-                                {MISSION_STATUS_CONFIG[next]?.label ?? next}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            )}
-        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button className="cw-prop-button" disabled={disabled} aria-label={`Statut : ${MISSION_STATUS_CONFIG[status]?.label ?? status}. Changer`}>
+                    {pill}<ChevronRight className="rotate-90" aria-hidden />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Passer à</DropdownMenuLabel>
+                {allowed.map((next) => (
+                    <DropdownMenuItem key={next} onSelect={() => onSelect(next)}>{MISSION_STATUS_CONFIG[next]?.label ?? next}</DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 
@@ -680,13 +549,51 @@ export function MissionWorkspace({
     onMissionMutated,
     activeTab,
     onTabChange,
-    isExpanded,
-    onToggleExpand,
+    onClientOnboarding,
+    linkedPages = [],
+    onOpenPage,
+    onCreatePage,
+    onOpenMission,
 }: MissionWorkspaceProps) {
     const { success, error: showError, addToast } = useToast();
 
     const [mission, setMission] = useState<Mission | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<{ notFound: boolean; message: string } | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
+    /** Copies framing, strategies and e-mail templates (not bases nor team), then opens the copy. */
+    async function duplicateMission() {
+        setDuplicating(true);
+        try {
+            const res = await fetch(`/api/missions/${missionId}/duplicate`, { method: "POST" });
+            const json = await res.json();
+            if (!json.success) throw new Error(json.error || "Impossible de dupliquer la mission");
+            success("Mission dupliquée", `« ${json.data.name} » est en préparation : ajoutez ses bases et son équipe.`);
+            onMissionMutated?.();
+            onOpenMission?.(json.data.id);
+        } catch (err) {
+            showError("Erreur", err instanceof Error ? err.message : "Impossible de dupliquer la mission");
+        } finally {
+            setDuplicating(false);
+        }
+    }
+
+    // Pulse period: 30 days ships with the mission; other periods come from /insights.
+    const [pulsePeriod, setPulsePeriod] = useState<PulsePeriod>("30");
+    const periodInsights = useQuery({
+        queryKey: ["mission", missionId, "insights", pulsePeriod],
+        queryFn: () => apiGet<{ series: { date: string; actions: number; meetings: number; reached: number }[]; teamStats: { sdrId: string; name: string; actions: number; meetings: number; recentActions: number }[] }>(`/api/missions/${missionId}/insights?period=${pulsePeriod}`),
+        enabled: pulsePeriod !== "30",
+        placeholderData: keepPreviousData,
+        staleTime: 60_000,
+    });
+    const periodError = pulsePeriod !== "30" ? periodInsights.error : null;
+    useEffect(() => {
+        if (!periodError) return;
+        // Fall back to the loaded 30 days rather than an empty chart.
+        showError("Erreur", periodError.message);
+        setPulsePeriod("30");
+    }, [periodError]); // eslint-disable-line react-hooks/exhaustive-deps
     const [isDeleting, setIsDeleting] = useState(false);
     const [isToggling, setIsToggling] = useState(false);
     const [showPortalLaunchModal, setShowPortalLaunchModal] = useState(false);
@@ -695,6 +602,7 @@ export function MissionWorkspace({
 
     // Modals
     const [showEditMissionDialog, setShowEditMissionDialog] = useState(false);
+    const [launchFix, setLaunchFix] = useState<{ field: StrategyField; list: LaunchList } | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showDeleteListModal, setShowDeleteListModal] = useState(false);
     const [listToDelete, setListToDelete] = useState<Mission["lists"][0] | null>(null);
@@ -740,8 +648,12 @@ export function MissionWorkspace({
     const [showStatusWorkflowDrawer, setShowStatusWorkflowDrawer] = useState(false);
 
     // Context bar
-    const [moreOpen, setMoreOpen] = useState(false);
+    const [audiencePanel, setAudiencePanel] = useState<{ id: string; name: string } | "new" | null>(null);
+    const [showCsvImport, setShowCsvImport] = useState(false);
+    const [campaignEditor, setCampaignEditor] = useState<string | "new" | null>(null);
     const [fieldSaveState, setFieldSaveState] = useState<"saving" | "saved" | null>(null);
+    const [editRequest, setEditRequest] = useState<{ field: SetupField; at: number } | null>(null);
+    const [setupDirty, setSetupDirty] = useState(false);
     const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -789,7 +701,7 @@ export function MissionWorkspace({
     // ============================================
 
     const fetchMission = async () => {
-        setIsLoading(true);
+        if (!mission) setIsLoading(true);
         try {
             const res = await fetch(`/api/missions/${missionId}`);
             const json = await res.json();
@@ -797,13 +709,16 @@ export function MissionWorkspace({
             if (json.success) {
                 const m = json.data;
                 setMission(m);
+                setLoadError(null);
+            } else if (!mission) {
+                setLoadError({ notFound: res.status === 404 || res.status === 403, message: json.error || "Mission introuvable" });
             } else {
-                showError("Erreur", json.error || "Mission non trouvée");
-                onBack();
+                showError("Erreur", json.error || "Impossible d’actualiser la mission");
             }
         } catch (err) {
             console.error("Failed to fetch mission:", err);
-            showError("Erreur", "Impossible de charger la mission");
+            if (!mission) setLoadError({ notFound: false, message: "Vérifiez votre connexion puis réessayez." });
+            else showError("Erreur", "Impossible d’actualiser la mission");
         } finally {
             setIsLoading(false);
         }
@@ -1860,28 +1775,38 @@ export function MissionWorkspace({
         ]
         : [];
 
+    const missionLoaded = Boolean(mission);
+    useFocusRequest(missionLoaded);
+    useEffect(() => {
+        if (activeTab !== "lancement" || !missionLoaded) return;
+        const frame = requestAnimationFrame(() => {
+            const section = document.getElementById("lancement");
+            if (section instanceof HTMLDetailsElement) section.open = true;
+            const heading = document.getElementById("cw-launch-title");
+            heading?.scrollIntoView({ block: "start" });
+            heading?.focus({ preventScroll: true });
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [activeTab, missionLoaded]);
+
     // ============================================
     // LOADING STATE
     // ============================================
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-20">
-                <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-                    <p className="text-sm text-slate-500">Chargement de la mission...</p>
-                </div>
-            </div>
-        );
+    if (isLoading && !mission) {
+        return <SkeletonDoc label="Chargement de la mission…" />;
     }
 
     if (!mission) {
-        return null;
+        return loadError?.notFound ? (
+            <EmptyState icon={<AlertTriangle aria-hidden />} title="Mission introuvable" action={<CwButton size="sm" onClick={onBack}>Retour au client</CwButton>}>
+                Elle a peut-être été supprimée, ou vous n’y avez plus accès.
+            </EmptyState>
+        ) : (
+            <ErrorState title="Impossible de charger la mission" message={loadError?.message} onRetry={() => { setLoadError(null); setIsLoading(true); void fetchMission(); }} />
+        );
     }
 
-    const channelsList = mission.channels?.length ? mission.channels : [mission.channel];
-    const channel = CHANNEL_CONFIG[mission.channel];
-    const ChannelIcon = channel.icon;
     const isPortalLaunching = Boolean(
         mission.portalVisibleAt && new Date(mission.portalVisibleAt).getTime() > Date.now()
     );
@@ -1898,272 +1823,236 @@ export function MissionWorkspace({
                 u.email.toLowerCase().includes(assignSearchTerm)),
     );
 
-    // One-click pause/activate, but only when the workflow actually allows it.
-    const quickToggle: MissionStatusValue = mission.status === "ACTIVE" ? "PAUSED" : "ACTIVE";
-    const quickToggleStatus = (MISSION_STATUS_TRANSITIONS[mission.status] ?? []).includes(quickToggle)
-        ? quickToggle
-        : null;
+    const canStart = mission.status !== "ACTIVE" && MISSION_STATUS_TRANSITIONS[mission.status].includes("ACTIVE");
+    const launchReadiness = mission.missionReadiness;
 
-    const dateRangeStr = mission.startDate
-        ? `${new Date(mission.startDate).toLocaleDateString("fr-FR")} → ${mission.endDate ? new Date(mission.endDate).toLocaleDateString("fr-FR") : "En cours"}`
-        : "—";
+    const panel = PANELS[activeTab] ? activeTab : null;
+    const activeLists = mission.lists.filter((list) => list.isActive !== false && !list.isArchived);
+    const launch = launchSteps({
+        readiness: launchReadiness,
+        lists: mission.lists,
+        startDate: mission.startDate,
+        assignmentCount: mission.sdrAssignments.length,
+        onFixAudience: () => mission.lists.length ? onTabChange("audience") : setAudiencePanel("new"),
+        onFixTeam: () => onTabChange("equipe"),
+        onFixDates: () => setEditRequest({ field: "startDate", at: Date.now() }),
+        onFixStrategy: (field, list) => setLaunchFix({ field, list }),
+    });
+    const period = mission.startDate || mission.endDate
+        ? `${mission.startDate ? dayFr.format(new Date(mission.startDate)) : "…"} → ${mission.endDate ? dayFr.format(new Date(mission.endDate)) : "…"}`
+        : "À définir";
+    const team = mission.sdrAssignments.map((assignment) => assignment.sdr);
+    const avatars = (limit: number) => team.length ? <span className="cw-avatars" aria-label={team.map((sdr) => sdr.name).join(", ")}>
+        {team.slice(0, limit).map((sdr) => <span key={sdr.id} className="cw-avatar" title={sdr.name} aria-hidden>{initials(sdr.name)}</span>)}
+        {team.length > limit && <span className="cw-avatar" data-more aria-hidden>+{team.length - limit}</span>}
+    </span> : <span className="cw-prop-empty">Aucun SDR</span>;
+    // Phase decides what leads the page: preparing → brief and checklist; running → the pulse.
+    const running = mission.status !== "DRAFT";
+    const scrollTo = (id: string, focusId?: string) => {
+        const target = document.getElementById(id);
+        if (target instanceof HTMLDetailsElement) target.open = true;
+        target?.scrollIntoView({ block: "start", behavior: "smooth" });
+        (document.getElementById(focusId ?? id) as HTMLElement | null)?.focus({ preventScroll: true });
+    };
+    const onPulseAction = (kind: NextActionKind) => {
+        if (kind === "assign") onTabChange("equipe");
+        else if (kind === "lists") { if (mission.lists.length) onTabChange("audience"); else setAudiencePanel("new"); }
+        else if (kind === "launch") { if (launch.next?.action) launch.next.action.run(); else scrollTo("lancement", "cw-launch-title"); }
+        else if (kind === "resume") void changeStatus("ACTIVE");
+        else if (kind === "target") setEditRequest({ field: "targetMeetings", at: Date.now() });
+        else if (kind === "extend") setEditRequest({ field: "endDate", at: Date.now() });
+        else if (kind === "funnel") scrollTo("cw-conversion", "cw-weak-step");
+    };
+    const phases = [
+        { id: "prep", label: "Préparation", state: running ? "done" : "current" },
+        { id: "run", label: mission.status === "PAUSED" ? "En pause" : "En cours", state: mission.status === "ACTIVE" || mission.status === "PAUSED" ? "current" : running ? "done" : "next" },
+        { id: "end", label: "Bilan", state: mission.status === "COMPLETED" || mission.status === "ARCHIVED" ? "current" : "next" },
+    ] as const;
+    const scrollToLaunch = () => {
+        const heading = document.getElementById("cw-launch-title");
+        heading?.scrollIntoView({ block: "start", behavior: "smooth" });
+        heading?.focus({ preventScroll: true });
+    };
 
     return (
-        <div className="space-y-6">
-            {/* ── Context bar: identity, status, the controls you reach for most ── */}
-            <div className="sticky top-0 z-20 -mx-6 -mt-6 border-b border-slate-200 bg-white/95 px-6 py-3 backdrop-blur">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={onBack}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                            aria-label="Retour aux missions du client"
-                        >
-                            <ArrowLeft className="h-4 w-4" />
-                        </button>
-                        <div className="min-w-0">
-                            <InlineTitle
-                                value={mission.name}
-                                onSave={(next) => saveMissionField({ name: next }, "Nom de la mission")}
-                            />
-                            <p className="truncate text-xs text-slate-500">
-                                {mission._count.lists} base{mission._count.lists !== 1 ? "s" : ""} ·{" "}
-                                {mission.sdrAssignments.length} SDR · {dateRangeStr}
-                            </p>
-                        </div>
-                    </div>
+        <div className="cw-mission">
+            <CrumbActions>
+                <span className="cw-save-state" role="status" data-state={setupDirty ? "dirty" : fieldSaveState === "saved" ? "saved" : undefined}>
+                    {fieldSaveState === "saving" ? <><Loader2 className="animate-spin" aria-hidden /> Enregistrement…</>
+                        : setupDirty ? "Modifications non enregistrées"
+                        : fieldSaveState === "saved" ? <><CheckCircle2 aria-hidden /> Enregistré</> : null}
+                </span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" aria-label="Actions de la mission"><MoreHorizontal /></button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-64">
+                        <DropdownMenuLabel>Préparer</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => setEditRequest({ field: "name", at: Date.now() })}><Edit />Modifier le cadrage</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setAudiencePanel("new")}><Plus />Créer une base de prospects</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setShowCsvImport(true)}><Upload />Importer un fichier CSV</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setCampaignEditor("new")}><FileText />Créer un ciblage et un script</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => onTabChange("strategy")}><FileText />Stratégie avancée</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setShowStatusWorkflowDrawer(true)}><Activity />Statuts et workflow</DropdownMenuItem>
+                        {mission.status === "ACTIVE" && !isPortalLaunching && <DropdownMenuItem onSelect={() => setShowPortalLaunchModal(true)}><EyeOff />Visibilité du portail</DropdownMenuItem>}
+                        <DropdownMenuItem onSelect={() => setShowEditMissionDialog(true)}><Pencil />Client et options de la mission</DropdownMenuItem>
+                        <DropdownMenuItem disabled={duplicating} onSelect={() => void duplicateMission()}><Copy />Dupliquer la mission</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onTabChange("reglages")}><ShieldCheck />Administration</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </CrumbActions>
 
-                    <div className="flex items-center gap-2">
-                        <StatusSelect
-                            status={mission.status}
-                            disabled={isToggling}
-                            onSelect={changeStatus}
-                        />
-                        {quickToggleStatus && (
-                            <button
-                                type="button"
-                                onClick={() => changeStatus(quickToggleStatus)}
-                                disabled={isToggling}
-                                title={quickToggleStatus === "ACTIVE" ? "Activer la mission" : "Mettre en pause"}
-                                className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
-                            >
-                                {isToggling ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : quickToggleStatus === "ACTIVE" ? (
-                                    <PlayCircle className="h-4 w-4" />
-                                ) : (
-                                    <PauseCircle className="h-4 w-4" />
-                                )}
-                                {quickToggleStatus === "ACTIVE" ? "Activer" : "Pause"}
-                            </button>
-                        )}
-                        <button
-                            onClick={() => setShowPortalLaunchModal(true)}
-                            className={cn(
-                                "inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-white transition-colors",
-                                isPortalLaunching ? "bg-amber-500 hover:bg-amber-400" : "bg-emerald-600 hover:bg-emerald-500"
-                            )}
-                        >
-                            {isPortalLaunching ? <Clock3 className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                            {isPortalLaunching ? "Démarrage en cours" : "Démarrer"}
-                        </button>
-                        <div className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setMoreOpen((v) => !v)}
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                                aria-label="Plus d'actions"
-                                aria-expanded={moreOpen}
-                            >
-                                <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                            {moreOpen && (
-                                <>
-                                    <div
-                                        className="fixed inset-0 z-10"
-                                        onClick={() => setMoreOpen(false)}
-                                        aria-hidden="true"
-                                    />
-                                    <div className="absolute right-0 top-full z-20 mt-1 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setMoreOpen(false);
-                                                setShowEditMissionDialog(true);
-                                            }}
-                                            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                                        >
-                                            <Edit className="h-4 w-4 text-slate-400" /> Modifier la mission
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setMoreOpen(false);
-                                                setShowStatusWorkflowDrawer(true);
-                                            }}
-                                            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                                        >
-                                            <ShieldCheck className="h-4 w-4 text-slate-400" /> Statuts et workflow
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setMoreOpen(false);
-                                                onTabChange("reglages");
-                                            }}
-                                            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                                        >
-                                            <Trash2 className="h-4 w-4 text-slate-400" /> Zone de danger
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        {onToggleExpand && (
-                            <button
-                                type="button"
-                                onClick={onToggleExpand}
-                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                                aria-label={isExpanded ? "Réduire le panneau" : "Agrandir le panneau"}
-                                title={isExpanded ? "Réduire" : "Agrandir"}
-                            >
-                                {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                            </button>
-                        )}
-                    </div>
-                </div>
+            <div className="cw-layout">
+                <main className="cw-doc" aria-labelledby="cw-mission-title">
+                    <header className="cw-doc-head">
+                        <span className="cw-eyebrow"><Target aria-hidden /><span>Mission · {mission.client?.name}</span></span>
+                        <h1 id="cw-mission-title" className="cw-doc-title" tabIndex={-1} data-focus-key="heading">{mission.name}</h1>
+                        {running ? (
+                            <ol className="cw-phases" aria-label="Étapes de la mission">
+                                {phases.map((phase, index) => <Fragment key={phase.id}>
+                                    {index > 0 && <li className="cw-phases-sep" aria-hidden />}
+                                    <li data-state={phase.state} aria-current={phase.state === "current" ? "step" : undefined}><span aria-hidden />{phase.label}</li>
+                                </Fragment>)}
+                                <li className="cw-phases-meta">{period}</li>
+                            </ol>
+                        ) : <dl className="cw-facts">
+                            <div className="cw-fact"><dt><CalendarDays aria-hidden />Période</dt><dd>{period}</dd></div>
+                            <div className="cw-fact"><dt><Database aria-hidden />Bases</dt><dd>{launchReadiness ? `${launchReadiness.readyLists} / ${launchReadiness.activeLists} prêtes` : `${mission._count.lists}`}</dd></div>
+                            <div className="cw-fact"><dt><Users aria-hidden />Équipe</dt><dd>{avatars(4)}</dd></div>
+                            <div className="cw-fact"><dt><Rocket aria-hidden />Lancement</dt><dd>{launch.done} / {launch.total} vérifications</dd></div>
+                        </dl>}
+                    </header>
 
-                {/* Property row — click a value to edit it in place */}
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-                    <PropertyField
-                        label="Début"
-                        type="date"
-                        value={mission.startDate ? mission.startDate.slice(0, 10) : ""}
-                        display={mission.startDate ? new Date(mission.startDate).toLocaleDateString("fr-FR") : "—"}
-                        onSave={async (next) => {
-                            if (!next) return;
-                            await saveMissionField({ startDate: next }, "Date de début");
-                        }}
-                    />
-                    <PropertyField
-                        label="Fin"
-                        type="date"
-                        value={mission.endDate ? mission.endDate.slice(0, 10) : ""}
-                        display={mission.endDate ? new Date(mission.endDate).toLocaleDateString("fr-FR") : "En cours"}
-                        onSave={async (next) => {
-                            if (!next) return;
-                            await saveMissionField({ endDate: next }, "Date de fin");
-                        }}
-                    />
-                    <PropertyField
-                        label="Commercial"
-                        type="select"
-                        value={mission.defaultInterlocuteur?.id ?? ""}
-                        display={
-                            mission.defaultInterlocuteur
-                                ? `${mission.defaultInterlocuteur.firstName} ${mission.defaultInterlocuteur.lastName}`
-                                : "Par liste"
-                        }
-                        options={[
-                            { value: "", label: "Aucun (par liste uniquement)" },
-                            ...(mission.client?.interlocuteurs ?? []).map((it) => ({
-                                value: it.id,
-                                label: `${it.firstName} ${it.lastName}${it.title ? ` — ${it.title}` : ""}`,
-                            })),
-                        ]}
-                        onSave={(next) =>
-                            saveMissionField({ defaultInterlocuteurId: next || null }, "Commercial par défaut")
-                        }
-                    />
-                    <span className="flex items-center gap-1.5 text-slate-500">
-                        <span className="text-[11px] uppercase tracking-wide text-slate-400">Canal</span>
-                        {channelsList.map((ch) => {
-                            const cfg = CHANNEL_CONFIG[ch];
-                            const Icon = cfg?.icon ?? ChannelIcon;
-                            return (
-                                <span key={ch} className="inline-flex items-center gap-1 font-medium text-slate-700">
-                                    <Icon className="h-3 w-3" />
-                                    {cfg?.label ?? ch}
-                                </span>
-                            );
-                        })}
-                    </span>
-                    {fieldSaveState && (
-                        <span
-                            className={cn(
-                                "inline-flex items-center gap-1.5 font-medium",
-                                fieldSaveState === "saving" ? "text-slate-400" : "text-emerald-600"
-                            )}
-                        >
-                            {fieldSaveState === "saving" ? (
-                                <>
-                                    <Loader2 className="h-3 w-3 animate-spin" /> Enregistrement…
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle2 className="h-3 w-3" /> Enregistré
-                                </>
-                            )}
-                        </span>
+                    {isPortalLaunching && mission.portalVisibleAt && (
+                        <div className="cw-callout" role="status">
+                            <EyeOff aria-hidden />
+                            <div>
+                                <strong>Activité masquée sur le portail client</strong>
+                                <p>Les SDR travaillent normalement. Publication automatique le {new Date(mission.portalVisibleAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}.</p>
+                            </div>
+                            <button className="cw-button" data-size="sm" onClick={() => setShowPortalLaunchModal(true)}>Gérer</button>
+                        </div>
                     )}
-                </div>
-            </div>
 
-            {isPortalLaunching && mission.portalVisibleAt && (
-                <div className="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
-                            <EyeOff className="h-5 w-5" />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-amber-950">Activité masquée sur les portails</p>
-                            <p className="mt-1 text-xs leading-5 text-amber-800">
-                                Les SDR continuent de travailler normalement. Publication automatique le{" "}
-                                {new Date(mission.portalVisibleAt).toLocaleDateString("fr-FR", {
-                                    day: "numeric",
-                                    month: "long",
-                                    year: "numeric",
-                                })}.
-                            </p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={() => setShowPortalLaunchModal(true)}
-                        className="h-9 shrink-0 rounded-lg border border-amber-300 bg-white px-4 text-xs font-bold text-amber-900 transition-colors hover:bg-amber-100"
-                    >
-                        Gérer la visibilité
-                    </button>
-                </div>
-            )}
+                    {running && mission.pulse && (
+                        <MissionPulse
+                            status={mission.status}
+                            startDate={mission.startDate}
+                            endDate={mission.endDate}
+                            targetMeetings={mission.targetMeetings ?? null}
+                            pulse={mission.pulse}
+                            series={pulsePeriod !== "30" && periodInsights.data ? periodInsights.data.series : insights?.series ?? []}
+                            team={team}
+                            teamStats={pulsePeriod !== "30" && periodInsights.data
+                                // In a period, the bar is the calls of that period.
+                                ? periodInsights.data.teamStats.map((row) => ({ ...row, recentActions: row.actions }))
+                                : mission.teamStats ?? []}
+                            period={pulsePeriod !== "30" && !periodInsights.data ? "30" : pulsePeriod}
+                            onPeriodChange={setPulsePeriod}
+                            periodLoading={periodInsights.isFetching}
+                            activeLists={launchReadiness?.activeLists ?? 0}
+                            readyLists={launchReadiness?.readyLists ?? 0}
+                            onAction={onPulseAction}
+                        />
+                    )}
+                    {running && <h2 className="cw-part-title">Configuration</h2>}
 
+                    <div className="cw-sections" data-numbered>
+                        <MissionSetupPanel
+                            mission={mission}
+                            onSave={(patch) => saveMissionField(patch, "Cadrage de la mission", { silent: true })}
+                            onTabChange={onTabChange}
+                            editRequest={editRequest}
+                            onDirtyChange={setSetupDirty}
+                        />
 
-            {/* READINESS — every gap links to the tab that fixes it */}
-            <ReadinessPanel readiness={mission.missionReadiness} onFix={onTabChange} />
+                        {running ? (
+                            <details className="cw-section cw-fold" id="lancement" open={!launch.ready || undefined}>
+                                <summary><div className="cw-section-head">
+                                <h2 id="cw-launch-title" tabIndex={-1}>Configuration de lancement <small>{launch.done}/{launch.total}</small></h2>
+                                {mission.status === "ACTIVE" ? <span className="cw-pill" data-tone="success"><i />Mission active</span>
+                                    : launch.ready ? <span className="cw-pill" data-tone="success"><i />Prête à lancer</span>
+                                    : <span className="cw-pill" data-tone="warning"><i />{launch.total - launch.done} point{launch.total - launch.done > 1 ? "s" : ""} à régler</span>}
+                            </div></summary>
+                            <LaunchChecklist summary={launch} readinessAvailable={Boolean(launchReadiness)} onFixStrategy={(field, list) => setLaunchFix({ field, list })} />
+                        </details>
+                        ) : (<section className="cw-section" id="lancement" aria-labelledby="cw-launch-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-launch-title" tabIndex={-1}>Checklist de lancement <small>{launch.done}/{launch.total}</small></h2>
+                                {mission.status === "ACTIVE" ? <span className="cw-pill" data-tone="success"><i />Mission active</span>
+                                    : launch.ready ? <span className="cw-pill" data-tone="success"><i />Prête à lancer</span>
+                                    : <span className="cw-pill" data-tone="warning"><i />{launch.total - launch.done} point{launch.total - launch.done > 1 ? "s" : ""} à régler</span>}
+                            </div>
+                            <LaunchChecklist summary={launch} readinessAvailable={Boolean(launchReadiness)} onFixStrategy={(field, list) => setLaunchFix({ field, list })} />
+                        </section>)}
 
-            {/* TABS NAVIGATION */}
-            <div className="mt-6 border-b border-slate-200">
-                <Tabs
-                    activeTab={activeTab}
-                    onTabChange={onTabChange}
-                    tabs={[
-                        { id: "general", label: "Général", icon: <Activity className="w-4 h-4" /> },
-                        { id: "equipe", label: "Équipe & campagnes", icon: <Users className="w-4 h-4" /> },
-                        { id: "strategies", label: "Stratégies par liste", icon: <Target className="w-4 h-4" /> },
-                        { id: "strategy", label: "Stratégie & Scripts (avancé)", icon: <FileText className="w-4 h-4" /> },
-                        { id: "audience", label: "BDD", icon: <Users className="w-4 h-4" /> },
-                        { id: "feedback", label: "Avis SDR", icon: <MessageSquare className="w-4 h-4" /> },
-                        { id: "reglages", label: "Réglages", icon: <ShieldCheck className="w-4 h-4" /> },
-                    ]}
-                />
-            </div>
+                        <section className="cw-section" aria-labelledby="cw-lists-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-lists-title">Bases de prospects <small>{activeLists.length} active{activeLists.length > 1 ? "s" : ""}</small></h2>
+                                <div className="cw-actions">
+                                    <button className="cw-button" data-size="sm" onClick={() => setAudiencePanel("new")}><Plus /> Nouvelle base</button>
+                                    {mission.lists.length > 0 && <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("audience")}>Gérer <ChevronRight /></button>}
+                                </div>
+                            </div>
+                            {activeLists.length ? <div className="cw-rows">
+                                {activeLists.slice(0, 5).map((list) => (
+                                    <div key={list.id} className="cw-row">
+                                        <span className="cw-row-icon" data-tone={list.readiness?.isReady ? "done" : "todo"}><Database aria-hidden /></span>
+                                        <div className="cw-row-main">
+                                            <button className="cw-row-title" title={list.name} onClick={() => setAudiencePanel({ id: list.id, name: list.name })}>{list.name}</button>
+                                            <small>{list._count?.companies ?? 0} société{(list._count?.companies ?? 0) > 1 ? "s" : ""}{list._count?.contacts !== undefined ? ` · ${list._count.contacts} contact${list._count.contacts > 1 ? "s" : ""}` : ""} · {list.campaign?.name ?? (list.readiness?.hasStrategy ? "Stratégie de la mission" : "Sans stratégie")}</small>
+                                        </div>
+                                        <span className="cw-row-side"><span className="cw-pill" data-tone={list.readiness?.isReady ? "success" : "warning"}><i />{list.readiness?.isReady ? "Prête" : "À compléter"}</span></span>
+                                    </div>
+                                ))}
+                            </div> : <p className="cw-empty-line"><span>{mission.lists.length ? "Aucune base active : réactivez une base pour alimenter la file d’appels." : "Aucune base de prospects pour cette mission."}</span>
+                                <button className="cw-button cw-primary" data-size="sm" onClick={() => mission.lists.length ? onTabChange("audience") : setAudiencePanel("new")}>{mission.lists.length ? "Réactiver une base" : "Ajouter une base"}</button></p>}
+                            {activeLists.length > 5 && <button className="cw-text-button" onClick={() => onTabChange("audience")}>Voir les {activeLists.length} bases <ChevronRight /></button>}
+                        </section>
 
-            {/* TAB CONTENT */}
-            <div className="mt-8">
-                {activeTab === "general" && (
-                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        {/* KPI tiles: lifetime value, 30-day trend, change vs the 30 days before */}
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <section className="cw-section" aria-labelledby="cw-scripts-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-scripts-title">Ciblage et scripts <small>{mission.campaigns.length}</small></h2>
+                                <div className="cw-actions">
+                                    <button className="cw-button" data-size="sm" onClick={() => setCampaignEditor("new")}><Plus /> Nouveau</button>
+                                    {mission.campaigns.length > 0 && <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("strategies")}>Par base <ChevronRight /></button>}
+                                </div>
+                            </div>
+                            {mission.campaigns.length ? <div className="cw-rows">
+                                {mission.campaigns.map((campaign) => {
+                                    const used = mission.lists.filter((list) => list.campaignId === campaign.id || list.readiness?.inheritedCampaignId === campaign.id).length;
+                                    return <div key={campaign.id} className="cw-row">
+                                        <span className="cw-row-icon"><FileText aria-hidden /></span>
+                                        <div className="cw-row-main">
+                                            <button className="cw-row-title" title={campaign.name} onClick={() => setCampaignEditor(campaign.id)}>{campaign.name}</button>
+                                            <small>{used ? `Utilisé par ${used} base${used > 1 ? "s" : ""}` : "Utilisé par aucune base"}</small>
+                                        </div>
+                                        <span className="cw-row-side">{campaign.isActive ? <span className="cw-pill" data-tone="success"><i />Par défaut</span> : <span className="cw-pill"><i />Inactif</span>}</span>
+                                    </div>;
+                                })}
+                            </div> : <p className="cw-empty-line"><span>Aucun ciblage ni script : les SDR n’ont rien à dire au téléphone.</span><button className="cw-button cw-primary" data-size="sm" onClick={() => setCampaignEditor("new")}>Rédiger le ciblage et le script</button></p>}
+                        </section>
+
+                        {!running && <section className="cw-section" aria-labelledby="cw-team-title">
+                            <div className="cw-section-head">
+                                <h2 id="cw-team-title">Équipe <small>{team.length} SDR</small></h2>
+                                <button className="cw-button" data-size="sm" onClick={() => onTabChange("equipe")}>{team.length ? "Gérer l’équipe" : "Affecter des SDR"} <ChevronRight /></button>
+                            </div>
+                            {team.length ? <div className="cw-rows">
+                                {team.slice(0, 6).map((sdr) => (
+                                    <div key={sdr.id} className="cw-row">
+                                        <span className="cw-avatar" style={{ width: 28, height: 28, border: 0 }} aria-hidden>{initials(sdr.name)}</span>
+                                        <div className="cw-row-main"><strong>{sdr.name}</strong><small>{sdr.email}</small></div>
+                                        <span className="cw-row-side">{mission.teamLeadSdrId === sdr.id && <span className="cw-pill" data-tone="accent"><i />Référent</span>}</span>
+                                    </div>
+                                ))}
+                            </div> : <p className="cw-empty-line"><span>Aucun SDR affecté : personne n’appellera sur cette mission.</span></p>}
+                            {team.length > 6 && <button className="cw-text-button" onClick={() => onTabChange("equipe")}>Voir les {team.length} SDR <ChevronRight /></button>}
+                        </section>}
+
+                        {!running && (mission.stats?.totalActions ?? 0) > 0 && <section className="cw-section" aria-labelledby="cw-activity-title">
+                            <div className="cw-section-head"><h2 id="cw-activity-title">Activité <small>{insights?.windowDays ?? 30} derniers jours</small></h2>
+                                <button className="cw-button cw-quiet" data-size="sm" onClick={() => onTabChange("feedback")}>Avis SDR <ChevronRight /></button></div>
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <KpiTile
                                 icon={Activity}
                                 label="Actions réalisées"
@@ -2203,109 +2092,11 @@ export function MissionWorkspace({
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Infos mission */}
-                            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                                <h2 className="text-lg font-semibold text-slate-900 mb-4">Infos mission</h2>
-                                <dl className="space-y-3 text-sm">
-                                    <div>
-                                        <dt className="text-slate-500 font-medium">Canal</dt>
-                                        <dd className="text-slate-900 flex items-center gap-2 mt-0.5">
-                                            <ChannelIcon className="w-4 h-4 text-slate-500" />
-                                            {channel.label}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500 font-medium">Client</dt>
-                                        <dd className="text-slate-900 mt-0.5">{mission.client?.name ?? "—"}</dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500 font-medium">Commercial par défaut</dt>
-                                        <dd className="mt-1">
-                                            <select
-                                                className="w-full max-w-xs rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                                value={mission.defaultInterlocuteur?.id ?? ""}
-                                                onChange={async (e) => {
-                                                    const value = e.target.value || null;
-                                                    try {
-                                                        const res = await fetch(`/api/missions/${mission.id}`, {
-                                                            method: "PUT",
-                                                            headers: { "Content-Type": "application/json" },
-                                                            body: JSON.stringify({ defaultInterlocuteurId: value }),
-                                                        });
-                                                        const json = await res.json();
-                                                        if (!json.success) {
-                                                            showError("Erreur", json.error || "Impossible de mettre à jour le commercial par défaut");
-                                                            return;
-                                                        }
-                                                        await fetchMission();
-                                                        success("Commercial mis à jour", "Le commercial par défaut de la mission a été mis à jour.");
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                        showError("Erreur", "Impossible de mettre à jour le commercial par défaut");
-                                                    }
-                                                }}
-                                            >
-                                                <option value="">Aucun (par liste uniquement)</option>
-                                                {mission.client?.interlocuteurs?.map((it) => (
-                                                    <option key={it.id} value={it.id}>
-                                                        {it.firstName} {it.lastName}
-                                                        {it.title ? ` — ${it.title}` : ""}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500 font-medium">Début</dt>
-                                        <dd className="text-slate-900 mt-0.5">
-                                            {mission.startDate ? new Date(mission.startDate).toLocaleDateString("fr-FR") : "—"}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500 font-medium">Fin</dt>
-                                        <dd className="text-slate-900 mt-0.5">
-                                            {mission.endDate ? new Date(mission.endDate).toLocaleDateString("fr-FR") : "En cours"}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt className="text-slate-500 font-medium">Boîte mail par défaut</dt>
-                                        <dd className="text-slate-900 mt-0.5 flex items-center gap-3">
-                                            {isLoadingMailboxes ? (
-                                                <span className="text-slate-400 text-sm">Chargement…</span>
-                                            ) : mailboxes.length === 0 ? (
-                                                <span className="text-slate-400 text-xs">
-                                                    Aucune boîte mail disponible. Configurez-les dans{" "}
-                                                    <a href="/manager/emails/mailboxes" className="text-primary-600 hover:underline">
-                                                        Boîtes mail
-                                                    </a>.
-                                                </span>
-                                            ) : (
-                                                <>
-                                                    <span className="text-sm">
-                                                        {(() => {
-                                                            if (!mission.defaultMailboxId) {
-                                                                return "Hériter du client / choix SDR";
-                                                            }
-                                                            const mb = mailboxes.find(m => m.id === mission.defaultMailboxId);
-                                                            if (!mb) return "Boîte mail introuvable";
-                                                            return mb.displayName ? `${mb.displayName} <${mb.email}>` : mb.email;
-                                                        })()}
-                                                    </span>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowMailboxModal(true)}
-                                                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
-                                                    >
-                                                        Configurer…
-                                                    </button>
-                                                </>
-                                            )}
-                                        </dd>
-                                    </div>
-                                </dl>
-                            </div>
+                        </section>}
+                    </div>
 
+                        <details className="cw-advanced">
+                            <summary><ChevronRight aria-hidden />Réglages de prospection</summary>
                             {/* Statuts et workflow */}
                             <div className="space-y-6">
                                 <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
@@ -2387,10 +2178,60 @@ export function MissionWorkspace({
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                )}
+                        </details>
+                </main>
 
+                <aside className="cw-rail" aria-label="Propriétés de la mission">
+                    <section className="cw-rail-section">
+                        <h2 className="cw-rail-title">Propriétés</h2>
+                        <dl className="cw-props">
+                            <div><dt>Statut</dt><dd><StatusSelect status={mission.status} disabled={isToggling} onSelect={changeStatus} /></dd></div>
+                            <div><dt>Début</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "startDate", at: Date.now() })}><span className={mission.startDate ? undefined : "cw-prop-empty"}>{mission.startDate ? dayShortFr.format(new Date(mission.startDate)) : "À définir"}</span></button></dd></div>
+                            <div><dt>Fin</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "endDate", at: Date.now() })}><span className={mission.endDate ? undefined : "cw-prop-empty"}>{mission.endDate ? dayShortFr.format(new Date(mission.endDate)) : "À définir"}</span></button></dd></div>
+                            <div><dt>Objectif</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "targetMeetings", at: Date.now() })}><span className={mission.targetMeetings ? undefined : "cw-prop-empty"}>{mission.targetMeetings ? `${mission.targetMeetings} RDV` : "À chiffrer"}</span></button></dd></div>
+                            <div><dt>Référent</dt><dd><button className="cw-prop-button" onClick={() => setEditRequest({ field: "teamLeadSdrId", at: Date.now() })}><span className={mission.teamLeadSdr ? undefined : "cw-prop-empty"}>{mission.teamLeadSdr?.name ?? "Non désigné"}</span></button></dd></div>
+                            <div><dt>Équipe</dt><dd><button className="cw-prop-button" onClick={() => onTabChange("equipe")} aria-label={`Équipe : ${team.length} SDR. Gérer`}>{avatars(5)}</button></dd></div>
+                        </dl>
+                    </section>
+
+                    {!running && <section className="cw-rail-section" aria-labelledby="cw-rail-launch">
+                        <h2 className="cw-rail-title" id="cw-rail-launch">Lancement <small>{launch.done} / {launch.total}</small></h2>
+                        <div className="cw-progress" data-done={launch.ready ? "" : undefined} role="progressbar" aria-label="Vérifications de lancement validées" aria-valuemin={0} aria-valuemax={launch.total} aria-valuenow={launch.done}>
+                            <span style={{ width: `${Math.round((launch.done / Math.max(launch.total, 1)) * 100)}%` }} />
+                        </div>
+                        {launch.next && launch.next.action && <>
+                            <p className="cw-hint">{launch.next.blocking ? "À régler" : "Conseillé"} : <strong>{launch.next.label}</strong><br />{launch.next.detail}</p>
+                            <button className="cw-button cw-full" onClick={launch.next.action.run}>{launch.next.action.label}<ChevronRight /></button>
+                        </>}
+                        {(isPortalLaunching || canStart) && <>
+                            <button className="cw-button cw-primary cw-full" disabled={!launch.ready && !isPortalLaunching} aria-describedby={!launch.ready && !isPortalLaunching ? "cw-launch-reason" : undefined} onClick={() => setShowPortalLaunchModal(true)}>
+                                {isPortalLaunching ? <Clock3 /> : <Rocket />}{isPortalLaunching ? "Gérer la visibilité" : "Démarrer la mission"}
+                            </button>
+                            {!launch.ready && !isPortalLaunching && <p id="cw-launch-reason" className="cw-hint">Disponible quand chaque base active a sa stratégie, son ciblage, son pitch et son script.</p>}
+                        </>}
+                        {mission.status === "ACTIVE" && !isPortalLaunching && <p className="cw-hint"><span className="cw-pill" data-tone="success"><i />Mission active</span></p>}
+                        <button className="cw-text-button" style={{ marginTop: 0 }} onClick={scrollToLaunch}>Voir la checklist <ChevronRight /></button>
+                    </section>}
+
+
+                    {onCreatePage && <section className="cw-rail-section">
+                        <h2 className="cw-rail-title">Pages liées <small>{linkedPages.length || ""}</small></h2>
+                        {linkedPages.length > 0 && <div className="cw-shortcuts">
+                            {linkedPages.map((page) => <button key={page.id} className="cw-shortcut" onClick={() => onOpenPage?.(page.id)}><Link2 /><span>{page.title || "Sans titre"}</span><ChevronRight /></button>)}
+                        </div>}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><button className="cw-button cw-quiet" data-size="sm"><Plus /> Nouvelle page liée</button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>Partir de</DropdownMenuLabel>
+                                {PAGE_TEMPLATE_IDS.map((id) => <DropdownMenuItem key={id} onSelect={() => onCreatePage(id)}><FileText />{PAGE_TEMPLATES[id].label}</DropdownMenuItem>)}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </section>}
+                </aside>
+            </div>
+
+            <Drawer isOpen={Boolean(panel)} onClose={() => onTabChange("general")} title={panel ? PANELS[panel].title : undefined} description={panel ? `${mission.name} · ${PANELS[panel].description}` : undefined} size="xl" bodyClassName="p-4 sm:p-6" closeOnOverlay={false}>
+            <div>
                 {activeTab === "strategies" && (
                     <StrategyByListTab
                         missionId={mission.id}
@@ -2939,13 +2780,13 @@ export function MissionWorkspace({
                                     </div>
                                     <h2 className="text-lg font-semibold text-slate-900">Listes de contacts</h2>
                                 </div>
-                                <Link
-                                    href={`/manager/lists/new?missionId=${mission.id}`}
+                                <button type="button" onClick={() => setAudiencePanel("new")}
                                     className="flex items-center gap-2 h-9 px-4 text-sm font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
                                 >
                                     <ListIcon className="w-4 h-4" />
-                                    Nouvelle
-                                </Link>
+                                    Créer une base
+                                </button>
+                                <button className="cw-button ml-2" onClick={() => setShowCsvImport(true)}><Upload /> Importer CSV</button>
                             </div>
                             {mission.lists.length === 0 ? (
                                 <p className="text-sm text-slate-500">Aucune liste</p>
@@ -2995,9 +2836,8 @@ export function MissionWorkspace({
                                             }}
                                         >
                                             <div className={`mgr-mission-card group flex items-center gap-4 p-4 ${!isListActive ? "opacity-70 bg-slate-50" : ""}`}>
-                                                <Link
-                                                    href={`/manager/lists/${list.id}`}
-                                                    className="flex items-center gap-4 flex-1 min-w-0"
+                                                <button type="button" onClick={() => setAudiencePanel({ id: list.id, name: list.name })}
+                                                    className="flex items-center gap-4 flex-1 min-w-0 text-left"
                                                 >
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isListActive ? "bg-amber-100" : "bg-slate-200"}`}>
                                                         <ListIcon className={`w-5 h-5 ${isListActive ? "text-amber-600" : "text-slate-500"}`} />
@@ -3007,16 +2847,10 @@ export function MissionWorkspace({
                                                             {list.name}
                                                         </p>
                                                         <p className="text-sm text-slate-500">
-                                                            {list._count?.companies || 0} sociétés · {Array.isArray((list as any).companies)
-                                                                ? (list as any).companies.reduce(
-                                                                    (acc: number, c: { _count?: { contacts?: number } }) =>
-                                                                        acc + (c._count?.contacts || 0),
-                                                                    0
-                                                                )
-                                                                : 0} contacts
+                                                            {list._count?.companies || 0} sociétés · {list._count?.contacts ?? 0} contacts
                                                         </p>
                                                     </div>
-                                                </Link>
+                                                </button>
                                                 {!isListActive && (
                                                     <span className="text-xs font-medium text-slate-500 px-2 py-1 bg-slate-200 rounded">
                                                         Désactivée
@@ -3510,12 +3344,11 @@ export function MissionWorkspace({
                                         Une campagne porte l&apos;ICP, le pitch et le script utilisés par les SDR.
                                     </p>
                                 </div>
-                                <a
-                                    href={`/manager/campaigns/new?missionId=${mission.id}`}
+                                <button type="button" onClick={() => setCampaignEditor("new")}
                                     className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
                                 >
                                     <Plus className="h-4 w-4" /> Nouvelle campagne
-                                </a>
+                                </button>
                             </div>
                             {mission.campaigns.length === 0 ? (
                                 <div className="px-5 py-10 text-center">
@@ -3541,13 +3374,12 @@ export function MissionWorkspace({
                                             <span className="text-xs text-slate-500">
                                                 {c.isActive ? "Active" : "Inactive"}
                                             </span>
-                                            <a
-                                                href={`/manager/campaigns/${c.id}`}
+                                            <button type="button" onClick={() => setCampaignEditor(c.id)}
                                                 className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
                                                 aria-label={`Ouvrir la campagne ${c.name}`}
                                             >
-                                                <ExternalLink className="h-4 w-4" />
-                                            </a>
+                                                <Edit className="h-4 w-4" />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -3636,6 +3468,7 @@ export function MissionWorkspace({
                     </div>
                 )}
             </div>
+            </Drawer>
 
             {/* Create Template Modal */}
             {showCreateTemplateModal && (
@@ -4207,16 +4040,7 @@ export function MissionWorkspace({
                                     <p className="text-sm text-slate-500 mb-4">
                                         Créez des templates partagés dans la section Email
                                     </p>
-                                    <a
-                                        href={`/manager/emails/templates?new=1${mission?.id ? `&mission=${mission.id}` : ""}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Créer un template
-                                        <ExternalLink className="w-4 h-4" />
-                                    </a>
+                                    <button type="button" onClick={() => { setShowAddTemplateModal(false); setShowCreateTemplateModal(true); }} className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-700"><Plus className="h-4 w-4" />Créer un modèle</button>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -4501,11 +4325,25 @@ export function MissionWorkspace({
                 }}
             />
 
+            {audiencePanel && <MissionAudienceDrawer key={audiencePanel === "new" ? "new" : audiencePanel.id} missionId={mission.id} missionName={mission.name} list={audiencePanel === "new" ? null : audiencePanel} onClose={() => setAudiencePanel(null)} onCreated={setAudiencePanel} onChanged={() => { void fetchMission(); onMissionMutated?.(); }} />}
+            {showCsvImport && <CSVImportDialog isOpen onClose={() => setShowCsvImport(false)} missions={[{ id: mission.id, name: mission.name }]} onSuccess={() => { setShowCsvImport(false); void fetchMission(); onMissionMutated?.(); onTabChange("audience"); }} />}
+            {campaignEditor && <StrategyEditorDrawer isOpen onClose={() => setCampaignEditor(null)} campaignId={campaignEditor === "new" ? null : campaignEditor} missionId={mission.id} lists={mission.lists} onSaved={() => { void fetchMission(); onMissionMutated?.(); }} />}
+            {launchFix && <StrategyEditorDrawer
+                isOpen
+                onClose={() => setLaunchFix(null)}
+                campaignId={launchFix.list.readiness?.inheritedCampaignId ?? launchFix.list.campaignId ?? null}
+                initialAssignToListId={launchFix.field === "strategy" ? launchFix.list.id : undefined}
+                focusField={launchFix.field === "strategy" ? undefined : launchFix.field}
+                missionId={mission.id}
+                lists={mission.lists}
+                onSaved={() => { void fetchMission(); onMissionMutated?.(); }}
+            />}
+
             <EditMissionDialog
                 isOpen={showEditMissionDialog}
                 onClose={() => setShowEditMissionDialog(false)}
                 mission={mission}
-                onSaved={fetchMission}
+                onSaved={() => { void fetchMission(); onMissionMutated?.(); }}
             />
 
             <Modal

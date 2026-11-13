@@ -268,7 +268,7 @@ function ResetPasswordForm() {
                     <div className="lp-inner">
 
                         <BrandLogo
-                            height={28}
+                            height={48}
                             priority
                             className="lp-logo"
                         />

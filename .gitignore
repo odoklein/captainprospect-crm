@@ -64,3 +64,21 @@ powershell.cmd
 /provision-out/
 provision.infra.env
 provision.shared.env
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Temporary files
+*.log
+*.tsbuildinfo
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Local secrets
+.env
+.env.local
+.env.*.local

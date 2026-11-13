@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useDockItem } from "@/components/layout/FloatingDock";
 import { Lightbulb, X, Send, AlertCircle, CheckCircle2, Wrench, FolderOpen, MessageSquare } from "lucide-react";
 
 export function SdrSuggestionLauncher() {
@@ -12,6 +13,15 @@ export function SdrSuggestionLauncher() {
     const [submitting, setSubmitting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useDockItem("idea", {
+        label: "Une idée / Besoin",
+        icon: Lightbulb,
+        tone: "idea",
+        active: isOpen,
+        order: 90,
+        onClick: () => setIsOpen(true),
+    });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -56,19 +66,7 @@ export function SdrSuggestionLauncher() {
 
     return (
         <>
-            {/* Floating button on SDR interface */}
-            <div className="fixed bottom-6 left-6 z-40">
-                <button
-                    type="button"
-                    onClick={() => setIsOpen(true)}
-                    className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-lg hover:shadow-xl transition-all border border-amber-400/50"
-                    title="Proposer une amélioration ou signaler un problème"
-                >
-                    <Lightbulb className="w-4 h-4 text-amber-100" />
-                    <span>Une idée / Besoin</span>
-                </button>
-            </div>
-
+            {/* The button lives in the floating dock (useDockItem above). */}
             {/* Modal */}
             {isOpen && (
                 <div

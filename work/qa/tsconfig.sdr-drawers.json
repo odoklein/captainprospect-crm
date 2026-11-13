@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "incremental": false
+  },
+  "extends": "../../tsconfig.json",
+  "exclude": [
+    "../../node_modules",
+    "../../.next"
+  ],
+  "include": [
+    "../../components/ui/Drawer.tsx"
+  ]
+}

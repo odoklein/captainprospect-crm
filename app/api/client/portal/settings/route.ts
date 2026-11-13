@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils";
+import { clientMayExport } from "@/lib/client-portal-export";
 
 export const GET = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["CLIENT"], request);
@@ -27,6 +28,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     return successResponse({
         portalShowCallHistory: (client as Record<string, unknown>).portalShowCallHistory ?? false,
         portalShowDatabase: (client as Record<string, unknown>).portalShowDatabase ?? false,
+        portalAllowExport: await clientMayExport(clientId),
     });
 });
 

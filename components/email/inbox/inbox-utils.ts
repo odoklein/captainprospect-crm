@@ -211,7 +211,7 @@ export function crmRoutes(role?: string | null) {
             return null;
         },
         mission: (id: string): string | null => (isManager ? `/manager/missions/${id}` : null),
-        client: (id: string): string | null => (isManager ? `/manager/clients/${id}` : null),
+        client: (id: string): string | null => (isManager ? `/manager/clients?client=${id}` : null),
     };
 }
 

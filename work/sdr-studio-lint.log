@@ -1,0 +1,15 @@
+
+C:\Users\dell\Desktop\Desktop\CP\captainprospect-crm\components\drawers\UnifiedActionDrawer.tsx
+     6:26  warning  'Badge' is defined but never used                                                                                           @typescript-eslint/no-unused-vars
+     7:37  warning  'ActionResult' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+    46:5   warning  'Video' is defined but never used                                                                                           @typescript-eslint/no-unused-vars
+   590:11  warning  'refetchActions' is assigned a value but never used                                                                         @typescript-eslint/no-unused-vars
+   883:8   warning  React Hook useEffect has missing dependencies: 'company' and 'contact'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  3077:65  warning  'index' is defined but never used                                                                                           @typescript-eslint/no-unused-vars
+  3084:51  warning  'hasLongNote' is assigned a value but never used                                                                            @typescript-eslint/no-unused-vars
+
+C:\Users\dell\Desktop\Desktop\CP\captainprospect-crm\components\sdr\workspace\ProspectIdentity.tsx
+  15:135  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+✖ 8 problems (0 errors, 8 warnings)
+

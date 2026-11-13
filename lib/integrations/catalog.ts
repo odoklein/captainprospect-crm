@@ -30,7 +30,7 @@ export interface IntegrationKeyDef {
 
 export const INTEGRATION_GROUPS: Record<IntegrationGroup, { label: string; hint: string }> = {
     ai: { label: "Intelligence artificielle", hint: "Assistant, fiches, analyses et rédaction" },
-    telephony: { label: "Téléphonie", hint: "Statistiques d'appels et enregistrements" },
+    telephony: { label: "Téléphonie", hint: "Téléphone intégré (Twilio), statistiques d'appels et enregistrements" },
     meetings: { label: "Enregistreurs de réunions", hint: "Importer un appel de closing dans « Nouveau client »" },
     data: { label: "Données & prospection", hint: "Sourcing, enrichissement, recherche d'entreprises" },
 };
@@ -61,6 +61,16 @@ export const INTEGRATION_KEYS = [
         placeholder: "sk-…",
         docsUrl: "https://platform.deepseek.com/api_keys",
     },
+    // Not a secret: which model the call features use. Switching back is
+    // changing this one value (live in about a second, no redeploy).
+    {
+        name: "CALL_AI_MODEL",
+        label: "Modèle IA des appels",
+        group: "ai",
+        usedFor:
+            "Résumé de fin d'appel, résultat suggéré sous l'île d'appel et brief avant l'appel. « deepseek-chat » pour DeepSeek, « gpt-4o » pour OpenAI (défaut si vide). Si DeepSeek échoue ou n'est pas autorisé pour les données CRM, OpenAI prend le relais",
+        placeholder: "deepseek-chat ou gpt-4o",
+    },
     {
         name: "ALLO_API_KEY",
         label: "Allo — clé API",
@@ -72,6 +82,54 @@ export const INTEGRATION_KEYS = [
         label: "Allo — secret du webhook",
         group: "telephony",
         usedFor: "Accepter les appels envoyés par Allo en temps réel (/api/webhooks/allo)",
+    },
+    // Twilio (lib/telephony): in-app softphone. All six are needed for the « Appeler » button
+    // to dial from the browser; with any missing, phone links fall back to tel: (Allo).
+    {
+        name: "TWILIO_ACCOUNT_SID",
+        label: "Twilio — Account SID",
+        group: "telephony",
+        usedFor: "Téléphone intégré : appeler depuis le CRM (et lire les enregistrements Twilio)",
+        placeholder: "AC…",
+        docsUrl: "https://console.twilio.com/",
+    },
+    {
+        name: "TWILIO_AUTH_TOKEN",
+        label: "Twilio — Auth Token",
+        group: "telephony",
+        usedFor: "Vérifier les webhooks Twilio et lire les enregistrements",
+        docsUrl: "https://console.twilio.com/",
+    },
+    {
+        name: "TWILIO_API_KEY_SID",
+        label: "Twilio — API Key SID",
+        group: "telephony",
+        usedFor: "Ouvrir la ligne du navigateur (jeton d'accès Voice)",
+        placeholder: "SK…",
+        docsUrl: "https://console.twilio.com/us1/account/keys-credentials/api-keys",
+    },
+    {
+        name: "TWILIO_API_KEY_SECRET",
+        label: "Twilio — API Key Secret",
+        group: "telephony",
+        usedFor: "Ouvrir la ligne du navigateur (jeton d'accès Voice)",
+        docsUrl: "https://console.twilio.com/us1/account/keys-credentials/api-keys",
+    },
+    {
+        name: "TWILIO_TWIML_APP_SID",
+        label: "Twilio — TwiML App SID",
+        group: "telephony",
+        usedFor: "Router les appels sortants vers /api/webhooks/twilio/voice",
+        placeholder: "AP…",
+        docsUrl: "https://console.twilio.com/us1/develop/voice/manage/twiml-apps",
+    },
+    {
+        name: "TWILIO_CALLER_ID",
+        label: "Twilio — numéro sortant par défaut",
+        group: "telephony",
+        usedFor: "Numéro présenté aux prospects quand l'utilisateur n'a pas de numéro Twilio personnel",
+        placeholder: "+33…",
+        docsUrl: "https://console.twilio.com/us1/develop/phone-numbers/manage/incoming",
     },
     // Note-takers (lib/notetakers): the « Appel enregistré » source of the « Nouveau client » wizard.
     {
@@ -191,7 +249,11 @@ export function checkIntegrationValue(name: IntegrationKeyName, raw: string): { 
     return { ok: true, value };
 }
 
-/** "••••a1b2" — enough to recognise a key, never enough to use it. */
-export function keyHint(value: string): string {
+/** Settings that are not secrets: shown in full, so you can see which one is active. */
+export const PLAIN_SETTINGS: ReadonlySet<string> = new Set(["CALL_AI_MODEL"]);
+
+/** "••••a1b2" — enough to recognise a key, never enough to use it. Plain settings show their value. */
+export function keyHint(value: string, name?: string): string {
+    if (name && PLAIN_SETTINGS.has(name)) return value.slice(0, 64);
     return value.length >= 16 ? `••••${value.slice(-4)}` : "••••";
 }

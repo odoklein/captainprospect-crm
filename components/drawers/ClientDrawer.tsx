@@ -2,17 +2,17 @@
 
 import { useEffect, useRef, useState, ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
+import dynamic from "next/dynamic";
+import { Drawer } from "@/components/ui/Drawer";
+const ClientDetailWorkspace = dynamic(() => import("@/components/manager/ClientDetailWorkspace").then(module => module.ClientDetailWorkspace), { loading: () => <div role="status" className="p-8 text-sm text-slate-500">Chargement des sessions…</div> });
+const SdrFeedbackWorkspace = dynamic(() => import("@/components/manager/SdrFeedbackWorkspace").then(module => module.SdrFeedbackWorkspace), { loading: () => <div role="status" className="p-8 text-sm text-slate-500">Chargement des avis…</div> });
 import {
-    Drawer,
     Button,
     Badge,
-    Tabs,
     useToast,
     ConfirmModal,
     Modal,
     DatePicker,
-    DrawerHeader,
 } from "@/components/ui";
 import { CLIENTS_QUERY_KEY, clientDetailQueryKey } from "@/lib/query-keys";
 import {
@@ -32,10 +32,13 @@ import { OnboardingChecklist, onboardingChecklistKey } from "@/components/onboar
 import { AccessLinksCard } from "@/components/onboarding/AccessLinksCard";
 import { WeeklyBilanModal } from "@/components/reporting/WeeklyBilanModal";
 import type { ChecklistView } from "@/lib/onboarding/checklist-service";
+import { ClientManagementDrawer, type ClientManagementSection } from "@/components/manager/ClientManagementDrawer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/shadcn/dropdown-menu";
 import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
 import { DailyReportBody, type DailyReportLike } from "@/components/sdr/DailyReportView";
 import {
     MISSION_STATUS_CONFIG,
+    MISSION_STATUS_TRANSITIONS,
     type MissionStatusValue,
 } from "@/lib/constants/missionStatus";
 import {
@@ -56,7 +59,6 @@ import {
     Activity,
     Plus,
     FileText,
-    Settings2,
     UserCog,
     TrendingUp,
     PlayCircle,
@@ -81,8 +83,19 @@ import {
     ChevronUp,
     Mic,
     ListChecks,
+    Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { missionAttention, type AttentionEntry } from "@/lib/manager/attention";
+import { InboxItem, type WorkspaceClient, type WorkspaceLocation, type WorkspaceMission } from "@/components/manager/workspace/InboxItem";
+import { CrumbSlotProvider } from "@/components/manager/workspace/CrumbSlot";
+import { CrumbSwitcher } from "@/components/manager/workspace/CrumbSwitcher";
+import { ClientPageEditor } from "@/components/manager/workspace/ClientPageEditor";
+import { createClientPage, useClientPages, clientPagesKey } from "@/components/manager/workspace/clientPages";
+import { PAGE_TEMPLATES, PAGE_TEMPLATE_IDS, type PageTemplate } from "@/lib/client-pages/blocks";
+import { useFocusRequest } from "@/components/manager/workspace/focus";
+import { DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from "@/components/ui/shadcn/dropdown-menu";
+import { ArrowLeft, Home, CalendarRange, Loader2 } from "lucide-react";
 
 // ============================================================================
 // TYPES
@@ -147,9 +160,12 @@ interface InterlocuteurLite {
     id: string;
     firstName: string;
     lastName: string;
-    email: string | null;
-    phone: string | null;
-    jobTitle: string | null;
+    email?: string | null;
+    phone?: string | null;
+    jobTitle?: string | null;
+    title?: string | null;
+    emails?: Array<{ value: string; isPrimary: boolean }>;
+    phones?: Array<{ value: string; isPrimary: boolean }>;
     createdAt: string;
     portalUser?: { id: string; email: string; name: string | null; isActive: boolean } | null;
 }
@@ -228,14 +244,50 @@ interface ClientDrawerProps {
      * /manager/missions/[id] links can land straight on a mission.
      */
     openMissionId?: string | null;
-    onOpenMission?: (missionId: string | null) => void;
+    onOpenMission?: (missionId: string | null, tab?: string) => void;
+    clientTab?: string;
+    onClientTabChange?: (tab: string) => void;
     missionTab?: string;
     onMissionTabChange?: (tab: string) => void;
+    /** Workspace directory rows: siblings for the client switcher, launch summaries for « À traiter ». */
+    allClients?: WorkspaceClient[];
+    /** Moves anywhere in the workspace (another client, a mission panel, a page). */
+    onNavigate?: (location: WorkspaceLocation | null, focus?: string) => void;
+    openPageId?: string | null;
+}
+
+/** Mission sections listed under an open mission in the tree. `general` is the brief itself. */
+const MISSION_SECTIONS = [
+    { tab: "general", label: "Brief" },
+    { tab: "lancement", label: "Lancement" },
+    { tab: "audience", label: "Bases de prospects" },
+    { tab: "strategies", label: "Ciblage et scripts" },
+    { tab: "equipe", label: "Équipe" },
+] as const;
+const MISSION_PANEL_LABELS: Record<string, string> = {
+    lancement: "Lancement",
+    audience: "Bases de prospects",
+    strategies: "Ciblage et scripts",
+    strategy: "Stratégie avancée",
+    equipe: "Équipe",
+    feedback: "Avis SDR",
+    reglages: "Administration",
+};
+const MISSION_TONE: Record<string, "success" | "warning" | "neutral" | "danger"> = { ACTIVE: "success", DRAFT: "neutral", PAUSED: "warning", COMPLETED: "neutral", ARCHIVED: "neutral" };
+const shortDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "Europe/Paris" });
+function draftCount(missions: { status: string }[]) {
+    return missions.filter((mission) => mission.status === "DRAFT").length;
+}
+function missionPeriod(mission: { startDate?: string | null; endDate?: string | null }) {
+    if (!mission.startDate && !mission.endDate) return null;
+    const start = mission.startDate ? shortDate.format(new Date(mission.startDate)) : "…";
+    const end = mission.endDate ? shortDate.format(new Date(mission.endDate)) : "…";
+    return `${start} – ${end}`;
 }
 
 type TabId = "apercu" | "missions" | "onboarding" | "acces" | "activite" | "avis-sdr" | "sessions";
 
-const DRAWER_EXPANDED_KEY = "cp:clientDrawerExpanded";
+const CLIENT_TABS: TabId[] = ["missions", "apercu", "onboarding", "acces", "activite", "avis-sdr", "sessions"];
 
 interface ClientSessionTask {
     id: string;
@@ -474,87 +526,41 @@ export function ClientDrawer({
     onUpdate,
     onDelete,
     openMissionId,
+    clientTab = "missions",
+    onClientTabChange,
     onOpenMission,
     missionTab,
     onMissionTabChange,
+    allClients = [],
+    onNavigate,
+    openPageId = null,
 }: ClientDrawerProps) {
     const queryClient = useQueryClient();
     const { success, error: showError } = useToast();
 
-    const [activeTab, setActiveTab] = useState<TabId>("apercu");
+    const activeTab = CLIENT_TABS.includes(clientTab as TabId) ? clientTab as TabId : "missions";
+    const [showAllTreeMissions, setShowAllTreeMissions] = useState(false);
+    const [expandedMissions, setExpandedMissions] = useState<Set<string>>(() => new Set(openMissionId ? [openMissionId] : []));
+    const [crumbSlot, setCrumbSlot] = useState<HTMLDivElement | null>(null);
+    const [creatingPage, setCreatingPage] = useState(false);
+    const [showClosedMissions, setShowClosedMissions] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [scriptModalMission, setScriptModalMission] = useState<MissionLite | null>(null);
     const [savingPlanId, setSavingPlanId] = useState<string | null>(null);
-    const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const [savingStatus, setSavingStatus] = useState(false);
-    const moreBtnRef = useRef<HTMLButtonElement | null>(null);
-    const [moreOpen, setMoreOpen] = useState(false);
+    const [managementSection, setManagementSection] = useState<ClientManagementSection | null>(null);
     const [showNewMission, setShowNewMission] = useState(false);
 
-    // Width preference: 1180px by default, near-full for script/BDD work.
-    const [isExpanded, setIsExpanded] = useState(false);
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        setIsExpanded(window.localStorage.getItem(DRAWER_EXPANDED_KEY) === "1");
-    }, []);
-    const toggleExpanded = () => {
-        setIsExpanded((prev) => {
-            const next = !prev;
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(DRAWER_EXPANDED_KEY, next ? "1" : "0");
-            }
-            return next;
-        });
-    };
-
-    /**
-     * Drill-down state lives here, and the URL mirrors it.
-     *
-     * It used to be the other way round: a click called the parent, which pushed
-     * a new URL, and the drawer only opened once useSearchParams re-rendered.
-     * One broken link in that chain and the click did nothing at all. Owning the
-     * state locally makes the click immediate; the URL still follows so deep
-     * links and the back button keep working, and an external change (a deep
-     * link, the back button) syncs back in through the effect below.
-     */
-    const [activeMissionId, setActiveMissionId] = useState<string | null>(openMissionId ?? null);
-    const [activeMissionTab, setActiveMissionTab] = useState(missionTab ?? "general");
-
-    useEffect(() => {
-        if (openMissionId === undefined) return;
-        setActiveMissionId(openMissionId);
-    }, [openMissionId]);
-
-    useEffect(() => {
-        if (missionTab === undefined) return;
-        setActiveMissionTab(missionTab);
-    }, [missionTab]);
-
-    // A different client means a different mission list: never keep the old one.
-    // Guarded by a ref so this does not fire on mount and wipe out a deep link
-    // (?client=X&mission=Y), which is the one path that has to survive here.
-    const lastClientIdRef = useRef<string | undefined>(client?.id);
-    useEffect(() => {
-        if (lastClientIdRef.current === client?.id) return;
-        lastClientIdRef.current = client?.id;
-        setActiveMissionId(openMissionId ?? null);
-    }, [client?.id, openMissionId]);
-
-    const openMission = (id: string | null, tab: string = "general") => {
-        setActiveMissionId(id);
-        setActiveMissionTab(tab);
-        onOpenMission?.(id);
-        onMissionTabChange?.(tab);
-    };
-
-    const changeMissionTab = (tab: string) => {
-        setActiveMissionTab(tab);
-        onMissionTabChange?.(tab);
-    };
+    const activeMissionId = openMissionId ?? null;
+    const activePageId = activeMissionId ? null : openPageId;
+    const go = (location: WorkspaceLocation | null, focus?: string) => onNavigate?.(location, focus);
+    const activeMissionTab = missionTab ?? "general";
+    const openMission = (id: string | null, tab = "general") => onOpenMission?.(id, tab);
+    const changeMissionTab = (tab: string) => onMissionTabChange?.(tab);
+    const setActiveTab = (tab: TabId) => onClientTabChange?.(tab);
 
     // React Query: full client detail
-    const { data: clientDetail } = useQuery({
+    const { data: clientDetail, isLoading: isLoadingClient, isError: isClientError, refetch: refetchClient } = useQuery({
         queryKey: clientDetailQueryKey(client?.id ?? null),
         queryFn: () => fetchClientDetail(client!.id),
         enabled: isOpen && !!client?.id,
@@ -573,6 +579,9 @@ export function ClientDrawer({
         staleTime: 30_000,
     });
 
+    const { data: pages = [] } = useClientPages(client?.id ?? "", isOpen && !!client?.id);
+    useFocusRequest(activeMissionId, activePageId, clientTab, isLoadingClient, pages.length);
+
     // Mailboxes list (loaded once while drawer is open)
     const { data: mailboxes = [] } = useQuery({
         queryKey: ["manager", "mailboxes"],
@@ -582,6 +591,7 @@ export function ClientDrawer({
     });
 
     // Sessions & CRs (compact read-only view)
+    const [detailPanel, setDetailPanel] = useState<"sessions" | "feedback" | null>(null);
     const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
     const [bilanOpen, setBilanOpen] = useState(false);
     const [sessionCrTab, setSessionCrTab] = useState<"cr" | "email">("cr");
@@ -594,11 +604,6 @@ export function ClientDrawer({
         },
         enabled: isOpen && !!client?.id,
     });
-
-    // Reset tab when switching clients
-    useEffect(() => {
-        if (client) setActiveTab("apercu");
-    }, [client?.id]);
 
     // ─── save helper (single-field PATCH) ────────────────────────────────────
     const saveField = async (patch: Record<string, unknown>) => {
@@ -634,7 +639,6 @@ export function ClientDrawer({
     // ─── change client status (Actif / En pause / Arrêté) ─────────────────────
     const changeStatus = async (next: ClientStatus) => {
         if (!client) return;
-        setStatusMenuOpen(false);
         setSavingStatus(true);
         try {
             await saveField({ status: next });
@@ -676,7 +680,7 @@ export function ClientDrawer({
 
     const missions: MissionLite[] = (clientDetail?.missions ?? []) as MissionLite[];
     const usersList: ClientUserLite[] = (clientDetail?.users ?? []) as ClientUserLite[];
-    const interlocuteurs: InterlocuteurLite[] = (clientDetail?.interlocuteurs ?? []) as InterlocuteurLite[];
+    const interlocuteurs: InterlocuteurLite[] = ((clientDetail?.interlocuteurs ?? []) as InterlocuteurLite[]).map(person => ({ ...person, email: person.emails?.find(entry => entry.isPrimary)?.value ?? person.emails?.[0]?.value ?? person.email, phone: person.phones?.find(entry => entry.isPrimary)?.value ?? person.phones?.[0]?.value ?? person.phone, jobTitle: person.title ?? person.jobTitle }));
     const production = clientDetail?.insights?.production as ClientProductionInsights | undefined;
     const engagement = clientDetail?.insights?.engagement as ClientEngagementInsights | null | undefined;
     const recentActions = (clientDetail?.insights?.recentActions ?? []) as ClientActionInsight[];
@@ -684,6 +688,7 @@ export function ClientDrawer({
     const onboardingData = (clientDetail?.onboarding?.onboardingData ?? {}) as {
         defaultMailboxId?: string;
         icp?: string;
+        portalAllowExport?: boolean;
     };
     const bookingUrl = (client.bookingUrl ?? clientDetail?.bookingUrl ?? "") as string;
     const icp = onboardingData.icp || "";
@@ -715,10 +720,10 @@ export function ClientDrawer({
             });
             const json = await res.json();
             if (!json.success) {
-                showError("Erreur", json.error || "Impossible de mettre Ã  jour le planning");
+                showError("Erreur", json.error || "Impossible de mettre à jour le planning");
                 throw new Error(json.error);
             }
-            success("Planning mis Ã  jour", `${nextFrequency} jour${nextFrequency > 1 ? "s" : ""} / semaine enregistrÃ©`);
+            success("Planning mis à jour", `${nextFrequency} jour${nextFrequency > 1 ? "s" : ""} / semaine enregistré`);
             queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
             queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
         } finally {
@@ -727,101 +732,67 @@ export function ClientDrawer({
     };
 
     // ───────────────────────────────────────────────────────────────────────
-    // HEADER (hero)
+    // CLIENT ACTIONS (breadcrumb bar) + PAGE CREATION
     // ───────────────────────────────────────────────────────────────────────
 
-    const Header = (
-        <DrawerHeader
-            className="!px-4 sm:!px-6"
-            onClose={onClose}
-            title={
-                <InlineText
-                    value={client.name}
-                    onSave={(v) => saveField({ name: v })}
-                    valueClassName="text-center text-base font-semibold !text-slate-900"
-                    className="!mb-0 [&_button]:!mx-0"
-                />
-            }
-            subtitle={
-                <>
-                    {client.industry || "Secteur non spécifié"} · Client depuis{" "}
-                    {new Date(client.createdAt).toLocaleDateString("fr-FR", { month: "short", year: "numeric" })}
-                </>
-            }
-            left={<>
-            {/* Monogram */}
-            <div className="hidden sm:flex w-10 h-10 flex-shrink-0 rounded-lg bg-slate-100 items-center justify-center text-slate-500 text-base font-semibold">
-                {client.name[0]?.toUpperCase() || "?"}
-            </div>
+    const addPage = async (template: PageTemplate, missionId?: string | null) => {
+        if (creatingPage) return;
+        setCreatingPage(true);
+        try {
+            const page = await createClientPage(client.id, { template, missionId });
+            queryClient.setQueryData(clientPagesKey(client.id), (list: typeof pages | undefined) => [...(list ?? []), page]);
+            go({ client: client.id, page: page.id }, "heading");
+        } catch (cause) {
+            showError("Page non créée", (cause as Error).message);
+        } finally {
+            setCreatingPage(false);
+        }
+    };
 
-            {/* Client status pill */}
-            <div className="relative flex-shrink-0">
-                <button
-                    onClick={() => setStatusMenuOpen((v) => !v)}
-                    disabled={savingStatus}
-                    className={`flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-lg border text-xs font-medium transition-colors ${statusInfo.badge} hover:brightness-95 disabled:opacity-50`}
-                >
-                    <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
-                    {statusInfo.label}
-                    <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+    const pageTemplateItems = (missionId?: string | null) => PAGE_TEMPLATE_IDS.map((id) => (
+        <DropdownMenuItem key={id} disabled={creatingPage} onSelect={() => void addPage(id, missionId)}><FileText />{PAGE_TEMPLATES[id].label}</DropdownMenuItem>
+    ));
+
+    const statusTone = clientStatus === "ACTIVE" ? "success" : clientStatus === "PAUSED" ? "warning" : undefined;
+    const StatusMenu = (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button className="cw-prop-button" disabled={savingStatus} aria-label={`Statut du client : ${statusInfo.label}. Changer`}>
+                    <span className="cw-pill" data-tone={statusTone}><i />{statusInfo.label}</span><ChevronDown aria-hidden />
                 </button>
-                {statusMenuOpen && (
-                    <>
-                        <div className="fixed inset-0 z-40" onClick={() => setStatusMenuOpen(false)} />
-                        <div className="absolute left-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg z-50 overflow-hidden">
-                            {(Object.keys(CLIENT_STATUS_CONFIG) as ClientStatus[]).map((key) => {
-                                const opt = CLIENT_STATUS_CONFIG[key];
-                                const OptIcon = opt.icon;
-                                return (
-                                    <button
-                                        key={key}
-                                        onClick={() => changeStatus(key)}
-                                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-slate-50 transition-colors ${key === clientStatus ? "text-slate-900 bg-slate-50" : "text-slate-600"}`}
-                                    >
-                                        <OptIcon className="w-3.5 h-3.5 text-slate-400" />
-                                        {opt.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </>
-                )}
-            </div>
-            </>}
-            right={<>
-            {/* Overflow menu */}
-            <button
-                ref={moreBtnRef}
-                onClick={() => setMoreOpen((v) => !v)}
-                aria-label="Plus d’actions"
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex-shrink-0"
-            >
-                <MoreHorizontal className="w-5 h-5" />
-            </button>
-            <PopoverPanel open={moreOpen} onClose={() => setMoreOpen(false)} anchor={moreBtnRef} width={200} align="end">
-                <div className="py-1">
-                    <Link
-                        href={`/manager/clients/${client.id}`}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <ExternalLink className="w-4 h-4 text-slate-400" />
-                        Page détaillée
-                    </Link>
-                    <div className="border-t border-slate-100 my-1" />
-                    <button
-                        onClick={() => {
-                            setMoreOpen(false);
-                            setShowDeleteConfirm(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                        Supprimer le client
-                    </button>
-                </div>
-            </PopoverPanel>
-            </>}
-        />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuLabel>Statut du client</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={clientStatus} onValueChange={(value) => void changeStatus(value as ClientStatus)}>
+                    {(Object.keys(CLIENT_STATUS_CONFIG) as ClientStatus[]).map((key) => (
+                        <DropdownMenuRadioItem key={key} value={key}>{CLIENT_STATUS_CONFIG[key].label}</DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+
+    const ClientActions = (
+        <>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" aria-label={`Actions sur ${client.name}`}><MoreHorizontal /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>Gérer le client</DropdownMenuLabel>
+                    <DropdownMenuItem onSelect={() => setManagementSection("profile")}><Building2 />Informations du client</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setManagementSection("contacts")}><Users />Interlocuteurs et agendas</DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setManagementSection("portal")}><ShieldCheck />Accès au portail</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger><FileText />Nouvelle page</DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-56">{pageTemplateItems()}</DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuItem onSelect={() => setActiveTab("onboarding")}><ListChecks />Suivre l’intégration</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={() => setShowDeleteConfirm(true)}><Trash2 />Supprimer le client</DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <button className="cw-button cw-primary" onClick={() => setShowNewMission(true)}><Plus /> Nouvelle mission</button>
+        </>
     );
 
     // ───────────────────────────────────────────────────────────────────────
@@ -996,67 +967,151 @@ export function ClientDrawer({
     );
 
     // ───────────────────────────────────────────────────────────────────────
-    // TAB: MISSIONS
+    // CLIENT HOME: what needs doing, the missions by stage, the pages
     // ───────────────────────────────────────────────────────────────────────
 
-    const MissionsTab = (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-base font-bold text-slate-900">Missions</h3>
-                    <p className="text-sm text-slate-500 mt-0.5">
-                        {missions.length} mission{missions.length > 1 ? "s" : ""} · {activeMissionsCount} active
-                        {activeMissionsCount > 1 ? "s" : ""}
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setShowNewMission(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
-                >
-                    <Plus className="w-4 h-4" /> Nouvelle mission
-                </button>
-            </div>
+    const closedMissions = missions.filter((mission) => mission.status === "COMPLETED" || mission.status === "ARCHIVED");
+    const openMissions = missions.filter((mission) => !closedMissions.includes(mission));
+    const activeMission = missions.find((mission) => mission.id === activeMissionId);
+    const treeMissions = showAllTreeMissions ? [...openMissions, ...closedMissions] : openMissions.slice(0, 8);
+    if (activeMission && !treeMissions.includes(activeMission)) treeMissions.push(activeMission);
+    const onboardingProgress = onboardingChecklist?.progress;
+    const mainContact = interlocuteurs[0];
+    const workspaceMissions = new Map((allClients.find((entry) => entry.id === client.id)?.missions ?? []).map((mission) => [mission.id, mission]));
+    const clientAttention: AttentionEntry<WorkspaceMission>[] = missions.flatMap((mission) => {
+        const summary = workspaceMissions.get(mission.id);
+        const item = summary ? missionAttention(summary) : null;
+        return item && summary ? [{ ...item, clientId: client.id, clientName: client.name, mission: summary }] : [];
+    }).sort((a, b) => a.rank - b.rank);
+    const attentionByMission = new Map(clientAttention.map((item) => [item.mission.id, item]));
+    const activePage = pages.find((page) => page.id === activePageId);
+    const missionGroups = [
+        { id: "ACTIVE", label: "En cours", items: missions.filter((mission) => mission.status === "ACTIVE") },
+        { id: "DRAFT", label: "En préparation", items: missions.filter((mission) => mission.status === "DRAFT") },
+        { id: "PAUSED", label: "En pause", items: missions.filter((mission) => mission.status === "PAUSED") },
+    ].filter((group) => group.items.length);
 
-            {missions.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center">
-                    <div className="w-12 h-12 mx-auto rounded-xl bg-white border border-slate-200 flex items-center justify-center mb-3">
-                        <Target className="w-5 h-5 text-slate-400" />
+    const changeMissionStatus = async (mission: MissionLite, next: MissionStatusValue) => {
+        const res = await fetch(`/api/missions/${mission.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: next }),
+        });
+        const json = await res.json();
+        if (!json.success) {
+            showError("Statut inchangé", json.error || "Changement de statut refusé");
+            return;
+        }
+        success("Statut mis à jour", `${mission.name} : ${MISSION_STATUS_CONFIG[next].label}`);
+        queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
+        queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
+    };
+
+    const missionLine = (mission: MissionLite) => (
+        <MissionLine
+            key={mission.id}
+            mission={mission}
+            summary={workspaceMissions.get(mission.id)}
+            attention={attentionByMission.get(mission.id)}
+            onOpen={(tab) => openMission(mission.id, tab)}
+            onStatusChange={(next) => changeMissionStatus(mission, next)}
+        />
+    );
+
+    const ClientHome = (
+        <div className="cw-layout">
+            <main className="cw-doc" aria-labelledby="cw-client-title">
+                <header className="cw-doc-head">
+                    <span className="cw-eyebrow"><Building2 aria-hidden /><span>Client{client.industry ? ` · ${client.industry}` : ""}</span></span>
+                    <div className="cw-client-identity">
+                        <span className="cw-monogram cw-monogram-large" aria-hidden>{client.name[0]?.toUpperCase() || "?"}</span>
+                        <h1 id="cw-client-title" className="cw-doc-title" tabIndex={-1} data-focus-key="heading">{client.name}</h1>
                     </div>
-                    <p className="text-sm font-medium text-slate-700">Aucune mission</p>
-                    <p className="text-xs text-slate-500 mt-1">
-                        Créez la première mission pour ce client.
+                    <p className="cw-doc-lede">
+                        {missions.length} mission{missions.length > 1 ? "s" : ""} · {activeMissionsCount} en cours
+                        {draftCount(missions) > 0 && <> · {draftCount(missions)} en préparation</>}
                     </p>
+                </header>
+
+                <div className="cw-sections">
+                    {clientAttention.length > 0 && <section className="cw-section" aria-labelledby="cw-client-attention">
+                        <div className="cw-section-head"><h2 id="cw-client-attention">À traiter <small>{clientAttention.length}</small></h2></div>
+                        <div className="cw-inbox">{clientAttention.map((item) => <InboxItem key={item.mission.id} item={item} hideClient onOpen={(location) => go(location)} />)}</div>
+                    </section>}
+
+                    <section className="cw-section cw-mission-list" aria-labelledby="cw-client-missions">
+                        <div className="cw-section-head">
+                            <h2 id="cw-client-missions">Missions <small>{missions.length}</small></h2>
+                            <button className="cw-button" data-size="sm" onClick={() => setShowNewMission(true)}><Plus /> Nouvelle mission</button>
+                        </div>
+                        {isLoadingClient ? <div className="cw-empty" role="status"><Loader2 className="animate-spin" />Chargement des missions…</div>
+                            : isClientError ? <div className="cw-empty" role="alert"><p>Impossible de charger les missions.</p><button className="cw-button" onClick={() => refetchClient()}><RefreshCw /> Réessayer</button></div>
+                            : missions.length === 0 ? <p className="cw-empty-line"><span>Aucune mission pour ce client.</span><button className="cw-button cw-primary" data-size="sm" onClick={() => setShowNewMission(true)}><Plus /> Créer la première mission</button></p>
+                            : <>
+                                {missionGroups.map((group) => <div key={group.id} className="cw-mission-group">
+                                    <h3 className="cw-mission-group-title">{group.label} <span className="cw-count">{group.items.length}</span></h3>
+                                    <div className="cw-rows">{group.items.map(missionLine)}</div>
+                                </div>)}
+                                {closedMissions.length > 0 && <div className="cw-mission-group">
+                                    <button className="cw-mission-group-title" onClick={() => setShowClosedMissions((value) => !value)} aria-expanded={showClosedMissions}>
+                                        <ChevronRight aria-hidden className={cn("h-3.5 w-3.5 transition-transform", showClosedMissions && "rotate-90")} />Clôturées <span className="cw-count">{closedMissions.length}</span>
+                                    </button>
+                                    {showClosedMissions && <div className="cw-rows">{closedMissions.map(missionLine)}</div>}
+                                </div>}
+                            </>}
+                    </section>
+
+                    <section className="cw-section" aria-labelledby="cw-client-pages">
+                        <div className="cw-section-head">
+                            <h2 id="cw-client-pages">Pages <small>{pages.length}</small></h2>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild><button className="cw-button" data-size="sm" disabled={creatingPage}>{creatingPage ? <Loader2 className="animate-spin" /> : <Plus />} Nouvelle page</button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56"><DropdownMenuLabel>Partir de</DropdownMenuLabel>{pageTemplateItems()}</DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                        {pages.length ? <div className="cw-rows">
+                            {pages.slice(0, 6).map((page) => {
+                                const linked = missions.find((mission) => mission.id === page.missionId);
+                                return <div key={page.id} className="cw-row" data-interactive onClick={() => go({ client: client.id, page: page.id })}>
+                                    <span className="cw-row-icon"><FileText aria-hidden /></span>
+                                    <div className="cw-row-main">
+                                        <button className="cw-row-title" onClick={(event) => { event.stopPropagation(); go({ client: client.id, page: page.id }); }}>{page.title || "Sans titre"}</button>
+                                        <small>{linked ? `${linked.name} · ` : ""}Modifiée {page.updatedBy ? `par ${page.updatedBy.name}, ` : ""}{formatRelative(page.updatedAt).replace(/^\p{Lu}/u, (letter) => letter.toLowerCase())}</small>
+                                    </div>
+                                    <ChevronRight className="cw-row-arrow" aria-hidden />
+                                </div>;
+                            })}
+                        </div> : <p className="cw-empty-line"><span>Briefs, comptes rendus et procédures de l’équipe, rangés avec le client.</span></p>}
+                    </section>
                 </div>
-            ) : (
-                <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
-                    {missions.map((m, idx) => (
-                        <MissionRow
-                            key={m.id}
-                            mission={m}
-                            isLast={idx === missions.length - 1}
-                            onOpen={(tab) => openMission(m.id, tab)}
-                            onScriptClick={() => setScriptModalMission(m)}
-                            onStatusChange={async (next) => {
-                                const res = await fetch(`/api/missions/${m.id}`, {
-                                    method: "PATCH",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ status: next }),
-                                });
-                                const json = await res.json();
-                                if (!json.success) {
-                                    showError("Erreur", json.error || "Changement de statut refusé");
-                                    throw new Error(json.error);
-                                }
-                                success("Statut mis à jour", MISSION_STATUS_CONFIG[next].label);
-                                queryClient.invalidateQueries({
-                                    queryKey: clientDetailQueryKey(client.id),
-                                });
-                            }}
-                        />
-                    ))}
-                </div>
-            )}
+            </main>
+
+            <aside className="cw-rail" aria-label="Propriétés du client">
+                <section className="cw-rail-section">
+                    <h2 className="cw-rail-title">Propriétés</h2>
+                    <dl className="cw-props">
+                        <div><dt>Statut</dt><dd>{StatusMenu}</dd></div>
+                        <div><dt>Secteur</dt><dd>{client.industry || <span className="cw-prop-empty">Non renseigné</span>}</dd></div>
+                        <div><dt>Contact</dt><dd>{mainContact ? <span title={mainContact.jobTitle || undefined}>{mainContact.firstName} {mainContact.lastName}</span> : <button className="cw-prop-button" onClick={() => setManagementSection("contacts")}><span className="cw-prop-empty">Ajouter</span></button>}</dd></div>
+                        <div><dt>Client depuis</dt><dd>{new Date(client.createdAt).toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</dd></div>
+                    </dl>
+                </section>
+                <section className="cw-rail-section">
+                    <h2 className="cw-rail-title">Intégration {onboardingProgress?.total ? <small>{onboardingProgress.done} / {onboardingProgress.total}</small> : null}</h2>
+                    {onboardingProgress?.total ? <div className="cw-progress" data-done={onboardingProgress.done === onboardingProgress.total ? "" : undefined} role="progressbar" aria-label="Étapes d’intégration terminées" aria-valuemin={0} aria-valuemax={onboardingProgress.total} aria-valuenow={onboardingProgress.done}>
+                        <span style={{ width: `${Math.round((onboardingProgress.done / onboardingProgress.total) * 100)}%` }} />
+                    </div> : <p className="cw-hint">Du contrat au premier appel.</p>}
+                    <button className="cw-shortcut" onClick={() => setActiveTab("onboarding")}><ListChecks /><span>Ouvrir l’intégration</span><ChevronRight /></button>
+                </section>
+                <section className="cw-rail-section">
+                    <h2 className="cw-rail-title">Raccourcis</h2>
+                    <div className="cw-shortcuts">
+                        <button className="cw-shortcut" onClick={() => setActiveTab("acces")}><Users /><span>Contacts et accès</span><small>{usersList.length + interlocuteurs.length || ""}</small><ChevronRight /></button>
+                        <button className="cw-shortcut" onClick={() => setActiveTab("sessions")}><FileText /><span>Comptes rendus</span><small>{sessions.length || ""}</small><ChevronRight /></button>
+                        <button className="cw-shortcut" onClick={() => setActiveTab("avis-sdr")}><MessageSquare /><span>Avis SDR</span><small>{sdrFeedback.length || ""}</small><ChevronRight /></button>
+                    </div>
+                </section>
+            </aside>
         </div>
     );
 
@@ -1070,13 +1125,12 @@ export function ClientDrawer({
                 title="Utilisateurs portail client"
                 icon={<ShieldCheck className="w-3.5 h-3.5" />}
                 action={
-                    <Link
-                        href={`/manager/clients/${client.id}`}
+                    <button type="button" onClick={() => setManagementSection("portal")}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary-50 text-primary-700 hover:bg-primary-100 text-xs font-semibold uppercase tracking-wider transition-colors"
                     >
                         {usersList.length > 0 ? "Gérer" : "Créer un accès"}
                         <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                    </button>
                 }
             >
                 {usersList.length === 0 ? (
@@ -1150,6 +1204,12 @@ export function ClientDrawer({
                         onSave={(v) => saveField({ portalShowDatabase: v })}
                     />
                     <InlineToggle
+                        label="Autoriser l’export de la base"
+                        description="Le client peut télécharger ses données en CSV (désactivé par défaut)"
+                        value={onboardingData.portalAllowExport === true}
+                        onSave={(v) => saveField({ portalAllowExport: v })}
+                    />
+                    <InlineToggle
                         label="Recevoir les notifications de RDV"
                         description="Envoi d’un email à chaque nouveau rendez-vous"
                         value={client.rdvEmailNotificationsEnabled !== false}
@@ -1189,12 +1249,11 @@ export function ClientDrawer({
                         {interlocuteurs.length} contact{interlocuteurs.length > 1 ? "s" : ""} chez ce client
                     </p>
                 </div>
-                <Link
-                    href={`/manager/clients/${client.id}`}
+                <button type="button" onClick={() => setManagementSection("contacts")}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all"
                 >
                     <Plus className="w-4 h-4" /> Ajouter
-                </Link>
+                </button>
             </div>
 
             {interlocuteurs.length === 0 ? (
@@ -1477,13 +1536,13 @@ export function ClientDrawer({
                         Ressentis quotidiens liés aux missions de ce client.
                     </p>
                 </div>
-                <Link
-                    href="/manager/sdr-feedback"
+                <button type="button"
+                    onClick={() => setDetailPanel("feedback")}
                     className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-primary-200 hover:text-primary-600"
                 >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Tous les avis
-                </Link>
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Tous les avis SDR
+                </button>
             </div>
 
             {sdrFeedback.length === 0 ? (
@@ -1555,7 +1614,7 @@ export function ClientDrawer({
         { id: "missions", label: "Missions", icon: <Target className="w-3.5 h-3.5" />, badge: missions.length || undefined },
         {
             id: "onboarding",
-            label: "Onboarding",
+            label: "Intégration client",
             icon: <ListChecks className="w-3.5 h-3.5" />,
             badge: onboardingChecklist?.progress.total
                 ? `${onboardingChecklist.progress.done}/${onboardingChecklist.progress.total}`
@@ -1569,7 +1628,7 @@ export function ClientDrawer({
         },
         { id: "activite", label: "Activité", icon: <Activity className="w-3.5 h-3.5" /> },
         { id: "avis-sdr", label: "Avis SDR", icon: <MessageSquare className="w-3.5 h-3.5" />, badge: sdrFeedback.length || undefined },
-        { id: "sessions", label: "CR & Sessions", icon: <FileText className="w-3.5 h-3.5" />, badge: sessions.length || undefined },
+        { id: "sessions", label: "Comptes rendus", icon: <FileText className="w-3.5 h-3.5" />, badge: sessions.length || undefined },
     ];
 
     const SessionsTab = (
@@ -1585,12 +1644,12 @@ export function ClientDrawer({
                     >
                         <FileText className="w-3.5 h-3.5" aria-hidden /> Bilan de la semaine
                     </button>
-                    <Link
-                        href={`/manager/clients/${client.id}?tab=sessions`}
+                    <button type="button"
+                        onClick={() => setDetailPanel("sessions")}
                         className="text-xs font-semibold text-primary-600 hover:text-primary-700 inline-flex items-center gap-1"
                     >
                         Gérer les sessions <ChevronRight className="w-3.5 h-3.5" />
-                    </Link>
+                    </button>
                     </div>
                 )}
             </div>
@@ -1777,82 +1836,178 @@ export function ClientDrawer({
         </div>
     );
 
+    const tabLabel = (id: TabId) => id === "apercu" ? "Informations client" : id === "acces" ? "Contacts et accès" : tabDef.find((item) => item.id === id)?.label ?? "";
+    const view: "mission" | "page" | "home" | "tab" = activeMissionId ? "mission" : activePageId ? "page" : activeTab === "missions" ? "home" : "tab";
+    const clientItems = allClients.map((entry) => ({ id: entry.id, label: entry.name, meta: entry.status === "ACTIVE" ? undefined : entry.status === "PAUSED" ? "En pause" : "Arrêté" }));
+    const missionItems = [...openMissions, ...closedMissions].map((mission) => ({ id: mission.id, label: mission.name, meta: MISSION_STATUS_CONFIG[mission.status]?.label }));
+    const pageItems = pages.map((page) => ({ id: page.id, label: page.title || "Sans titre" }));
+    const toggleMission = (id: string) => setExpandedMissions((previous) => {
+        const next = new Set(previous);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+    });
+    const missionPanel = activeMissionId && activeMissionTab !== "general" ? MISSION_PANEL_LABELS[activeMissionTab] : null;
+    const treeLink = (id: TabId, icon: ReactNode, label: string, badge?: ReactNode) => (
+        <button key={id} className="cw-tree-link" aria-current={view !== "mission" && view !== "page" && activeTab === id ? "page" : undefined} onClick={() => setActiveTab(id)}>
+            {icon}<span>{label}</span>{badge !== undefined && badge !== null && badge !== 0 && <small>{badge}</small>}
+        </button>
+    );
+
     return (
         <>
-            <Drawer
-                isOpen={isOpen}
-                onClose={onClose}
-                size="full"
-                showCloseButton={false}
-                className={isExpanded ? "!max-w-[95vw]" : "!max-w-[1180px]"}
-            >
-                {activeMissionId ? (
-                    /* Drill-down: the mission workspace takes over the drawer body */
-                    <div className="-m-6 flex flex-col h-full">
-                        <DrawerHeader
-                            onClose={onClose}
-                            title={missions.find((m) => m.id === activeMissionId)?.name ?? "Mission"}
-                            left={
-                                <button
-                                    type="button"
-                                    onClick={() => openMission(null)}
-                                    className="inline-flex min-w-0 items-center gap-1 rounded-lg px-1.5 py-1 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
-                                >
-                                    <ChevronRight className="h-3.5 w-3.5 shrink-0 rotate-180" />
-                                    <span className="truncate">{client.name}</span>
-                                </button>
-                            }
-                        />
+            {isOpen && <div className="cw-shell">
+                <aside className="cw-tree" aria-label={`Navigation : ${client.name}`}>
+                    <button className="cw-tree-back" onClick={onClose}><ArrowLeft aria-hidden /> Tous les clients</button>
+                    <div className="cw-tree-title" title={client.name}><span className="cw-monogram" aria-hidden>{client.name[0]?.toUpperCase() || "?"}</span><span>{client.name}</span></div>
+                    <nav aria-label="Espace client">
+                        {treeLink("missions", <Home aria-hidden />, "Accueil", clientAttention.filter((item) => item.tone !== "success").length || undefined)}
+                    </nav>
 
-                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
-                            <MissionWorkspace
-                                // Remount per mission: the workspace holds a lot of
-                                // per-mission state (strategy drafts, templates).
-                                key={activeMissionId}
-                                missionId={activeMissionId}
-                                onBack={() => openMission(null)}
-                                onMissionMutated={() => {
-                                    queryClient.invalidateQueries({
-                                        queryKey: clientDetailQueryKey(client.id),
-                                    });
-                                    queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
-                                }}
-                                activeTab={activeMissionTab}
-                                onTabChange={changeMissionTab}
-                                isExpanded={isExpanded}
-                                onToggleExpand={toggleExpanded}
-                            />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="-m-6 flex flex-col h-full">
-                        {Header}
-
-                        <div className="sticky top-0 z-10 px-6 bg-white border-b border-slate-100">
-                            <Tabs
-                                tabs={tabDef}
-                                activeTab={activeTab}
-                                onTabChange={(id) => setActiveTab(id as TabId)}
-                            />
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 drawer-scrollbar">
-                            {activeTab === "apercu" && OverviewTab}
-                            {activeTab === "missions" && MissionsTab}
-                            {activeTab === "acces" && AccessAndContactsTab}
-                            {activeTab === "activite" && ActivityTab}
-                            {activeTab === "avis-sdr" && SdrFeedbackTab}
-                            {activeTab === "sessions" && SessionsTab}
-                            {activeTab === "onboarding" && client && (
-                                <div className="space-y-4">
-                                    <OnboardingChecklist clientId={client.id} />
-                                    <AccessLinksCard clientId={client.id} />
+                    <div className="cw-tree-group"><span>Missions</span><button className="cw-tree-add" onClick={() => setShowNewMission(true)} aria-label="Nouvelle mission" title="Nouvelle mission"><Plus aria-hidden /></button></div>
+                    <nav aria-label="Missions">
+                        {treeMissions.map((mission) => {
+                            const isActive = activeMissionId === mission.id;
+                            const expanded = expandedMissions.has(mission.id) || isActive;
+                            const attention = attentionByMission.get(mission.id);
+                            return <div key={mission.id}>
+                                <div className="cw-tree-row">
+                                    <button className="cw-tree-toggle" aria-expanded={expanded} aria-label={`${expanded ? "Masquer" : "Afficher"} les sections de ${mission.name}`} onClick={() => toggleMission(mission.id)}><ChevronRight aria-hidden /></button>
+                                    <button className="cw-tree-link" title={mission.name} aria-current={isActive ? "location" : undefined} onClick={() => openMission(mission.id)}>
+                                        <span className="cw-dot" data-tone={attention && attention.tone !== "success" && attention.tone !== "neutral" ? attention.tone : MISSION_TONE[mission.status]} aria-hidden style={{ marginLeft: 0 }} />
+                                        <span>{mission.name}</span>
+                                    </button>
                                 </div>
-                            )}
-                        </div>
+                                {expanded && <div className="cw-tree-children" role="group" aria-label={mission.name}>
+                                    {MISSION_SECTIONS.map((section) => (
+                                        <button key={section.tab} className="cw-tree-link" aria-current={isActive && activeMissionTab === section.tab ? "page" : undefined} onClick={() => openMission(mission.id, section.tab)}>
+                                            <span>{section.label}</span>
+                                            {section.tab === "lancement" && attention && attention.tab === "lancement" && attention.tone !== "success" && <span className="cw-dot" data-tone="warning" aria-label="À traiter" />}
+                                        </button>
+                                    ))}
+                                </div>}
+                            </div>;
+                        })}
+                        {missions.length > openMissions.slice(0, 8).length && <button className="cw-tree-link cw-tree-more" onClick={() => setShowAllTreeMissions((value) => !value)} aria-expanded={showAllTreeMissions}>
+                            <span>{showAllTreeMissions ? "Afficher moins" : `Toutes les missions (${missions.length})`}</span>
+                        </button>}
+                        {!missions.length && !isLoadingClient && <p className="cw-tree-empty">Aucune mission</p>}
+                    </nav>
+
+                    <div className="cw-tree-group">
+                        <span>Pages</span>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild><button className="cw-tree-add" aria-label="Nouvelle page" title="Nouvelle page" disabled={creatingPage}><Plus aria-hidden /></button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-56"><DropdownMenuLabel>Nouvelle page</DropdownMenuLabel>{pageTemplateItems()}</DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
-                )}
-            </Drawer>
+                    <nav aria-label="Pages">
+                        {pages.map((page) => (
+                            <button key={page.id} className="cw-tree-link" title={page.title || "Sans titre"} aria-current={activePageId === page.id ? "page" : undefined} onClick={() => go({ client: client.id, page: page.id })}>
+                                <FileText aria-hidden /><span>{page.title || "Sans titre"}</span>
+                            </button>
+                        ))}
+                        {!pages.length && <p className="cw-tree-empty">Aucune page</p>}
+                    </nav>
+
+                    <div className="cw-tree-group"><span>Client</span></div>
+                    <nav aria-label="Dossier client">
+                        {treeLink("apercu", <Building2 aria-hidden />, "Informations")}
+                        {treeLink("onboarding", <ListChecks aria-hidden />, "Intégration", onboardingProgress?.total ? `${onboardingProgress.done}/${onboardingProgress.total}` : undefined)}
+                        {treeLink("acces", <Users aria-hidden />, "Contacts et accès", (usersList.length + interlocuteurs.length) || undefined)}
+                    </nav>
+                    <div className="cw-tree-group"><span>Suivi</span></div>
+                    <nav aria-label="Suivi du client">
+                        {treeLink("activite", <Activity aria-hidden />, "Activité")}
+                        {treeLink("avis-sdr", <MessageSquare aria-hidden />, "Avis SDR", sdrFeedback.length || undefined)}
+                        {treeLink("sessions", <CalendarRange aria-hidden />, "Comptes rendus", sessions.length || undefined)}
+                    </nav>
+                </aside>
+
+                <CrumbSlotProvider value={crumbSlot}>
+                <div className="cw-work">
+                    <nav className="cw-crumb" aria-label="Fil d’Ariane">
+                        <div className="cw-crumb-trail">
+                            <button className="cw-crumb-link" onClick={onClose}><span>Clients</span></button>
+                            <ChevronRight aria-hidden />
+                            <CrumbSwitcher kind="client" label={client.name} current={view === "home"} items={clientItems}
+                                onOpen={() => go({ client: client.id }, activeMissionId ? `mission:${activeMissionId}` : "heading")}
+                                onSelect={(id) => go({ client: id })} />
+                            {view === "mission" && <>
+                                <ChevronRight aria-hidden />
+                                <CrumbSwitcher kind="mission" label={activeMission?.name ?? "Mission"} current={!missionPanel} items={missionItems}
+                                    onOpen={() => changeMissionTab("general")}
+                                    onSelect={(id) => openMission(id)} />
+                                {missionPanel && <><ChevronRight aria-hidden /><span className="cw-crumb-current" aria-current="page"><span>{missionPanel}</span></span></>}
+                            </>}
+                            {view === "page" && <>
+                                <ChevronRight aria-hidden />
+                                <CrumbSwitcher kind="page" label={activePage?.title || "Sans titre"} current items={pageItems} onSelect={(id) => go({ client: client.id, page: id })} />
+                            </>}
+                            {view === "tab" && <><ChevronRight aria-hidden /><span className="cw-crumb-current" aria-current="page"><span>{tabLabel(activeTab)}</span></span></>}
+                        </div>
+                        <div className="cw-crumb-actions" ref={setCrumbSlot}>
+                            {(view === "home" || view === "tab") && ClientActions}
+                        </div>
+                    </nav>
+
+                    {view === "mission" && activeMissionId ? (
+                        <MissionWorkspace
+                            key={activeMissionId}
+                            missionId={activeMissionId}
+                            onBack={() => openMission(null)}
+                            onClientOnboarding={() => setActiveTab("onboarding")}
+                            onMissionMutated={() => {
+                                queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) });
+                                queryClient.invalidateQueries({ queryKey: CLIENTS_QUERY_KEY });
+                            }}
+                            activeTab={activeMissionTab}
+                            onTabChange={changeMissionTab}
+                            linkedPages={pages.filter((page) => page.missionId === activeMissionId)}
+                            onOpenPage={(pageId) => go({ client: client.id, page: pageId }, "heading")}
+                            onCreatePage={(template) => void addPage(template, activeMissionId)}
+                            onOpenMission={(id) => openMission(id)}
+                        />
+                    ) : view === "page" && activePageId ? (
+                        <ClientPageEditor
+                            key={activePageId}
+                            pageId={activePageId}
+                            clientId={client.id}
+                            clientName={client.name}
+                            missions={[...openMissions, ...closedMissions].map((mission) => workspaceMissions.get(mission.id) ?? { id: mission.id, name: mission.name, status: mission.status, endDate: null, isActive: mission.status === "ACTIVE" })}
+                            onNavigate={(location, focus) => go(location, focus)}
+                        />
+                    ) : view === "home" ? ClientHome : (
+                        <div className="cw-layout" data-rail="none">
+                            <main className="cw-doc" data-width="wide" aria-labelledby="cw-tab-title">
+                                <header className="cw-doc-head">
+                                    <h1 id="cw-tab-title" className="cw-doc-title" tabIndex={-1} data-focus-key="heading">{tabLabel(activeTab)}</h1>
+                                    <p className="cw-doc-lede">{activeTab === "onboarding" ? "Le suivi de l’intégration du client, de la contractualisation au premier appel." : client.name}</p>
+                                </header>
+                                {activeTab === "apercu" && OverviewTab}
+                                {activeTab === "acces" && AccessAndContactsTab}
+                                {activeTab === "activite" && ActivityTab}
+                                {activeTab === "avis-sdr" && SdrFeedbackTab}
+                                {activeTab === "sessions" && SessionsTab}
+                                {activeTab === "onboarding" && (
+                                    <div className="cw-columns">
+                                        <OnboardingChecklist clientId={client.id} />
+                                        <aside className="cw-context" aria-label="Accès et lancements">
+                                            {missions.some((mission) => mission.status === "DRAFT") && <section className="cw-panel cw-side">
+                                                <div className="cw-side-heading"><Rocket /><h2>Lancements à préparer</h2></div>
+                                                {missions.filter((mission) => mission.status === "DRAFT").slice(0, 4).map((mission) => <button key={mission.id} className="cw-side-row" onClick={() => openMission(mission.id, "lancement")}>
+                                                    <span className="cw-side-icon"><Target /></span><span><strong>{mission.name}</strong><small>{attentionByMission.get(mission.id)?.label ?? "Préparer le lancement"}</small></span><ChevronRight />
+                                                </button>)}
+                                            </section>}
+                                            <AccessLinksCard clientId={client.id} />
+                                        </aside>
+                                    </div>
+                                )}
+                            </main>
+                        </div>
+                    )}
+                </div>
+                </CrumbSlotProvider>
+            </div>}
 
             <ConfirmModal
                 isOpen={showDeleteConfirm}
@@ -1866,7 +2021,12 @@ export function ClientDrawer({
                 isLoading={isDeleting}
             />
 
+            {managementSection && <ClientManagementDrawer key={`${client.id}:${managementSection}`} clientId={client.id} clientName={client.name} section={managementSection} onClose={() => setManagementSection(null)} onSaved={refreshClientQueries} />}
+            {client && detailPanel && <Drawer isOpen onClose={() => { setDetailPanel(null); void queryClient.invalidateQueries({ queryKey: ["client-sessions", client.id] }); void queryClient.invalidateQueries({ queryKey: clientDetailQueryKey(client.id) }); }} title={detailPanel === "sessions" ? "Sessions & comptes rendus" : "Tous les avis SDR"} description={client.name} size="full" closeOnOverlay={false} bodyClassName="p-4 sm:p-6">
+                {detailPanel === "sessions" ? <ClientDetailWorkspace key={client.id} clientId={client.id} sessionsOnly /> : <SdrFeedbackWorkspace key={client.id} clientId={client.id} />}
+            </Drawer>}
             <NewMissionDialog
+                initialClientId={client.id}
                 isOpen={showNewMission}
                 onClose={() => setShowNewMission(false)}
                 onCreated={(missionId) => {
@@ -1876,347 +2036,72 @@ export function ClientDrawer({
                     if (missionId) openMission(missionId);
                 }}
             />
-
-            <ScriptModal
-                mission={scriptModalMission}
-                onOpenFull={() => {
-                    if (scriptModalMission) openMission(scriptModalMission.id, "strategy");
-                }}
-                onClose={() => setScriptModalMission(null)}
-            />
         </>
     );
 }
 
 // ============================================================================
-// MISSION ROW (inline status/script popover)
+// MISSION LINE (client home): name, facts, what needs doing, quick commands
 // ============================================================================
 
-function MissionRow({
+function MissionLine({
     mission,
-    isLast,
+    summary,
+    attention,
     onOpen,
     onStatusChange,
-    onScriptClick,
 }: {
-    mission: MissionLite;
-    isLast: boolean;
+    mission: MissionLite & { startDate?: string | null; endDate?: string | null };
+    summary?: WorkspaceMission;
+    attention?: AttentionEntry<WorkspaceMission>;
     onOpen: (tab?: string) => void;
     onStatusChange: (next: MissionStatusValue) => Promise<void>;
-    onScriptClick: () => void;
 }) {
     const cfg = MISSION_STATUS_CONFIG[mission.status];
-    const statusToneMap: Record<MissionStatusValue, "success" | "warning" | "info" | "default" | "danger"> = {
-        DRAFT: "default",
-        ACTIVE: "success",
-        PAUSED: "warning",
-        COMPLETED: "info",
-        ARCHIVED: "default",
-    };
-    const iconMap: Record<MissionStatusValue, ReactNode> = {
-        DRAFT: <FileText className="w-3.5 h-3.5" />,
-        ACTIVE: <PlayCircle className="w-3.5 h-3.5" />,
-        PAUSED: <PauseCircle className="w-3.5 h-3.5" />,
-        COMPLETED: <FileCheck2 className="w-3.5 h-3.5" />,
-        ARCHIVED: <Archive className="w-3.5 h-3.5" />,
-    };
-
-    const [moreOpen, setMoreOpen] = useState(false);
-    const moreRef = useRef<HTMLButtonElement | null>(null);
+    const lists = summary?.readiness?.activeLists ?? mission._count?.lists ?? 0;
+    const sdr = summary?.sdrCount ?? mission._count?.sdrAssignments ?? 0;
+    const period = missionPeriod(mission);
+    const facts = [`${lists} base${lists > 1 ? "s" : ""}`, `${sdr} SDR`, period].filter(Boolean).join(" · ");
+    const tone = attention && attention.tone !== "success" ? attention.tone : undefined;
+    const iconTone = attention?.tone === "danger" ? "danger" : attention?.tone === "warning" ? "todo" : attention?.tone === "success" || mission.status === "ACTIVE" ? "done" : "wait";
+    const Icon = mission.status === "ACTIVE" ? PlayCircle : mission.status === "PAUSED" ? PauseCircle : mission.status === "DRAFT" ? FileText : mission.status === "COMPLETED" ? FileCheck2 : Archive;
 
     return (
-        <div
-            role="button"
-            tabIndex={0}
-            onClick={() => onOpen()}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onOpen();
-                }
-            }}
-            aria-label={`Ouvrir la mission ${mission.name}`}
-            className={
-                "group flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-slate-50/60 transition-colors " +
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 " +
-                (isLast ? "" : "border-b border-slate-100")
-            }
-        >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                mission.status === "ACTIVE"
-                    ? "bg-emerald-50 text-emerald-600"
-                    : mission.status === "PAUSED"
-                    ? "bg-amber-50 text-amber-600"
-                    : mission.status === "COMPLETED"
-                    ? "bg-blue-50 text-blue-600"
-                    : "bg-slate-100 text-slate-500"
-            }`}>
-                {iconMap[mission.status]}
+        <div className="cw-row cw-mission-row" data-interactive onClick={() => onOpen()}>
+            <span className="cw-row-icon" data-tone={iconTone}><Icon aria-hidden /></span>
+            <div className="cw-row-main">
+                <button className="cw-row-title" data-focus-key={`mission:${mission.id}`} title={mission.name} onClick={(event) => { event.stopPropagation(); onOpen(); }}>{mission.name}</button>
+                <small title={mission.objective ?? undefined}>{facts}</small>
             </div>
-
-            <div className="flex-1 min-w-0">
-                <span className="block truncate text-left text-sm font-semibold text-slate-900 transition-colors group-hover:text-primary-600">
-                    {mission.name}
-                </span>
-                {mission.objective && (
-                    <p className="text-xs text-slate-500 truncate mt-0.5">{mission.objective}</p>
-                )}
-                <div className="flex items-center gap-2 mt-1.5">
-                    {mission._count?.campaigns !== undefined && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500">
-                            <FileText className="w-2.5 h-2.5" />
-                            {mission._count.campaigns} campagne{(mission._count.campaigns || 0) > 1 ? "s" : ""}
-                        </span>
-                    )}
-                    {mission._count?.lists !== undefined && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500">
-                            <Inbox className="w-2.5 h-2.5" />
-                            {mission._count.lists} liste{(mission._count.lists || 0) > 1 ? "s" : ""}
-                        </span>
-                    )}
-                    {mission._count?.sdrAssignments !== undefined && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-slate-500">
-                            <Users className="w-2.5 h-2.5" />
-                            {mission._count.sdrAssignments} SDR{(mission._count.sdrAssignments || 0) > 1 ? "s" : ""}
-                        </span>
-                    )}
-                </div>
-            </div>
-
-            {/* Row controls: these act on the mission, they don't open it */}
-            <div
-                className="flex items-center gap-4"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-            >
-            {/* Status inline edit */}
-            <InlineSelect
-                value={mission.status}
-                asPill
-                options={(Object.keys(MISSION_STATUS_CONFIG) as MissionStatusValue[]).map((s) => ({
-                    value: s,
-                    label: MISSION_STATUS_CONFIG[s].label,
-                    tone: statusToneMap[s] as "success" | "warning" | "info" | "default" | "danger",
-                    icon: iconMap[s],
-                }))}
-                onSave={(v) => onStatusChange(v as MissionStatusValue)}
-            />
-
-            {/* Script action */}
-            <button
-                onClick={onScriptClick}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium hover:bg-primary-50 hover:text-primary-700 hover:border-primary-200 transition-colors"
-            >
-                <FileText className="w-3.5 h-3.5" />
-                Script
-            </button>
-
-            {/* More menu */}
-            <button
-                ref={moreRef}
-                onClick={() => setMoreOpen((v) => !v)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Plus d’actions"
-            >
-                <MoreHorizontal className="w-4 h-4" />
-            </button>
-
-            <PopoverPanel
-                open={moreOpen}
-                onClose={() => setMoreOpen(false)}
-                anchor={moreRef}
-                width={220}
-                align="end"
-            >
-                <div className="py-1">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen();
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <ExternalLink className="w-4 h-4 text-slate-400" />
-                        Ouvrir la mission
+            <div className="cw-row-side" onClick={(event) => event.stopPropagation()}>
+                {attention
+                    ? <button className={cn("cw-pill", "cursor-pointer")} data-tone={tone === "danger" ? "danger" : tone === "warning" ? "warning" : attention.tone === "success" ? "success" : undefined} onClick={() => onOpen(attention.tab)} title={`${attention.detail} — ${attention.action}`}>
+                        <i />{attention.label}
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen("equipe");
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <UserCog className="w-4 h-4 text-slate-400" />
-                        Équipe & campagnes
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen("strategy");
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        Stratégie & scripts
-                    </button>
-                    <div className="border-t border-slate-100 my-1" />
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMoreOpen(false);
-                            onOpen("general");
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                        <TrendingUp className="w-4 h-4 text-slate-400" />
-                        Insights de la mission
-                    </button>
-                </div>
-            </PopoverPanel>
+                    : <span className="cw-pill" data-tone={mission.status === "ACTIVE" ? "success" : mission.status === "PAUSED" ? "warning" : undefined}><i />{cfg?.label ?? mission.status}</span>}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><button className="cw-button cw-quiet cw-icon-button" data-size="sm" aria-label={`Actions : ${mission.name}`}><MoreHorizontal /></button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-60">
+                        <DropdownMenuLabel className="truncate">{mission.name}</DropdownMenuLabel>
+                        <DropdownMenuItem onSelect={() => onOpen("lancement")}><Rocket />Lancement</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onOpen("strategies")}><Crosshair />Ciblage et scripts</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onOpen("audience")}><Inbox />Bases de prospects</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => onOpen("equipe")}><UserCog />Équipe</DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger><CircleDashed />Statut : {cfg?.label}</DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-48">
+                                <DropdownMenuRadioGroup value={mission.status} onValueChange={(value) => void onStatusChange(value as MissionStatusValue)}>
+                                    {[mission.status, ...(MISSION_STATUS_TRANSITIONS[mission.status] ?? [])].map((status) => (
+                                        <DropdownMenuRadioItem key={status} value={status} disabled={status === mission.status}>{MISSION_STATUS_CONFIG[status].label}</DropdownMenuRadioItem>
+                                    ))}
+                                </DropdownMenuRadioGroup>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
-    );
-}
-
-// ============================================================================
-// SCRIPT MODAL (popover-style complex edit — routes to campaign UI)
-// ============================================================================
-
-function ScriptModal({
-    mission,
-    onClose,
-    onOpenFull,
-}: {
-    mission: MissionLite | null;
-    onClose: () => void;
-    /** Jump from the quick script editor into the full mission workspace. */
-    onOpenFull?: () => void;
-}) {
-    const { success, error: showError } = useToast();
-    const [scriptDraft, setScriptDraft] = useState("");
-    const [isSaving, setIsSaving] = useState(false);
-
-    const { data: campaigns = [], isLoading } = useQuery({
-        queryKey: ["mission-campaigns-for-script-modal", mission?.id ?? "none"],
-        queryFn: async () => {
-            const res = await fetch(`/api/campaigns?missionId=${mission!.id}`);
-            const json = await res.json();
-            if (!json.success || !Array.isArray(json.data)) {
-                throw new Error(json.error || "Impossible de charger les scripts");
-            }
-            return json.data as Array<{
-                id: string;
-                isActive: boolean;
-                script: string | null;
-                _count?: { actions?: number };
-            }>;
-        },
-        enabled: !!mission?.id,
-        staleTime: 30_000,
-    });
-
-    const targetCampaign = (campaigns.length > 0
-        ? [...campaigns].sort((a, b) => {
-              const activeDelta = Number(b.isActive) - Number(a.isActive);
-              if (activeDelta !== 0) return activeDelta;
-              const aActions = a._count?.actions ?? 0;
-              const bActions = b._count?.actions ?? 0;
-              return bActions - aActions;
-          })[0]
-        : null) as { id: string; script: string | null } | null;
-
-    useEffect(() => {
-        setScriptDraft(targetCampaign?.script ?? "");
-    }, [targetCampaign?.id, targetCampaign?.script]);
-
-    const saveScript = async () => {
-        if (!targetCampaign) return;
-        setIsSaving(true);
-        try {
-            const res = await fetch(`/api/campaigns/${targetCampaign.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ script: scriptDraft }),
-            });
-            const json = await res.json();
-            if (!json.success) {
-                showError("Erreur", json.error || "Impossible de sauvegarder le script");
-                return;
-            }
-            success("Script mis à jour", "Le script actif de la mission a été sauvegardé");
-        } catch {
-            showError("Erreur", "Impossible de sauvegarder le script");
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // Safe here: every hook above has already run on this render.
-    if (!mission) return null;
-
-    return (
-        <Modal
-            isOpen={!!mission}
-            onClose={onClose}
-            title={`Script · ${mission.name}`}
-            description="Edition directe du script principal de la mission"
-            size="lg"
-        >
-            {isLoading ? (
-                <div className="py-8 text-center text-sm text-slate-500">Chargement du script...</div>
-            ) : !targetCampaign ? (
-                <div className="text-center py-8">
-                    <FileText className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-slate-700">
-                        Aucun script disponible pour cette mission
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                        Créez d’abord une campagne active depuis la mission pour initialiser un script.
-                    </p>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            onClose();
-                            onOpenFull?.();
-                        }}
-                        className="inline-flex items-center gap-1.5 mt-4 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
-                    >
-                        <Plus className="w-4 h-4" /> Créer une campagne
-                    </button>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                        <textarea
-                            value={scriptDraft}
-                            onChange={(e) => setScriptDraft(e.target.value)}
-                            className="w-full min-h-[320px] rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-300"
-                            placeholder="Ecrivez le script principal de cette mission..."
-                        />
-                    </div>
-                    <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
-                        <Button variant="ghost" onClick={onClose} disabled={isSaving}>Fermer</Button>
-                        <Button variant="primary" onClick={saveScript} disabled={isSaving}>
-                            {isSaving ? "Enregistrement..." : "Enregistrer"}
-                        </Button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                onClose();
-                                onOpenFull?.();
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-medium transition-colors"
-                        >
-                            <Settings2 className="w-4 h-4" />
-                            Ouvrir la mission
-                        </button>
-                    </div>
-                </div>
-            )}
-        </Modal>
     );
 }
 

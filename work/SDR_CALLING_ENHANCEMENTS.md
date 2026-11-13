@@ -1,0 +1,7 @@
+# SDR calling improvements — 2026-11-07
+
+Pulled feat/assistant-brain from 5241438 to 3d7c1f3. Existing edits restored and merge conflicts reconciled; backup retained in stash named codex-preserve-local-before-sdr-enhancement-2026-11-07. The upstream docked Script tab supersedes the older local paired-script drawer implementation.
+
+Implemented shared calling navigation, narrower focus rail, shorter transitions without blur, responsive calls journal, local URL filtering without server navigation, retry and refresh states, keyboard-accessible rows and notch controls, reserved notch space, and always-visible mute/hangup controls. Hardened call cancellation and late SDK events, deduplicated device initialization, guarded duplicate focus saves and stale queue/brief/journal/transcript responses. Corrected the undefined channel used by the action drawer note improvement request.
+
+Validation: 76 focused tests passed; focused ESLint passed; browser checks passed with synthetic APIs across Appeler, Mode focus and Mes appels, 1440/1280/768/390 widths, journal search/retry, notch error disclosure, and focus save-and-next. Zero uncaught page errors. Screenshots: .codex-screenshots/sdr-calling. Real telephony calls were not placed. Scoped TypeScript inspection has no errors in modified calling files, but imported shared modules have existing errors (ClientCalCredentials, CompanyDrawer, SupportBubble, HelpPanel, Tooltip, Tour, OpenReplay); see sdr-enhancement-types.log. No deployment or database migrations performed.

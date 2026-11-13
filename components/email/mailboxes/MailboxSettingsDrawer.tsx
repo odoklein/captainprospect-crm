@@ -474,7 +474,7 @@ export function MailboxSettingsDrawer({ mailbox, onClose, onChanged, onDeleted }
                                             {usage.clients.map((c) => (
                                                 <li key={c.id} className="flex items-center gap-2 px-3 py-2">
                                                     <Building2 className="size-3.5 shrink-0 text-ink-4" aria-hidden />
-                                                    <Link href={`/manager/clients/${c.id}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-link hover:underline">
+                                                    <Link href={`/manager/clients?client=${c.id}`} className="min-w-0 flex-1 truncate text-sm font-medium text-ink hover:text-link hover:underline">
                                                         {c.name}
                                                     </Link>
                                                     <Badge size="sm">Client</Badge>

@@ -147,6 +147,9 @@ HMAC signature themselves (`lib/instance/auth.ts`).
 | `GET` | `/api/instance/cron` | — | `{ jobs: [{ id, schedule, description, missedRun }] }` (§11) |
 | `POST` | `/api/instance/cron` | `{ job }` | runs the job now: `{ ok, job, status, result }` |
 | `POST` | `/api/instance/export` | — | `202 { export }`: starts a full data export (§12) |
+| `GET` | `/api/instance/support/tickets` | — | Support Technique tickets for the Console inbox: `{ tickets, nextCursor, counts, serverTime }` (§15) |
+| `GET` | `/api/instance/support/tickets/:id` | — | one ticket with its thread: `{ ticket }` (§15) |
+| `POST` | `/api/instance/support/tickets/:id` | `{ action: "comment" \| "status" \| "priority", … }` | reply / move / reprioritise as "Support plateforme": `{ ticket }` (§15) |
 | `GET` | `/api/instance/export?id=` | — | `{ export, downloadUrl }` once done |
 
 `version` is `GIT_SHA`; `schemaVersion` is the last applied migration name
@@ -373,3 +376,10 @@ The instance wraps its `state` in a signed envelope (`lib/oauth-relay/state.ts`:
 The comms socket server is **not in this repo** (a shared service). The CRM side is done: `GET /api/comms/socket-token` returns a 5-minute token for the logged-in user (`lib/socket/handshake.ts`: instance id and user id, HMAC under a key derived from `INSTANCE_ADMIN_SECRET`), and the browser sends it as `auth: { token }` on every (re)connect. With no `INSTANCE_ID` (the original deployment) the token is `null` and the client connects exactly as before.
 
 **What the socket server must do before more than one agency shares it**, otherwise `online-users` and messages still cross agencies: on connection, read `socket.handshake.auth.token`, find the instance with `peekSocketInstanceId`, verify with that instance's secret (`verifySocketToken`) and refuse otherwise, `socket.join(socketRoomFor(instanceId))`, take the user id **from the token** (ignore the `userId` in `user-online`), and emit `online-users`, `typing` and `receive-message` to that room only. Until then, run one socket container per agency (`SOCKET_URL` per instance).
+
+## 15. Platform support: every agency's tickets in the Console
+
+The Console's **Support** inbox lists the Support Technique tickets of every agency. It reads them through `/api/instance/support/*` (signed like every instance route, rate limit 30 requests/min per route). The Console never reads an agency database. Contract and UI spec: `docs/CONSOLE_SUPPORT.md`.
+
+Replies from the Console are written in the agency CRM by an account called **Support plateforme** (`support-plateforme@platform.invalid`). That account is created the first time it is needed, is inactive, cannot log in and takes no seat. The Console teammate's name is added to the end of each reply. Each write notifies the requester, the assignee and the agency's managers in the CRM, and is recorded in the audit log as `TICKET_PLATFORM_SUPPORT`. Status changes follow the same transition and release-checklist rules as the CRM itself (`422 rule_violation` with the French message otherwise).
+

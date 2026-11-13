@@ -80,6 +80,8 @@ interface ActionQueueToolbarProps<T extends QueueRowLike> {
     channelLabels: Record<string, string>;
     /** View toggle, stats, sync… rendered at the end of the first row. */
     trailing?: ReactNode;
+    /** Quiet context next to the result count (e.g. what this session logged). */
+    meta?: ReactNode;
 }
 
 export function ActionQueueToolbar<T extends QueueRowLike>({
@@ -98,6 +100,7 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
     priorityLabels,
     channelLabels,
     trailing,
+    meta,
 }: ActionQueueToolbarProps<T>) {
     const searchRef = useRef<HTMLInputElement>(null);
     const advancedCount = countAdvancedFilters(filters);
@@ -200,7 +203,7 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
     const anyFilter = hasAnyQueueFilter(filters);
 
     return (
-        <section className="rounded-2xl border border-line bg-surface shadow-sm">
+        <section className="rounded-xl border border-line bg-surface">
             {/* Row 1 — context, search, type, advanced toggle, page actions */}
             <div className="flex flex-wrap items-center gap-2 p-2.5">
                 <ContextSelect
@@ -432,6 +435,7 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
                 ))}
 
                 <div className="ml-auto flex items-center gap-3 pl-2">
+                    {meta}
                     <span className="text-xs text-ink-3 tabular-nums" aria-live="polite">
                         <span className={cn("font-semibold", anyFilter ? "text-accent-600" : "text-ink")}>{nf.format(filteredCount)}</span>
                         {anyFilter || filters.type ? <> sur {nf.format(items.length)}</> : null} dans la file
@@ -511,7 +515,7 @@ function NativeSelect({
 function FilterField({ label, hint, className, children }: { label: string; hint?: string; className?: string; children: ReactNode }) {
     return (
         <div className={cn("min-w-0 space-y-1", className)} title={hint}>
-            <span className="block text-[11px] font-medium uppercase tracking-wide text-ink-4">{label}</span>
+            <span className="block text-xs font-medium text-ink-3">{label}</span>
             {children}
         </div>
     );

@@ -179,8 +179,14 @@ export type Brand = {
     fontPreset: FontPresetId;
     /** Public app URL, no trailing slash. */
     appUrl: string;
-    /** Host of the app URL, for display ("app.captainprospect.fr"). */
+    /** Host of the app URL, for display ("app.suzalink.com"). */
     appHost: string;
+    /** Name of the AI assistant in the UI ("Suzalink AI"), derived from `name`. */
+    assistantName: string;
+    /** Name of the background agent in the UI ("Suzalink Agent"), derived from `name`. */
+    agentName: string;
+    /** `name` as a lowercase slug ("suzalink"), for identifiers people copy (MCP server name). */
+    slug: string;
     /** Changes whenever the settings change (cache-buster for icons). */
     version: string;
 };

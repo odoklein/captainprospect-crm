@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import {
     successResponse,
     errorResponse,
@@ -12,9 +11,12 @@ import {
 import { z } from 'zod';
 import { canTransitionMissionStatus } from '@/lib/constants/missionStatus';
 import type { MissionStatusValue } from '@/lib/constants/missionStatus';
-import { isMissionInPortalLaunch } from '@/lib/portal-visibility';
 import { audit, AUDIT_ACTIONS } from '@/lib/audit';
 import { getCooldownDisabledListIds } from '@/lib/sdr-queue/cooldown';
+import { fetchListCounts, getLegacyMissionInsights } from '@/lib/missions/insights.server';
+import { EMPTY_LIST_COUNTS } from '@/lib/missions/insights';
+import { denyMissionRead, MISSION_READ_ROLES } from './_access';
+import { computeListReadiness, defaultCampaignOf, summarizeReadiness, type ReadinessCampaign } from '@/lib/missions/readiness';
 
 // ============================================
 // SCHEMAS
@@ -30,6 +32,8 @@ const updateMissionSchema = z
             .union([z.string().min(1), z.literal(null)])
             .optional()
             .transform((v) => (v === null ? '' : v)),
+        /** « RDV visés » over the mission period; null clears it. */
+        targetMeetings: z.number().int().min(0).max(100000).nullable().optional(),
         channel: channelEnum.optional(),
         channels: z.array(channelEnum).min(1).optional(),
         startDate: z.string().transform((s) => new Date(s)).optional(),
@@ -62,14 +66,17 @@ const assignSdrSchema = z.object({
 
 // ============================================
 // GET /api/missions/[id] - Get mission details
+//   ?view=brief → same payload without `pulse`, `insights`, `teamStats`
+//   (and without their queries); those live in /api/missions/[id]/insights.
 // ============================================
 
 export const GET = withErrorHandler(async (
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) => {
-    const session = await requireRole(['MANAGER', 'CLIENT', 'SDR', 'BUSINESS_DEVELOPER', 'BOOKER'], request);
+    const session = await requireRole(MISSION_READ_ROLES, request);
     const { id } = await params;
+    const brief = request.nextUrl.searchParams.get('view') === 'brief';
 
     const mission = await prisma.mission.findUnique({
         where: { id },
@@ -84,15 +91,9 @@ export const GET = withErrorHandler(async (
             },
             campaigns: true,
             lists: {
+                // D1: no Company rows here — per-list counts come from one
+                // grouped query (fetchListCounts) below.
                 include: {
-                    // List has no "contacts" relation; only "companies". Contact count is per company below.
-                    _count: { select: { companies: true } },
-                    companies: {
-                        select: {
-                            status: true,
-                            _count: { select: { contacts: true } },
-                        },
-                    },
                     commercialInterlocuteur: {
                         select: {
                             id: true,
@@ -152,231 +153,59 @@ export const GET = withErrorHandler(async (
         throw new NotFoundError('Mission introuvable');
     }
 
-    // Access control
-    if (session.user.role === 'CLIENT') {
-        const hasAccess = await prisma.user.findFirst({
-            where: { id: session.user.id, clientId: mission.clientId },
-        });
-        if (!hasAccess) {
-            return errorResponse('Accès non autorisé', 403);
-        }
-        if (isMissionInPortalLaunch(mission)) {
-            return errorResponse('Mission en phase de démarrage', 403);
-        }
-    }
+    // Access control (shared with /insights)
+    const denied = await denyMissionRead(session.user, mission);
+    if (denied) return denied;
 
-    if (session.user.role === 'SDR' || session.user.role === 'BUSINESS_DEVELOPER') {
-        const isAssigned = mission.sdrAssignments.some(
-            (a: { sdrId: string }) => a.sdrId === session.user.id
-        );
-        if (!isAssigned) {
-            return errorResponse('Accès non autorisé', 403);
-        }
-    }
-
-    // Get stats
-    const stats = await prisma.action.aggregate({
-        where: {
-            campaign: { missionId: id },
-        },
-        _count: true,
-    });
-
-    const meetings = await prisma.action.count({
-        where: {
-            campaign: { missionId: id },
-            result: 'MEETING_BOOKED',
-        },
-    });
-
-    const opportunities = await prisma.opportunity.count({
-        where: {
-            contact: {
-                company: {
-                    list: { missionId: id },
-                },
+    // Independent queries, in parallel.
+    const [totalActions, meetings, opportunities, listCounts, cooldownOffListIds, legacyInsights] = await Promise.all([
+        prisma.action.count({
+            where: { campaign: { missionId: id } },
+        }),
+        prisma.action.count({
+            where: {
+                campaign: { missionId: id },
+                result: 'MEETING_BOOKED',
             },
-        },
-    });
-
-    // ── Insights: 30-day daily series + the previous 30 days to compare against.
-    // Aggregated in SQL: a busy mission would otherwise ship tens of thousands
-    // of rows just to be bucketed by day in JS.
-    const TREND_DAYS = 30;
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    // UTC-aligned throughout: date_trunc runs in the DB session timezone (UTC),
-    // so mixing in local midnight would misfile the boundary buckets.
-    const startOfToday = new Date();
-    startOfToday.setUTCHours(0, 0, 0, 0);
-    const windowStart = new Date(startOfToday.getTime() - (TREND_DAYS - 1) * DAY_MS);
-    const previousStart = new Date(windowStart.getTime() - TREND_DAYS * DAY_MS);
-
-    const trendRows = await prisma.$queryRaw<Array<{ day: Date; actions: number; meetings: number }>>(
-        Prisma.sql`
-            SELECT date_trunc('day', a."createdAt") AS day,
-                   COUNT(a.id)::int AS actions,
-                   COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings
-            FROM "Action" a
-            JOIN "Campaign" c ON c.id = a."campaignId"
-            WHERE c."missionId" = ${id}
-              AND a."createdAt" >= ${previousStart}
-            GROUP BY 1
-            ORDER BY 1
-        `
-    );
-
-    const bucketed = new Map<string, { actions: number; meetings: number }>();
-    for (const row of trendRows) {
-        const key = new Date(row.day).toISOString().slice(0, 10);
-        bucketed.set(key, { actions: Number(row.actions), meetings: Number(row.meetings) });
-    }
-
-    const series: Array<{ date: string; actions: number; meetings: number }> = [];
-    for (let i = 0; i < TREND_DAYS; i++) {
-        const date = new Date(windowStart.getTime() + i * DAY_MS).toISOString().slice(0, 10);
-        const hit = bucketed.get(date);
-        series.push({ date, actions: hit?.actions ?? 0, meetings: hit?.meetings ?? 0 });
-    }
-
-    const sumWindow = (from: Date, to: Date) => {
-        let actions = 0;
-        let meetings = 0;
-        for (const [date, value] of bucketed) {
-            const t = new Date(`${date}T00:00:00.000Z`).getTime();
-            if (t >= from.getTime() && t < to.getTime()) {
-                actions += value.actions;
-                meetings += value.meetings;
-            }
-        }
-        return { actions, meetings };
-    };
-
-    const currentWindow = sumWindow(windowStart, new Date(startOfToday.getTime() + DAY_MS));
-    const previousWindow = sumWindow(previousStart, windowStart);
-
-    // Per-SDR contribution on this mission: one group-by rather than a request
-    // per assignee, so the Equipe tab stays cheap however big the team is.
-    const teamRows = await prisma.$queryRaw<
-        Array<{ sdrId: string; actions: number; meetings: number; recentActions: number }>
-    >(
-        Prisma.sql`
-            SELECT a."sdrId" AS "sdrId",
-                   COUNT(a.id)::int AS actions,
-                   COUNT(CASE WHEN a."result" = 'MEETING_BOOKED' THEN 1 END)::int AS meetings,
-                   COUNT(CASE WHEN a."createdAt" >= ${windowStart} THEN 1 END)::int AS "recentActions"
-            FROM "Action" a
-            JOIN "Campaign" c ON c.id = a."campaignId"
-            WHERE c."missionId" = ${id}
-            GROUP BY a."sdrId"
-        `
-    );
-
-    const opportunityWhere = {
-        contact: { company: { list: { missionId: id } } },
-    };
-    const [currentOpportunities, previousOpportunities] = await Promise.all([
-        prisma.opportunity.count({
-            where: { ...opportunityWhere, createdAt: { gte: windowStart } },
         }),
         prisma.opportunity.count({
             where: {
-                ...opportunityWhere,
-                createdAt: { gte: previousStart, lt: windowStart },
+                contact: {
+                    company: {
+                        list: { missionId: id },
+                    },
+                },
             },
         }),
+        fetchListCounts(prisma, id),
+        getCooldownDisabledListIds(mission.lists.map((l) => l.id)),
+        brief ? null : getLegacyMissionInsights(prisma, id),
     ]);
 
-    // Per-list strategy readiness + mission-level rollup
-    type LinkedCampaign = {
-        id: string;
-        name: string;
-        icp: string | null;
-        pitch: string | null;
-        script: string | null;
-        isActive?: boolean;
-    } | null;
-
-    const defaultMissionCampaign = mission.campaigns.find((c) => c.isActive) || mission.campaigns[0] || null;
-
-    const computeReadiness = (campaign: LinkedCampaign) => {
-        const isCustom = !!campaign;
-        const effectiveCampaign = campaign || (defaultMissionCampaign ? {
-            id: defaultMissionCampaign.id,
-            name: defaultMissionCampaign.name,
-            icp: defaultMissionCampaign.icp,
-            pitch: defaultMissionCampaign.pitch,
-            script: defaultMissionCampaign.script,
-        } : null);
-
-        const hasIcp = !!effectiveCampaign?.icp?.trim();
-        const hasPitch = !!effectiveCampaign?.pitch?.trim();
-        const hasScript = !!effectiveCampaign?.script?.trim();
-        const hasStrategy = !!effectiveCampaign;
-        const isInherited = !campaign && !!defaultMissionCampaign;
-
+    // Per-list counts + strategy readiness + mission-level rollup (lib/missions/readiness)
+    const defaultMissionCampaign = defaultCampaignOf(mission.campaigns) as ReadinessCampaign;
+    const listsWithReadiness = mission.lists.map((l) => {
+        const counts = listCounts.get(l.id) ?? EMPTY_LIST_COUNTS;
         return {
-            hasStrategy,
-            isCustom,
-            isInherited,
-            inheritedCampaignId: isInherited ? defaultMissionCampaign?.id : null,
-            inheritedCampaignName: isInherited ? defaultMissionCampaign?.name : null,
-            hasIcp,
-            hasPitch,
-            hasScript,
-            isReady: hasStrategy && hasIcp && hasPitch && hasScript,
+            ...l,
+            _count: { companies: counts.companies, contacts: counts.contacts },
+            companyStatusCounts: counts.companyStatusCounts,
+            readiness: computeListReadiness(l.campaign as ReadinessCampaign, defaultMissionCampaign),
+            queueCooldownEnabled: !cooldownOffListIds.has(l.id),
         };
-    };
-
-    const cooldownOffListIds = await getCooldownDisabledListIds(mission.lists.map((l) => l.id));
-    const listsWithReadiness = mission.lists.map((l) => ({
-        ...l,
-        readiness: computeReadiness(l.campaign as LinkedCampaign),
-        queueCooldownEnabled: !cooldownOffListIds.has(l.id),
-    }));
-
-    const activeListsWithReadiness = listsWithReadiness.filter(
-        (l) => l.isActive !== false && l.isArchived !== true
-    );
-    const missionReadiness = {
-        activeLists: activeListsWithReadiness.length,
-        readyLists: activeListsWithReadiness.filter((l) => l.readiness.isReady).length,
-        customStrategyLists: activeListsWithReadiness.filter((l) => l.readiness.isCustom).length,
-        inheritedStrategyLists: activeListsWithReadiness.filter((l) => l.readiness.isInherited).length,
-        missingStrategy: activeListsWithReadiness.filter((l) => !l.readiness.hasStrategy).length,
-        missingIcp: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasIcp).length,
-        missingPitch: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasPitch).length,
-        missingScript: activeListsWithReadiness.filter((l) => l.readiness.hasStrategy && !l.readiness.hasScript).length,
-    };
+    });
+    const missionReadiness = summarizeReadiness(listsWithReadiness);
 
     return successResponse({
         ...mission,
         lists: listsWithReadiness,
         missionReadiness,
         stats: {
-            totalActions: stats._count,
+            totalActions,
             meetingsBooked: meetings,
             opportunities,
         },
-        teamStats: teamRows.map((row) => ({
-            sdrId: row.sdrId,
-            actions: Number(row.actions),
-            meetings: Number(row.meetings),
-            recentActions: Number(row.recentActions),
-        })),
-        insights: {
-            windowDays: TREND_DAYS,
-            series,
-            current: {
-                actions: currentWindow.actions,
-                meetings: currentWindow.meetings,
-                opportunities: currentOpportunities,
-            },
-            previous: {
-                actions: previousWindow.actions,
-                meetings: previousWindow.meetings,
-                opportunities: previousOpportunities,
-            },
-        },
+        ...(legacyInsights ?? {}),
     });
 });
 
