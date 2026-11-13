@@ -106,16 +106,16 @@ export function ProspectCallStrip({
             </div>
             {(email || linkedin || website) && (
                 <div className="flex min-w-0 items-center gap-0.5 border-t border-line-subtle px-2 py-1.5">
-                    {email && (
-                        <a href={`mailto:${email}`} className={cn(link, "flex-1 justify-start")} title={`Écrire à ${email}`}>
-                            <Mail className="size-3.5 shrink-0" aria-hidden />
-                            <span className="truncate">{email}</span>
-                        </a>
-                    )}
                     {linkedin && (
                         <a href={url(linkedin)} target="_blank" rel="noopener noreferrer" className={cn(link, "shrink-0")} title="Profil LinkedIn">
                             <Linkedin className="size-3.5 shrink-0" aria-hidden />
                             LinkedIn
+                        </a>
+                    )}
+                    {email && (
+                        <a href={`mailto:${email}`} className={cn(link, "flex-1 justify-start")} title={`Écrire à ${email}`}>
+                            <Mail className="size-3.5 shrink-0" aria-hidden />
+                            <span className="truncate">{email}</span>
                         </a>
                     )}
                     {website && (
