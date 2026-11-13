@@ -39,6 +39,7 @@ import { ErrorTurn } from "./ErrorTurn";
 import { MessageList } from "./MessageList";
 import { ContextPanel } from "../folder/ContextPanel";
 import { ConversationContext } from "./ConversationContext";
+import { AssistantAmbient } from "./AssistantAmbient";
 import { ThreadHeader } from "./ThreadHeader";
 import { UserMessage } from "./UserMessage";
 import { renderKeys } from "./handover";
@@ -544,7 +545,9 @@ export function Thread({
 
     return (
         <div {...getRootProps({ className: "relative flex h-full min-h-0 w-full overflow-hidden outline-none" })}>
-            <section className="flex min-w-0 flex-1 flex-col bg-surface" aria-label={conversation?.title || "Nouvelle conversation"}>
+            <section className="relative isolate flex min-w-0 flex-1 flex-col bg-surface" aria-label={conversation?.title || "Nouvelle conversation"}>
+                {/* Brand ambience on a fresh conversation only: gone as soon as there is something to read. */}
+                {!compact && conversationId === null && messages.length === 0 && !failure && sendingFor === null && <AssistantAmbient />}
                 <ThreadHeader
                     conversation={conversation}
                     draftFolder={draft ? { id: draft.folderId, name: draft.folderName, kind: draft.folderKind } : null}
