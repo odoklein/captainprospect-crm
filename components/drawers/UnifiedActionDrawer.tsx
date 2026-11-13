@@ -46,7 +46,6 @@ import {
     Video,
     UserX,
     XCircle,
-    IdCard,
     ScrollText,
     MessageSquareText,
 } from "lucide-react";
@@ -1099,7 +1098,7 @@ export function UnifiedActionDrawer({
 
     // Docked pane tabs. A new prospect opens on « Appel »; a call to this
     // prospect brings up the script while talking, and the result once it ends.
-    const [paneTab, setPaneTab] = useState<"appel" | "fiche" | "script" | "sms">("appel");
+    const [paneTab, setPaneTab] = useState<"appel" | "script" | "sms">("appel");
     const paneProspectKey = `${contactId ?? ""}|${companyId}`;
     const [paneProspect, setPaneProspect] = useState(paneProspectKey);
     const callHere: "none" | "live" | "ended" =
@@ -1115,7 +1114,7 @@ export function UnifiedActionDrawer({
         else if (callHere === "ended") setPaneTab("appel");
     }
     /** Shown in the current tab (always true for the classic drawer). */
-    const inPane = (tab: "appel" | "fiche" | "script" | "sms") => !docked || paneTab === tab;
+    const inPane = (tab: "appel" | "script" | "sms") => !docked || paneTab === tab;
     const primaryPhone = useMemo(() => {
         if (contact?.phone) return { number: contact.phone, label: "Contact" };
         if (company?.phone) return { number: company.phone, label: "Société" };
@@ -1801,11 +1800,9 @@ export function UnifiedActionDrawer({
             </div>
         ) : undefined;
 
-    // Quick actions + contact/company sheet. Rendered between the history and the
-    // action form by default; below the form when a summary is passed (RDV view).
-    const ficheSections = (
+    const wrongContact = ["BAD_CONTACT", "MAUVAIS_FAUX", "MAUVAIS_INTERLOCUTEUR"].includes(newActionResult);
+    const callActions = (
         <>
-            {company && inPane("fiche") && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact={["BAD_CONTACT","MAUVAIS_INTERLOCUTEUR"].includes(newActionResult)} onSelect={onContactSelect} />}
             {/* ── Quick Action Bar ── (docked: one compact call strip) */}
             {docked ? (
                 inPane("appel") && (
@@ -1902,16 +1899,17 @@ export function UnifiedActionDrawer({
                 </section>
             )}
 
-            {/* ── Tab Navigation ── */}
-            {contact && (
+        </>
+    );
+
+    const ficheSections = (
+        <>
+            {/* The classic drawer keeps the contact and company tabs. */}
+            {!docked && contact && (
                 <div
                     role="tablist"
                     aria-label="Informations contact ou société"
-                    className={cn(
-                        "flex gap-1",
-                        docked ? "self-start rounded-lg bg-surface-2 p-0.5 ring-1 ring-inset ring-line-subtle" : "rounded-xl bg-slate-100/80 p-1 border border-slate-200/60",
-                        !inPane("fiche") && "hidden",
-                    )}
+                    className="flex gap-1 rounded-xl border border-slate-200/60 bg-slate-100/80 p-1"
                     style={{ animation: "uadSectionIn 250ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
                     onKeyDown={(e) => {
                         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -1931,9 +1929,8 @@ export function UnifiedActionDrawer({
                         onClick={() => setActiveTab("contact")}
                         className={cn(
                             "flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
-                            docked
-                                ? cn("h-7 gap-1.5 rounded-md px-3 text-[12.5px] font-medium", activeTab === "contact" ? "bg-surface text-ink shadow-xs ring-1 ring-line-subtle" : "text-ink-3 hover:text-ink")
-                                : cn("flex-1 gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold", activeTab === "contact" ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100" : "text-slate-500 hover:text-slate-800 hover:bg-white/50"),
+                            "flex-1 gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold",
+                            activeTab === "contact" ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100" : "text-slate-500 hover:bg-white/50 hover:text-slate-800",
                         )}
                     >
                         <User className="w-4 h-4" aria-hidden="true" />
@@ -1948,9 +1945,8 @@ export function UnifiedActionDrawer({
                         onClick={() => setActiveTab("company")}
                         className={cn(
                             "flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-1",
-                            docked
-                                ? cn("h-7 gap-1.5 rounded-md px-3 text-[12.5px] font-medium", activeTab === "company" ? "bg-surface text-ink shadow-xs ring-1 ring-line-subtle" : "text-ink-3 hover:text-ink")
-                                : cn("flex-1 gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold", activeTab === "company" ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100" : "text-slate-500 hover:text-slate-800 hover:bg-white/50"),
+                            "flex-1 gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold",
+                            activeTab === "company" ? "bg-white text-primary-600 shadow-sm ring-1 ring-primary-100" : "text-slate-500 hover:bg-white/50 hover:text-slate-800",
                         )}
                     >
                         <Building2 className="w-4 h-4" aria-hidden="true" />
@@ -1960,13 +1956,14 @@ export function UnifiedActionDrawer({
             )}
 
             {/* ── Contact Tab ── */}
-            {activeTab === "contact" && contact && (
+            {(docked || activeTab === "contact") && contact && (
                 <section
                     id="tabpanel-contact"
-                    role="tabpanel"
-                    aria-labelledby="tab-contact"
-                    tabIndex={0}
-                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("fiche") && "hidden")}
+                    role={docked ? undefined : "tabpanel"}
+                    aria-label={docked ? "Contact" : undefined}
+                    aria-labelledby={docked ? undefined : "tab-contact"}
+                    tabIndex={docked ? undefined : 0}
+                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("appel") && "hidden")}
                     style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                 >
                     {/* Contact header */}
@@ -2470,13 +2467,14 @@ export function UnifiedActionDrawer({
             )}
 
             {/* ── Company Tab ── */}
-            {(activeTab === "company" || !contact) && company && (
+            {(docked || activeTab === "company" || !contact) && company && (
                 <section
                     id="tabpanel-company"
-                    role="tabpanel"
-                    aria-labelledby="tab-company"
-                    tabIndex={0}
-                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("fiche") && "hidden")}
+                    role={docked ? undefined : "tabpanel"}
+                    aria-label={docked ? "Entreprise" : undefined}
+                    aria-labelledby={docked || !contact ? undefined : "tab-company"}
+                    tabIndex={docked ? undefined : 0}
+                    className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-1", docked && "rounded-xl shadow-none", !inPane("appel") && "hidden")}
                     style={{ animation: "uadSectionIn 200ms cubic-bezier(0.16, 1, 0.3, 1)" }}
                 >
                     {/* No contact prompt */}
@@ -2993,7 +2991,6 @@ export function UnifiedActionDrawer({
                         onChange={setPaneTab}
                         tabs={[
                             { id: "appel", label: "Appel", icon: PhoneCall, live: callHere === "live" },
-                            { id: "fiche", label: "Fiche", icon: IdCard },
                             ...(script ? [{ id: "script" as const, label: "Script", icon: ScrollText }] : []),
                             { id: "sms", label: "SMS", icon: MessageSquareText },
                         ]}
@@ -3063,8 +3060,8 @@ export function UnifiedActionDrawer({
                     )}
                     </div>
 
-                    {!activeExclusion && company && (
-                        <div className={cn("flex justify-end -mb-2", !inPane("fiche") && "hidden")}>
+                    {!docked && !activeExclusion && company && (
+                        <div className={cn("flex justify-end -mb-2", !inPane("appel") && "hidden")}>
                             <button
                                 type="button"
                                 onClick={() => setExcludeDialogOpen(true)}
@@ -3077,7 +3074,7 @@ export function UnifiedActionDrawer({
                         </div>
                     )}
 
-                    <div className={cn(docked && "order-3 border-t border-line-subtle pt-6", !inPane("appel") && "hidden")}>
+                    <div className={cn(docked && "order-4 border-t border-line-subtle pt-6", !inPane("appel") && "hidden")}>
                         <ActivityTimeline companyId={companyId ?? undefined} events={actionsToEvents(actions,statusLabels)} loading={actionsLoading} />
                         <details className="sdr-history-management"><summary>Gérer les activités · modifier ou supprimer</summary>
                     {/* ── Unified history section (moved to top) ── */}
@@ -3446,7 +3443,8 @@ export function UnifiedActionDrawer({
                         </details>
                     </div>
 
-                    {!summary && ficheSections}
+                    {(docked || !summary) && callActions}
+                    {!docked && !summary && ficheSections}
 
                     {/* ── Record Action Section ── */}
                     <section
@@ -3475,7 +3473,7 @@ export function UnifiedActionDrawer({
                         </div>
 
                         <div className={docked ? "p-0" : "p-4"}>
-                            {company && ["BAD_CONTACT", "MAUVAIS_INTERLOCUTEUR"].includes(newActionResult) && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact onSelect={onContactSelect} />}
+                            {company && wrongContact && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} wrongContact onSelect={onContactSelect} />}
                             {campaignsLoading ? (
                                 <div className="space-y-3 py-2">
                                     <TextSkeleton lines={1} className="h-9 w-full" />
@@ -3487,7 +3485,7 @@ export function UnifiedActionDrawer({
                                 </p>
                             ) : (
                                 <div className={docked ? "space-y-6" : "space-y-4"}>
-                                    {/* Outcome: docked → the 6 most-used first, keys 1–6 */}
+                                    {/* All configured results are visible. Keys 1–6 select the first six. */}
                                     {docked ? (
                                         <div>
                                             <div className="mb-2.5 flex items-baseline justify-between gap-3">
@@ -4041,7 +4039,18 @@ export function UnifiedActionDrawer({
                         </div>
                     </section>
 
-                    {summary && ficheSections}
+                    {docked && inPane("appel") && (
+                        <div className="order-3 space-y-3 border-t border-line-subtle pt-4">
+                            {ficheSections}
+                            {company && !wrongContact && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} onSelect={onContactSelect} />}
+                            {!activeExclusion && company && (
+                                <Button type="button" variant="secondary" size="sm" onClick={() => setExcludeDialogOpen(true)}>
+                                    <Ban className="size-3.5" aria-hidden="true" /> Blacklister
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                    {!docked && summary && <>{callActions}{ficheSections}</>}
 
                     {docked && script && (
                         <div className={cn(paneTab !== "script" && "hidden")}>

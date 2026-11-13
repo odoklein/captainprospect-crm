@@ -5,12 +5,11 @@
 //
 // The 6 results SDRs log most (no answer, callback, gatekeeper, interested,
 // refusal, meeting) come first in a compact 2-column list with their key
-// (1–6) and colour; everything else waits behind « Autres résultats ».
-// Same labels are shown once. Keys work while focus is not in a text field.
+// (1–6) and colour; every other configured result stays visible.
+// Keys work while focus is not in a text field.
 // ============================================
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 export interface ResultOption {
@@ -57,7 +56,8 @@ export function splitResults(options: ResultOption[]): { main: ResultOption[]; o
         if (main.length >= 6) break;
         if (!main.includes(o)) main.push(o);
     }
-    return { main: main.slice(0, 6), others: unique.filter((o) => !main.slice(0, 6).includes(o)) };
+    const shortcutCodes = new Set(main.map((option) => option.value));
+    return { main, others: options.filter((option) => !shortcutCodes.has(option.value)) };
 }
 
 export function ResultPicker({
@@ -76,8 +76,6 @@ export function ResultPicker({
     keys?: boolean;
 }) {
     const { main, others } = useMemo(() => splitResults(options), [options]);
-    const [open, setOpen] = useState(false);
-    const showOthers = open || others.some((o) => o.value === value);
 
     useEffect(() => {
         if (!keys) return;
@@ -106,7 +104,7 @@ export function ResultPicker({
                 title={o.title ? `${o.label}\n${o.title}` : o.label}
                 onClick={() => onChange(o.value)}
                 className={cn(
-                    "group flex h-10 min-w-0 items-center gap-2.5 rounded-xl px-3 text-left text-[13px] transition-all duration-150",
+                    "group flex min-h-10 min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                     selected
                         ? "cp-flash bg-primary-soft font-semibold text-primary-soft-ink ring-1 ring-inset ring-primary/35"
                         : "bg-surface text-ink-2 ring-1 ring-inset ring-line hover:bg-surface-2 hover:text-ink hover:ring-line-strong",
@@ -117,7 +115,7 @@ export function ResultPicker({
                     style={{ background: colorFor(o.value) ?? "var(--ds-line-strong)" }}
                     aria-hidden
                 />
-                <span className="min-w-0 flex-1 truncate">{shortLabel(o.label)}</span>
+                <span className="min-w-0 flex-1 break-words">{shortLabel(o.label)}</span>
                 {k !== undefined && (
                     <kbd
                         className={cn(
@@ -136,46 +134,8 @@ export function ResultPicker({
         <div role="radiogroup" aria-label="Résultat de l'appel" aria-required="true">
             <div className="grid grid-cols-2 gap-1.5">
                 {main.map((o, i) => renderRow(o, keys ? i + 1 : undefined))}
+                {others.map((o) => renderRow(o))}
             </div>
-            {others.length > 0 && (
-                <>
-                    <button
-                        type="button"
-                        onClick={() => setOpen((v) => !v)}
-                        aria-expanded={showOthers}
-                        className="mt-2 flex items-center gap-1 rounded-md px-1 py-0.5 text-[12px] font-medium text-ink-3 hover:text-ink"
-                    >
-                        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showOthers && "rotate-180")} />
-                        {showOthers ? "Moins de résultats" : `Autres résultats (${others.length})`}
-                    </button>
-                    {showOthers && (
-                        <div className="cp-rise mt-1.5 flex flex-wrap gap-1.5">
-                            {others.map((o) => {
-                                const selected = value === o.value;
-                                return (
-                                    <button
-                                        key={o.value}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={selected}
-                                        title={o.title}
-                                        onClick={() => onChange(o.value)}
-                                        className={cn(
-                                            "flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors",
-                                            selected
-                                                ? "bg-primary-soft font-semibold text-primary-soft-ink ring-1 ring-inset ring-primary/35"
-                                                : "text-ink-2 ring-1 ring-inset ring-line hover:bg-surface-2 hover:text-ink",
-                                        )}
-                                    >
-                                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: colorFor(o.value) ?? "var(--ds-line-strong)" }} aria-hidden />
-                                        {o.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </>
-            )}
         </div>
     );
 }
