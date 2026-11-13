@@ -17,6 +17,7 @@ import { CLIENTS_QUERY_KEY, LEEXI_RECAPS_QUERY_KEY } from "@/lib/query-keys";
 import { collectAttention } from "@/lib/manager/attention";
 import { InboxItem, type WorkspaceClient, type WorkspaceClientStatus as ClientStatus, type WorkspaceLocation } from "@/components/manager/workspace/InboxItem";
 import { requestFocus, useFocusRequest } from "@/components/manager/workspace/focus";
+import { buildWorkspaceSearch, normalizeStoredLocation, parseWorkspace } from "@/components/manager/workspace/url";
 import "./workspace.css";
 
 interface LeexiRecapItem {
@@ -95,11 +96,7 @@ function ClientsPageInner() {
     const directoryScroll = useRef(0);
     const directoryRef = useRef<HTMLElement>(null);
 
-    const clientParam = searchParams.get("client");
-    const missionParam = searchParams.get("mission");
-    const pageParam = searchParams.get("page");
-    const missionTab = searchParams.get("tab") ?? "general";
-    const clientTab = searchParams.get("espace") ?? "missions";
+    const { client: clientParam, mission: missionParam, page: pageParam, tab: missionTab, espace: clientTab } = parseWorkspace(searchParams);
     const recentKey = session?.user?.id ? `cp:client-workspace:${session.user.id}` : null;
 
     useLayoutEffect(() => {
@@ -117,13 +114,8 @@ function ClientsPageInner() {
 
     /** Moves inside the workspace without a page load; `focus` names what takes focus next. */
     function navigate(next: WorkspaceLocation | null, focus?: string) {
-        const params = new URLSearchParams(window.location.search);
-        for (const key of ["client", "mission", "tab", "espace", "page"] as const) {
-            const value = next?.[key];
-            if (value) params.set(key, value);
-            else params.delete(key);
-        }
-        const url = params.size ? `${pathname}?${params}` : pathname;
+        const search = buildWorkspaceSearch(next, window.location.search);
+        const url = search ? `${pathname}?${search}` : pathname;
         if (url === window.location.pathname + window.location.search) return;
         if (!clientParam) directoryScroll.current = document.querySelector(".cw-app-canvas")?.scrollTop ?? 0;
         // A drawer panel or the launch checklist takes focus itself; anything else lands on the new heading.
@@ -156,7 +148,7 @@ function ClientsPageInner() {
     const recent = useMemo<WorkspaceLocation | null>(() => {
         if (!recentKey || clientParam || typeof window === "undefined") return null;
         try {
-            return JSON.parse(window.localStorage.getItem(recentKey) ?? "null");
+            return normalizeStoredLocation(JSON.parse(window.localStorage.getItem(recentKey) ?? "null"));
         } catch {
             return null;
         }
