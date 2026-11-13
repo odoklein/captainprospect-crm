@@ -2797,13 +2797,7 @@ export function MissionWorkspace({
                                                             {list.name}
                                                         </p>
                                                         <p className="text-sm text-slate-500">
-                                                            {list._count?.companies || 0} sociétés · {Array.isArray((list as any).companies)
-                                                                ? (list as any).companies.reduce(
-                                                                    (acc: number, c: { _count?: { contacts?: number } }) =>
-                                                                        acc + (c._count?.contacts || 0),
-                                                                    0
-                                                                )
-                                                                : 0} contacts
+                                                            {list._count?.companies || 0} sociétés · {list._count?.contacts ?? 0} contacts
                                                         </p>
                                                     </div>
                                                 </button>
