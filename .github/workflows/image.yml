@@ -27,6 +27,9 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/${{ github.repository }}
+  # Optional: the Console's POST /hooks/release (see the last build step).
+  CONSOLE_RELEASE_HOOK_URL: ${{ secrets.CONSOLE_RELEASE_HOOK_URL }}
+  CONSOLE_RELEASE_HOOK_TOKEN: ${{ secrets.CONSOLE_RELEASE_HOOK_TOKEN }}
 
 jobs:
   test:
@@ -49,6 +52,7 @@ jobs:
           npm run test:socket-handshake
           npm run test:provision-agency
           npm run test:migrate-plan
+          npm run test:changelog
 
   build:
     name: build and push
@@ -142,3 +146,14 @@ jobs:
           labels: ${{ steps.tags.outputs.labels }}
           cache-from: type=gha,scope=deps
           cache-to: type=gha,scope=runtime,mode=max
+
+      # Tell the Console a new version exists: it drafts the « Nouveautés » from the commits and,
+      # with RELEASE_HOOK_PUBLISH=beta, upgrades the agencies in automatic mode on the beta channel.
+      # Off until both secrets are set (Settings → Secrets → Actions).
+      - name: Notify the Console
+        if: ${{ github.ref == 'refs/heads/main' && env.CONSOLE_RELEASE_HOOK_URL != '' }}
+        run: |
+          curl -fsS --retry 3 -X POST "$CONSOLE_RELEASE_HOOK_URL" \
+            -H "Authorization: Bearer $CONSOLE_RELEASE_HOOK_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag\":\"${{ steps.meta.outputs.sha }}\"}"
