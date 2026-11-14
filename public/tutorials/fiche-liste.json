@@ -1,0 +1,45 @@
+{
+  "id": "fiche-liste",
+  "title": "Fiche d'une liste",
+  "section": "Prospection",
+  "purpose": "Le détail d'un fichier de prospection : sa qualité, son avancement, et chaque société ou contact qu'il contient.",
+  "durationSec": 43,
+  "chapters": [
+    {
+      "label": "Vue d'ensemble",
+      "title": "Fiche d'une liste",
+      "detail": "Le détail d'un fichier de prospection : sa qualité, son avancement, et chaque société ou contact qu'il contient.",
+      "start": 0
+    },
+    {
+      "label": "Étape 1 sur 4",
+      "title": "Vérifiez la qualité du fichier",
+      "detail": "Contacts joignables, qualifiés, avec e-mail : de quoi savoir si la liste est exploitable.",
+      "start": 6.7
+    },
+    {
+      "label": "Étape 2 sur 4",
+      "title": "Suivez la santé de prospection",
+      "detail": "Part des cibles déjà contactées et date de fin estimée, calculées sur les vrais appels.",
+      "start": 15
+    },
+    {
+      "label": "Étape 3 sur 4",
+      "title": "Passez aux contacts",
+      "detail": "Basculez entre le répertoire des sociétés et l'annuaire des contacts.",
+      "start": 23.6
+    },
+    {
+      "label": "Étape 4 sur 4",
+      "title": "Ouvrez une fiche",
+      "detail": "Coordonnées, historique des appels et prochaines actions, comme le voit le SDR.",
+      "start": 29.7
+    },
+    {
+      "label": "Résultat",
+      "title": "Toute l'histoire d'un prospect",
+      "detail": "Vous voyez ce qui a été fait sur ce contact et pouvez corriger ses informations.",
+      "start": 36.5
+    }
+  ]
+}

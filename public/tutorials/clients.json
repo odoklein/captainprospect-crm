@@ -1,0 +1,45 @@
+{
+  "id": "clients",
+  "title": "Clients",
+  "section": "Clients",
+  "purpose": "Votre portefeuille : chaque client, ses missions et ce qui demande votre attention, au même endroit.",
+  "durationSec": 41,
+  "chapters": [
+    {
+      "label": "Vue d'ensemble",
+      "title": "Clients",
+      "detail": "Votre portefeuille : chaque client, ses missions et ce qui demande votre attention, au même endroit.",
+      "start": 0
+    },
+    {
+      "label": "Étape 1 sur 4",
+      "title": "Commencez par « À traiter »",
+      "detail": "Lancement bloqué, mission sans équipe ou fin proche : les urgences remontent ici.",
+      "start": 6.2
+    },
+    {
+      "label": "Étape 2 sur 4",
+      "title": "Cherchez un client",
+      "detail": "Le tableau se filtre au fil de la frappe.",
+      "start": 14.5
+    },
+    {
+      "label": "Étape 3 sur 4",
+      "title": "Ouvrez sa fiche",
+      "detail": "Ses missions en cours et en pause, ses contacts, ses pages et son intégration.",
+      "start": 20.2
+    },
+    {
+      "label": "Étape 4 sur 4",
+      "title": "Entrez dans une mission",
+      "detail": "Brief, lancement, bases de prospects, scripts et équipe de la mission.",
+      "start": 27.8
+    },
+    {
+      "label": "Résultat",
+      "title": "L'espace de la mission s'ouvre",
+      "detail": "Le guide « Espace mission » détaille chacune de ses sections.",
+      "start": 34.6
+    }
+  ]
+}

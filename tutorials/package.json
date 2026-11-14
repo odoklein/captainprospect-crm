@@ -1,0 +1,12 @@
+{
+  "name": "crm-tutorials",
+  "private": true,
+  "type": "module",
+  "description": "Tutorial video workspace: fictional seed, Playwright UI capture, Remotion render. Never part of the app bundle.",
+  "scripts": {
+    "seed": "tsx capture/seed/index.ts",
+    "capture": "tsx capture/capture.ts",
+    "render": "tsx render.ts",
+    "all": "npm run seed && npm run capture && npm run render"
+  }
+}

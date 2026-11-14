@@ -57,6 +57,7 @@
     "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts lib/sdr-queue/shared-phone.test.ts lib/sdr-queue/display.test.ts lib/sdr-queue/script-fill.test.ts",
     "test:sdr-pace": "tsx --test lib/sdr-pace/pace.test.ts",
     "test:sdr-daily-report": "tsx --test lib/sdr-daily-report/report.test.ts",
+    "test:tutorials": "tsx --test lib/tutorials/match.test.ts",
     "test:manager-home": "tsx --test lib/manager-home/rules.test.ts lib/manager-home/today-rules.test.ts",
     "test:client-workspace": "tsx --test lib/manager/attention.test.ts lib/client-pages/blocks.test.ts lib/missions/pulse.test.ts",
     "test:rdv-overview": "tsx --test lib/rdv/overview.test.ts",

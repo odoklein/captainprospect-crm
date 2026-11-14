@@ -13,6 +13,7 @@ import { SectionTabs } from "./SectionTabs";
 import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
+import { TutorialLauncher } from "@/components/tutorials/TutorialLauncher";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
 import { SmsDockItem } from "@/components/messaging/SmsDockItem";
 import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
@@ -262,6 +263,7 @@ function InnerLayout({
                                 {dailyReport.submitted ? "Retour du jour envoyé" : "Retour journée"}
                             </button>
                         )}
+                        {userRole === UserRole.MANAGER && pathname.startsWith("/manager") && <TutorialLauncher />}
                         {userRole === UserRole.MANAGER && <TodayTasksMenu />}
                         <button
                             type="button"

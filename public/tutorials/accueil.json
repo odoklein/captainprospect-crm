@@ -1,0 +1,45 @@
+{
+  "id": "accueil",
+  "title": "Accueil",
+  "section": "Accueil",
+  "purpose": "Votre point de départ chaque jour : RDV décrochés, activité de l'équipe et leads à relancer, sur la période et les missions de votre choix.",
+  "durationSec": 46,
+  "chapters": [
+    {
+      "label": "Vue d'ensemble",
+      "title": "Accueil",
+      "detail": "Votre point de départ chaque jour : RDV décrochés, activité de l'équipe et leads à relancer, sur la période et les missions de votre choix.",
+      "start": 0
+    },
+    {
+      "label": "Étape 1 sur 4",
+      "title": "Ouvrez le choix de la période",
+      "detail": "Toutes les cartes de la page se recalculent sur la période choisie.",
+      "start": 7.7
+    },
+    {
+      "label": "Étape 2 sur 4",
+      "title": "Choisissez « 7 derniers jours »",
+      "detail": "Le nombre de RDV est comparé automatiquement à la période précédente.",
+      "start": 15.6
+    },
+    {
+      "label": "Étape 3 sur 4",
+      "title": "Filtrez sur une mission",
+      "detail": "Les chiffres ne portent plus que sur cette mission. Revenez à « Toutes les missions » à tout moment.",
+      "start": 23.1
+    },
+    {
+      "label": "Étape 4 sur 4",
+      "title": "Dépliez une famille de résultats",
+      "detail": "Qualifications détaille les statuts d'appel derrière chaque famille.",
+      "start": 32.8
+    },
+    {
+      "label": "Résultat",
+      "title": "L'activité de l'équipe, en un coup d'œil",
+      "detail": "Vous savez où en sont les RDV, ce qui ressort des appels et quels leads relancer en priorité.",
+      "start": 38.9
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "taches",
+  "title": "Tâches",
+  "section": "Accueil",
+  "purpose": "Vos tâches et celles de l'équipe, classées par échéance : facturation, bilans, relances et rappels urgents.",
+  "durationSec": 40,
+  "chapters": [
+    {
+      "label": "Vue d'ensemble",
+      "title": "Tâches",
+      "detail": "Vos tâches et celles de l'équipe, classées par échéance : facturation, bilans, relances et rappels urgents.",
+      "start": 0
+    },
+    {
+      "label": "Étape 1 sur 4",
+      "title": "Écrivez la tâche",
+      "detail": "Une phrase suffit. Ajoutez une échéance si elle doit tomber un jour précis.",
+      "start": 6.2
+    },
+    {
+      "label": "Étape 2 sur 4",
+      "title": "Rattachez-la à un client",
+      "detail": "Elle apparaîtra aussi dans le suivi de ce client.",
+      "start": 13.4
+    },
+    {
+      "label": "Étape 3 sur 4",
+      "title": "Ajoutez-la",
+      "detail": "Elle rejoint la liste, rangée par échéance (ici « Sans échéance »).",
+      "start": 19.5
+    },
+    {
+      "label": "Étape 4 sur 4",
+      "title": "Cochez-la une fois faite",
+      "detail": "Elle passe en « Fait ». Un nouveau clic la rouvre si besoin.",
+      "start": 25.6
+    },
+    {
+      "label": "Résultat",
+      "title": "Rien ne se perd",
+      "detail": "Une tâche faite reste visible, barrée. L'onglet « Terminées » reprend les 14 derniers jours.",
+      "start": 33.1
+    }
+  ]
+}

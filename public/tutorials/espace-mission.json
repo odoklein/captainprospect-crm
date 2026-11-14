@@ -1,0 +1,45 @@
+{
+  "id": "espace-mission",
+  "title": "Espace mission",
+  "section": "Clients",
+  "purpose": "Tout ce qui fait tourner une mission : son rythme face à l'objectif, son lancement, ses fichiers, ses scripts et son équipe.",
+  "durationSec": 44,
+  "chapters": [
+    {
+      "label": "Vue d'ensemble",
+      "title": "Espace mission",
+      "detail": "Tout ce qui fait tourner une mission : son rythme face à l'objectif, son lancement, ses fichiers, ses scripts et son équipe.",
+      "start": 0
+    },
+    {
+      "label": "Étape 1 sur 4",
+      "title": "Vérifiez le rythme",
+      "detail": "RDV obtenus face à l'objectif, et projection au rythme actuel jusqu'à la fin.",
+      "start": 7.7
+    },
+    {
+      "label": "Étape 2 sur 4",
+      "title": "Contrôlez le lancement",
+      "detail": "Chaque prérequis est validé ou signalé : bases, stratégies, scripts, équipe.",
+      "start": 14.9
+    },
+    {
+      "label": "Étape 3 sur 4",
+      "title": "Ouvrez les bases de prospects",
+      "detail": "Les listes de la mission, leur stratégie et le commercial à qui partent les RDV.",
+      "start": 21.3
+    },
+    {
+      "label": "Étape 4 sur 4",
+      "title": "Composez l'équipe",
+      "detail": "Choisissez le référent, assignez les SDR et suivez leurs actions et leurs RDV.",
+      "start": 29.9
+    },
+    {
+      "label": "Résultat",
+      "title": "La mission est sous contrôle",
+      "detail": "Objectif, fichiers, scripts et équipe se règlent sans quitter la fiche du client.",
+      "start": 36.8
+    }
+  ]
+}

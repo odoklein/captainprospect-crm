@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "console/**",
     // Marketing site: standalone Next.js project with its own toolchain.
     "suzalink-site/**",
+    // Tutorial video workspace (Remotion + capture scripts): own package.json, never bundled.
+    "tutorials/**",
   ]),
 ]);
 

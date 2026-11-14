@@ -1,0 +1,39 @@
+{
+  "id": "appels",
+  "title": "Appels",
+  "section": "Prospection",
+  "purpose": "L'activité d'appel des SDR, mission par mission : volumes, résultats et chaque prospect contacté.",
+  "durationSec": 33,
+  "chapters": [
+    {
+      "label": "Vue d'ensemble",
+      "title": "Appels",
+      "detail": "L'activité d'appel des SDR, mission par mission : volumes, résultats et chaque prospect contacté.",
+      "start": 0
+    },
+    {
+      "label": "Étape 1 sur 3",
+      "title": "Filtrez par client",
+      "detail": "Seules ses missions restent affichées.",
+      "start": 6.2
+    },
+    {
+      "label": "Étape 2 sur 3",
+      "title": "Ouvrez le tableau de bord",
+      "detail": "Le centre de contrôle de la mission : actions, RDV, intérêts et rappels.",
+      "start": 10.9
+    },
+    {
+      "label": "Étape 3 sur 3",
+      "title": "Isolez un résultat",
+      "detail": "Un clic sur « Rappel demandé » ne garde que les prospects à rappeler.",
+      "start": 18.8
+    },
+    {
+      "label": "Résultat",
+      "title": "Chaque appel, à portée de clic",
+      "detail": "Vous savez qui a été appelé, avec quel résultat, et qui doit être relancé.",
+      "start": 26.3
+    }
+  ]
+}
