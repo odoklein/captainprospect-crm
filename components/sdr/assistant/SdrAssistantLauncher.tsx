@@ -35,10 +35,10 @@ export function SdrAssistantLauncher() {
 
     const close = useCallback(() => {
         setOpen(false);
-        // Back to the control that opened it (the dock button), if it is still there.
-        // The dock re-renders its buttons, so fall back to finding the control again.
+        // Back to the control that opened it. The dock re-renders around the
+        // unmount, so look the button up again and retry once if focus fell to <body>.
         const el = opener.current;
-        requestAnimationFrame(() => {
+        const restore = () => {
             const target =
                 el && el.isConnected && el.offsetParent !== null
                     ? el
@@ -46,6 +46,10 @@ export function SdrAssistantLauncher() {
                           (b) => b.getAttribute("aria-label") === brand.assistantName && b.offsetParent !== null,
                       );
             target?.focus();
+            return !!target && document.activeElement === target;
+        };
+        requestAnimationFrame(() => {
+            if (!restore()) window.setTimeout(restore, 120);
         });
     }, [brand.assistantName]);
 

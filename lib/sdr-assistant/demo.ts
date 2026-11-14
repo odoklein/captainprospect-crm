@@ -58,10 +58,13 @@ export function demoIntent(question: string): Intent {
     return { tool: null };
 }
 
+/** Messages the runtime adds itself: the turn context and the verifier's rewrite request. */
+const RUNTIME_MESSAGE = /^(\[Contexte|Vérification automatique)/;
+
 function lastUserQuestion(messages: ChatMessage[]): { question: string; index: number } {
     for (let i = messages.length - 1; i >= 0; i--) {
         const m = messages[i];
-        if (m.role === "user" && !m.content.startsWith("[Contexte")) return { question: m.content, index: i };
+        if (m.role === "user" && !RUNTIME_MESSAGE.test(m.content)) return { question: m.content, index: i };
     }
     return { question: "", index: -1 };
 }
@@ -111,7 +114,7 @@ function writeNextCall(r: NextCallResult): string {
             : "- Premier contact : aucun échange enregistré.",
         "",
         "**Accroche**",
-        m?.pitch ? `- ${m.pitch}` : "- Pas de pitch renseigné sur la mission : présentez l'objectif de l'appel en une phrase.",
+        m?.pitch ? `- « ${m.pitch} »` : "- Pas de pitch renseigné sur la mission : présentez l'objectif de l'appel en une phrase.",
     ];
     if (!p.aDesCoordonnees) parts.push("", "⚠️ Aucune coordonnée exploitable sur la fiche : enrichissez-la avant d'appeler.");
     parts.push("", `${r.resteDansLaFile ?? 0} autre(s) prospect(s) dans votre [file d'actions](${r.pageFile}).`);

@@ -76,3 +76,25 @@ test("demo model picks the tool an SDR question needs", () => {
     assert.equal(demoIntent("Reporte le premier rappel à demain 10h").tool, "reschedule");
     assert.equal(demoIntent("Bonjour").tool, null);
 });
+
+test("demo model keeps the user's question when the verifier asks for a rewrite", async () => {
+    const { demoChat } = await import("./demo");
+    const tool = JSON.stringify({ tool: "sdr_today_outreach", data: { actionsAujourdhui: 0, appels: 0, emails: 0, linkedin: 0, rdvPris: 0, parResultat: [], rappelsEnRetard: 0, rappelsAujourdhui: 0, actions: [], prochainesActions: [] } });
+    const res = await demoChat({
+        model: "demo-sdr",
+        maxOutputTokens: 100,
+        reasoningEffort: "none",
+        timeoutMs: 1000,
+        tools: [],
+        messages: [
+            { role: "system", content: "x" },
+            { role: "user", content: "Fais le bilan de ma journée" },
+            { role: "assistant", content: null, toolCalls: [{ id: "c1", name: "sdr_today_outreach", arguments: "{}" }] },
+            { role: "tool", toolCallId: "c1", name: "sdr_today_outreach", content: tool },
+            { role: "assistant", content: "brouillon" },
+            { role: "user", content: "Vérification automatique : ta réponse contient des éléments qui ne correspondent pas aux sources." },
+        ],
+    });
+    assert.match(res.text ?? "", /0 action\(s\) aujourd'hui/);
+    assert.doesNotMatch(res.text ?? "", /Je peux, sur vos propres données/);
+});

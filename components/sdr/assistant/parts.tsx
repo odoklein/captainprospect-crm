@@ -318,7 +318,16 @@ export function Thread({ conversationId, onNavigate }: { conversationId: string;
 
     const lastIndex = (messages?.length ?? 0) - 1;
     return (
-        <div ref={scroller} onScroll={onScroll} onClick={onClick} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
+        <div
+            ref={scroller}
+            onScroll={onScroll}
+            onClick={onClick}
+            role="region"
+            aria-label="Messages"
+            // Focusable so the keyboard can scroll a long answer that has no link in it.
+            tabIndex={0}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+        >
             <ol className="flex flex-col gap-4" aria-label="Conversation">
                 {messages!.map((m, i) =>
                     m.role === "USER" ? (
