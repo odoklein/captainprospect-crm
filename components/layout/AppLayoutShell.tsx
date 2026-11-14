@@ -12,6 +12,7 @@ import { CallingWorkspaceNav } from "@/components/sdr/CallingWorkspaceNav";
 import { SectionTabs } from "./SectionTabs";
 import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
+import { ChangelogCenter } from "@/components/changelog/ChangelogCenter";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
 import { SmsDockItem } from "@/components/messaging/SmsDockItem";
@@ -271,6 +272,7 @@ function InnerLayout({
                         >
                             <RefreshCw className="w-3.5 h-3.5" />
                         </button>
+                        <ChangelogCenter />
                         <NotificationBell />
                     </div>
                 </header>}

@@ -4008,6 +4008,52 @@ model InstanceLicense {
 }
 
 // ============================================
+// NOUVEAUTÉS (pushed by the Console) — releases and announcements, plus the
+// update offer the instance's managers approve. lib/changelog.
+// ============================================
+
+model InstanceChangelogEntry {
+  externalId     String    @id // Console id, e.g. "release:<uuid>"
+  kind           String // RELEASE | ANNOUNCEMENT
+  category       String? // feature | maintenance | info | billing (announcements)
+  severity       String    @default("info") // info | warning
+  title          String
+  body           String    @default("") @db.Text
+  notes          Json      @default("[]") // [{ type: new|improved|fixed, title, body?, module? }]
+  version        String? // release tag the notes describe
+  audience       String[]  @default([]) // UserRole values; empty = every staff role
+  ctaLabel       String?
+  ctaUrl         String?
+  startsAt       DateTime?
+  endsAt         DateTime?
+  publishedAt    DateTime  @default(now())
+  // Update offer: the Console proposes this tag; a MANAGER answers.
+  offerTag       String?
+  offerMigration Boolean   @default(false)
+  offerSecurity  Boolean   @default(false)
+  offerDeadline  DateTime? // applied by the Console after this date whatever the answer
+  offerWindow    String? // maintenance window label shown to the manager ("22:00–06:00")
+  decision       String? // NOW | WINDOW | POSTPONE
+  decisionAt     DateTime?
+  postponedUntil DateTime?
+  decidedById    String?
+  decidedByName  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([publishedAt])
+}
+
+model InstanceChangelogSeen {
+  entryId String
+  userId  String
+  seenAt  DateTime @default(now())
+
+  @@id([entryId, userId])
+  @@index([userId])
+}
+
+// ============================================
 // SYSTEM EMAIL TEMPLATES (manager-editable)
 // ============================================
 
