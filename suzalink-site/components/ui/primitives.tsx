@@ -58,7 +58,7 @@ export function ButtonLink({
     <Link
       href={href}
       className={cx(
-        "group inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[color,background-color,border-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 hover:shadow-sm",
+        "group inline-flex items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap transition-[color,background-color,border-color,transform,translate,scale,rotate,box-shadow] duration-150 ease-out motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0 motion-safe:active:scale-[0.96] hover:shadow-sm",
         sizes[size],
         buttonStyles[variant],
         arrow && "pr-2.5",

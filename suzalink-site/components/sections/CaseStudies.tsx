@@ -28,7 +28,7 @@ export function CaseStudies() {
                 image={resolveImage(f.image)}
                 sizes="(min-width: 1024px) 680px, 100vw"
                 className="aspect-[16/9]"
-                imgClassName="transition-transform duration-500 group-hover:scale-[1.02]"
+                imgClassName="transition-transform duration-300 ease-out group-hover:scale-[1.02]"
               />
               <div className="flex flex-1 flex-col gap-4 p-6 sm:p-8">
                 <p className="eyebrow flex items-center gap-2 text-muted">

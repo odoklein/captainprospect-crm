@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { AnimatePresence, m } from "framer-motion";
 import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { roles } from "@/content/home";
@@ -9,8 +8,11 @@ import { ManagerDashboardMockup } from "@/components/mockups/ManagerDashboardMoc
 import { MeetingBriefMockup } from "@/components/mockups/MeetingBriefMockup";
 import { SdrQueueMockup } from "@/components/mockups/SdrQueueMockup";
 import { ButtonLink, Container, Eyebrow, cx } from "@/components/ui/primitives";
+import { BrandIcon, type BrandIconName } from "@/components/ui/BrandIcon";
 
 type TabId = (typeof roles.tabs)[number]["id"];
+
+const ROLE_ICONS: Record<TabId, BrandIconName> = { sdr: "phoneRing", manager: "lead", bd: "calendarCheck", client: "dashboard" };
 
 function RoleMockup({ id, label }: { id: TabId; label: string }) {
   switch (id) {
@@ -89,7 +91,7 @@ export function Roles() {
                       selected ? "border-line bg-white" : "border-transparent hover:bg-ink/[.03]",
                     )}
                   >
-                    <Image src={`/creative/${tab.id}.svg`} width={44} height={44} alt="" className="absolute left-5 top-4 size-11" />
+                    <BrandIcon name={ROLE_ICONS[tab.id]} className="absolute top-4 left-5 size-12" />
                     {selected ? <span aria-hidden className="absolute top-4 bottom-4 left-0 w-[3px] rounded-full bg-rose" /> : null}
                     <span className={cx("eyebrow block", selected ? "text-navy" : "text-muted")}>{tab.label}</span>
                     <span className={cx("font-display-tight mt-1 block text-xl", selected ? "text-ink" : "text-ink/75")}>

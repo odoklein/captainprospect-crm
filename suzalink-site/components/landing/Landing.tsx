@@ -6,7 +6,16 @@ import { formatEuro } from "@/content/pricing";
 import { guarantees, prospectionOffers } from "@/content/offers";
 import type { Block, LandingPage as LandingPageData } from "@/content/pages/types";
 import { Icon, type IconName } from "@/components/ui/Icon";
-import { Reveal } from "@/components/ui/motion";
+import { BrandIcon, type BrandIconName } from "@/components/ui/BrandIcon";
+
+/** Who-does-what cards (people block): one brand icon per role. */
+const ROLE_ICON: Record<"Décroche" | "Décide" | "Influence" | "Valide", BrandIconName> = {
+  Décroche: "phoneRing",
+  Décide: "lead",
+  Influence: "team",
+  Valide: "calendarCheck",
+};
+import { Reveal, Stagger, StaggerItem } from "@/components/ui/motion";
 import { JsonLd } from "@/components/ui/JsonLd";
 import { ButtonLink, Container, Eyebrow, SectionHeader, cx } from "@/components/ui/primitives";
 import { SiteHeader } from "@/components/sections/SiteHeader";
@@ -118,9 +127,10 @@ export function OfferCards() {
 
 export function Guarantees() {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <Stagger as="ul" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {guarantees.map((g) => (
-        <Spotlight as="li" key={g.title} className="rounded-[20px] border border-line bg-white p-6">
+        <StaggerItem key={g.title}>
+          <Spotlight className="h-full rounded-[20px] border border-line bg-white p-6">
           <p className="flex items-center gap-2.5 font-medium text-ink">
             <span className="grid size-8 place-items-center rounded-full bg-mint/60 text-navy transition-colors duration-300 group-hover/card:bg-navy group-hover/card:text-white">
               <Icon name="shield" className="size-4" />
@@ -129,8 +139,9 @@ export function Guarantees() {
           </p>
           <p className="mt-3 text-[15px] leading-relaxed text-muted">{g.body}</p>
         </Spotlight>
+        </StaggerItem>
       ))}
-    </ul>
+    </Stagger>
   );
 }
 
@@ -179,17 +190,19 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id}>
           <Reveal>{header}</Reveal>
-          <ul className="mt-12 grid gap-4 md:grid-cols-2">
+          <Stagger as="ul" className="mt-12 grid gap-4 md:grid-cols-2">
             {block.items.map((it, n) => (
-              <Spotlight as="li" key={it.title} className="rounded-[24px] border border-line bg-white p-7">
+              <StaggerItem key={it.title}>
+                <Spotlight className="h-full rounded-[24px] border border-line bg-white p-7">
                 <span className="font-mono text-[12px] text-muted transition-colors group-hover/card:text-navy">{String(n + 1).padStart(2, "0")}</span>
                 <h3 className={cx(cardTitle, "mt-3")}>{it.title}</h3>
                 <p className="mt-3 leading-relaxed text-muted">
                   <RichText text={it.body} />
                 </p>
               </Spotlight>
+              </StaggerItem>
             ))}
-          </ul>
+          </Stagger>
         </Section>
       );
 
@@ -197,14 +210,19 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id} tone="white">
           <Reveal>{header}</Reveal>
-          <ol className="relative mt-12 grid gap-4 lg:grid-cols-5">
+          <Stagger as="ol" className="relative mt-12 grid gap-4 lg:grid-cols-5">
             <span aria-hidden className="absolute top-9 right-[10%] left-[10%] hidden h-px bg-[repeating-linear-gradient(90deg,var(--color-line)_0_6px,transparent_6px_12px)] lg:block" />
             {block.items.map((it, n) => (
-              <Spotlight as="li" key={it.title} className="flex flex-col rounded-[20px] border border-line bg-paper p-6">
+              <StaggerItem key={it.title}>
+                <Spotlight className="h-full flex flex-col rounded-[20px] border border-line bg-paper p-6">
                 <span className="flex items-center gap-3">
-                  <span className="grid size-9 place-items-center rounded-full border border-line bg-white font-mono text-[13px] text-navy transition-colors duration-300 group-hover/card:border-navy group-hover/card:bg-navy group-hover/card:text-white">
-                    {n + 1}
-                  </span>
+                  {it.icon ? (
+                    <BrandIcon name={it.icon} className="size-11" />
+                  ) : (
+                    <span className="grid size-9 place-items-center rounded-full border border-line bg-white font-mono text-[13px] text-navy transition-colors duration-300 group-hover/card:bg-navy group-hover/card:text-white">
+                      {n + 1}
+                    </span>
+                  )}
                   {it.when ? <span className="font-mono text-[12px] text-muted">{it.when}</span> : null}
                 </span>
                 <h3 className="mt-4 text-[18px] leading-snug font-semibold text-ink">{it.title}</h3>
@@ -212,8 +230,9 @@ function renderBlock(block: Block, i: number) {
                   <RichText text={it.body} />
                 </p>
               </Spotlight>
+              </StaggerItem>
             ))}
-          </ol>
+          </Stagger>
         </Section>
       );
 
@@ -221,10 +240,11 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id}>
           <Reveal>{header}</Reveal>
-          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {block.items.map((it) => (
-              <Spotlight as="li" key={it.title} className="rounded-[20px] border border-line bg-white p-6">
-                <span aria-hidden className="grid size-11 place-items-center rounded-[14px] bg-mint/60 text-navy transition-[background-color,color,transform] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
+              <StaggerItem key={it.title}>
+                <Spotlight className="h-full rounded-[20px] border border-line bg-white p-6">
+                <span aria-hidden className="grid size-11 place-items-center rounded-[14px] bg-mint/60 text-navy transition-[background-color,color,transform,translate,scale,rotate] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
                   <Icon name={(it.icon ?? "check") as IconName} className="size-5" />
                 </span>
                 <h3 className="mt-4 text-[18px] font-semibold text-ink">{it.title}</h3>
@@ -232,8 +252,9 @@ function renderBlock(block: Block, i: number) {
                   <RichText text={it.body} />
                 </p>
               </Spotlight>
+              </StaggerItem>
             ))}
-          </ul>
+          </Stagger>
         </Section>
       );
 
@@ -471,14 +492,14 @@ function renderBlock(block: Block, i: number) {
               ) : null}
             </Reveal>
             <div className="group/visual relative">
-              <div aria-hidden className="absolute inset-[8%] -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.75),transparent)] blur-2xl transition-transform duration-700 group-hover/visual:scale-110" />
+              <div aria-hidden className="absolute inset-[8%] -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.75),transparent)] blur-2xl transition-transform duration-300 ease-out group-hover/visual:scale-110" />
               <Image
                 src={block.image.src}
                 alt={block.image.alt}
                 width={block.image.width}
                 height={block.image.height}
                 sizes="(min-width: 1024px) 560px, 100vw"
-                className="mx-auto h-auto w-full max-w-[560px] drop-shadow-[0_30px_50px_rgba(12,31,35,.16)] transition-transform duration-500 ease-out motion-safe:group-hover/visual:-translate-y-1.5 motion-safe:group-hover/visual:rotate-[-0.6deg]"
+                className="mx-auto h-auto w-full max-w-[560px] drop-shadow-[0_30px_50px_rgba(12,31,35,.16)] transition-transform duration-300 ease-out motion-safe:group-hover/visual:-translate-y-1.5 motion-safe:group-hover/visual:rotate-[-0.6deg]"
               />
             </div>
           </div>
@@ -516,7 +537,7 @@ function renderBlock(block: Block, i: number) {
                 <details key={q.q} className="group py-5">
                   <summary className="flex cursor-pointer list-none items-start justify-between gap-6 rounded-md text-[17px] font-medium text-ink transition-colors hover:text-navy [&::-webkit-details-marker]:hidden">
                     <h3 className="font-medium">{q.q}</h3>
-                    <span aria-hidden className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-line text-navy transition-[transform,background-color,color] duration-300 group-open:rotate-45 group-open:border-navy group-open:bg-navy group-open:text-white">
+                    <span aria-hidden className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full border border-line text-navy transition-[transform,translate,scale,rotate,background-color,color] duration-300 group-open:rotate-45 group-open:border-navy group-open:bg-navy group-open:text-white">
                       +
                     </span>
                   </summary>
@@ -534,21 +555,23 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id}>
           {header}
-          <ul className="mt-10 grid gap-4 md:grid-cols-3">
+          <Stagger as="ul" className="mt-10 grid gap-4 md:grid-cols-3">
             {block.items.map((l) => (
-              <Spotlight as="li" key={l.href} className="rounded-[20px] border border-line bg-white">
+              <StaggerItem key={l.href}>
+                <Spotlight className="h-full rounded-[20px] border border-line bg-white">
                 <Link href={l.href} className="flex h-full flex-col p-6">
                   <span className="flex items-center justify-between gap-3 text-[18px] font-semibold text-ink">
                     {l.label}
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-mint/60 text-navy transition-[transform,background-color,color] duration-300 group-hover/card:translate-x-0.5 group-hover/card:bg-navy group-hover/card:text-white">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-mint/60 text-navy transition-[transform,translate,scale,rotate,background-color,color] duration-300 group-hover/card:translate-x-0.5 group-hover/card:bg-navy group-hover/card:text-white">
                       <Icon name="arrowRight" className="size-4" />
                     </span>
                   </span>
                   <span className="mt-2 text-[15px] leading-relaxed text-muted">{l.body}</span>
                 </Link>
               </Spotlight>
+              </StaggerItem>
             ))}
-          </ul>
+          </Stagger>
         </Section>
       );
 
@@ -562,21 +585,23 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id} tone="white">
           <Reveal>{header}</Reveal>
-          <ol className={cx("relative mt-12 grid gap-4", block.items.length > 3 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3")}>
+          <Stagger as="ol" className={cx("relative mt-12 grid gap-4", block.items.length > 3 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3")}>
             <span aria-hidden className="absolute top-[42px] right-[12%] left-[12%] hidden h-px bg-[repeating-linear-gradient(90deg,var(--color-line)_0_6px,transparent_6px_12px)] md:block" />
-            {block.items.map((it, n) => (
-              <Spotlight as="li" key={it.who} className="relative flex flex-col rounded-[22px] border border-line bg-paper p-6">
+            {block.items.map((it) => (
+              <StaggerItem key={it.who}>
+                <Spotlight className="h-full relative flex flex-col rounded-[22px] border border-line bg-paper p-6">
                 <span className="flex items-center justify-between gap-3">
+                  <BrandIcon name={ROLE_ICON[it.role]} className="size-12" />
                   <span className={cx("rounded-full px-3 py-1 text-[12px] font-semibold", tone[it.role])}>{it.role}</span>
-                  <span className="font-mono text-[12px] text-muted">{String(n + 1).padStart(2, "0")}</span>
                 </span>
                 <h3 className="mt-5 text-[19px] leading-snug font-semibold text-ink">{it.who}</h3>
                 <p className="mt-2 text-[15px] leading-relaxed text-muted">
                   <RichText text={it.body} />
                 </p>
               </Spotlight>
+              </StaggerItem>
             ))}
-          </ol>
+          </Stagger>
         </Section>
       );
     }
@@ -631,9 +656,9 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id} tone="white">
           <Reveal>{header}</Reveal>
-          <ul className="mt-12 grid gap-5 lg:grid-cols-2">
+          <Stagger as="ul" className="mt-12 grid gap-5 lg:grid-cols-2">
             {block.items.map((o) => (
-              <li key={o.objection} className="flex flex-col gap-3 rounded-[24px] border border-line bg-paper p-5 sm:p-6">
+              <StaggerItem key={o.objection} className="flex flex-col gap-3 rounded-[24px] border border-line bg-paper p-5 sm:p-6">
                 <p className="flex gap-3 self-start rounded-[18px] rounded-tl-[6px] border border-line bg-white px-4 py-3 text-[16px] text-ink">
                   <Icon name="quote" className="mt-1 size-4 shrink-0 text-muted" />
                   <span className="font-medium">« {o.objection} »</span>
@@ -642,9 +667,9 @@ function renderBlock(block: Block, i: number) {
                   <span className="eyebrow mb-1 block text-mint">Ce que répond le SDR</span>
                   <RichText text={o.reply} linkClassName="font-medium text-white underline decoration-mint underline-offset-4" />
                 </p>
-              </li>
+              </StaggerItem>
             ))}
-          </ul>
+          </Stagger>
         </Section>
       );
 
@@ -745,12 +770,13 @@ function renderBlock(block: Block, i: number) {
       return (
         <Section key={id} id={id}>
           <Reveal>{header}</Reveal>
-          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {block.items.map((t) => (
-              <Spotlight as="li" key={t.href} className="rounded-[22px] border border-line bg-white">
+              <StaggerItem key={t.href}>
+                <Spotlight className="h-full rounded-[22px] border border-line bg-white">
                 <Link href={t.href} className="flex h-full flex-col p-6">
                   <span className="flex items-center justify-between gap-3">
-                    <span aria-hidden className="grid size-11 place-items-center rounded-[14px] bg-mint/60 text-navy transition-[background-color,color,transform] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
+                    <span aria-hidden className="grid size-11 place-items-center rounded-[14px] bg-mint/60 text-navy transition-[background-color,color,transform,translate,scale,rotate] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
                       <Icon name={t.icon} className="size-5" />
                     </span>
                     <span
@@ -772,8 +798,9 @@ function renderBlock(block: Block, i: number) {
                   </span>
                 </Link>
               </Spotlight>
+              </StaggerItem>
             ))}
-          </ul>
+          </Stagger>
         </Section>
       );
 

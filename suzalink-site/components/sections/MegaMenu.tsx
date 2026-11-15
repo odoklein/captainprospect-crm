@@ -38,12 +38,12 @@ function ListLink({ link, delay, onNavigate }: { link: MenuLink; delay: number; 
         className="group/link flex items-center gap-3 rounded-[12px] px-2.5 py-2 text-[15px] font-medium text-ink transition-colors duration-200 hover:bg-mint/35 focus-visible:bg-mint/35"
       >
         {link.icon ? (
-          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-paper text-navy ring-1 ring-line transition-[background-color,color,transform] duration-200 group-hover/link:-rotate-6 group-hover/link:bg-navy group-hover/link:text-white group-hover/link:ring-navy">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-paper text-navy ring-1 ring-line transition-[background-color,color,transform,translate,scale,rotate] duration-200 group-hover/link:-rotate-6 group-hover/link:bg-navy group-hover/link:text-white group-hover/link:ring-navy">
             <Icon name={link.icon} className="size-[18px]" />
           </span>
         ) : null}
         <span className="flex-1">{link.label}</span>
-        <Icon name="arrowRight" className="size-4 -translate-x-1 text-navy opacity-0 transition-[opacity,transform] duration-200 group-hover/link:translate-x-0 group-hover/link:opacity-100" />
+        <Icon name="arrowRight" className="size-4 -translate-x-1 text-navy opacity-0 transition-[opacity,transform,translate,scale,rotate] duration-200 group-hover/link:translate-x-0 group-hover/link:opacity-100" />
       </Link>
     </m.li>
   );
@@ -55,7 +55,7 @@ function CardLink({ link, delay, onNavigate }: { link: MenuLink; delay: number; 
       <Link
         href={link.href}
         onClick={onNavigate}
-        className="group/card flex h-full flex-col rounded-[18px] border border-line bg-white p-5 transition-[transform,border-color,box-shadow,background-color] duration-300 ease-out hover:-translate-y-0.5 hover:border-navy/20 hover:bg-[linear-gradient(160deg,rgba(185,237,214,.45),#fff_70%)] hover:shadow-[0_18px_36px_-24px_rgba(12,31,35,.4)]"
+        className="group/card flex h-full flex-col rounded-[18px] border border-line bg-white p-5 transition-[transform,translate,scale,rotate,border-color,box-shadow,background-color] duration-300 ease-out hover:-translate-y-0.5 hover:border-navy/20 hover:bg-[linear-gradient(160deg,rgba(185,237,214,.45),#fff_70%)] hover:shadow-[0_18px_36px_-24px_rgba(12,31,35,.4)]"
       >
         {link.image ? (
           <span className="relative mb-4 block aspect-[16/10] overflow-hidden rounded-[12px] bg-[radial-gradient(ellipse_at_50%_45%,rgba(185,237,214,.85),rgba(185,237,214,.2)_72%)]">
@@ -65,17 +65,17 @@ function CardLink({ link, delay, onNavigate }: { link: MenuLink; delay: number; 
               fill
               loading="eager"
               sizes="360px"
-              className="object-contain p-3 transition-transform duration-500 ease-out group-hover/card:scale-[1.04]"
+              className="object-contain p-3 transition-transform duration-300 ease-out group-hover/card:scale-[1.04]"
             />
           </span>
         ) : null}
         <span className="flex items-center justify-between">
           {link.icon ? (
-            <span className="grid size-10 place-items-center rounded-[12px] bg-mint/60 text-navy transition-[background-color,color,transform] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
+            <span className="grid size-10 place-items-center rounded-[12px] bg-mint/60 text-navy transition-[background-color,color,transform,translate,scale,rotate] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
               <Icon name={link.icon} className="size-5" />
             </span>
           ) : null}
-          <Icon name="arrowUpRight" className="size-4 text-muted transition-[color,transform] duration-300 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-0.5 group-hover/card:text-navy" />
+          <Icon name="arrowUpRight" className="size-4 text-muted transition-[color,transform,translate,scale,rotate] duration-300 group-hover/card:translate-x-0.5 group-hover/card:-translate-y-0.5 group-hover/card:text-navy" />
         </span>
         <span className="mt-4 text-[16px] font-semibold text-ink">{link.label}</span>
         {link.body ? <span className="mt-1.5 text-[14px] leading-relaxed text-muted">{link.body}</span> : null}
@@ -99,7 +99,7 @@ function FeatureCard({ feature, onNavigate }: { feature: MenuFeature; onNavigate
             fill
             loading="eager"
             sizes="300px"
-            className="object-contain p-4 transition-transform duration-500 ease-out group-hover/feature:scale-[1.05] group-hover/feature:-rotate-1"
+            className="object-contain p-4 transition-transform duration-300 ease-out group-hover/feature:scale-[1.05] group-hover/feature:-rotate-1"
           />
         </span>
         <span className="mt-4 px-2 pb-2">
@@ -244,8 +244,8 @@ export function MegaMenu() {
               <span
                 aria-hidden
                 className={cx(
-                  "absolute -bottom-1.5 left-1/2 size-1.5 -translate-x-1/2 rounded-[2px] bg-rose transition-[opacity,transform] duration-200",
-                  expanded || (open === null && active) ? "scale-100 opacity-100" : "scale-0 opacity-0",
+                  "absolute -bottom-1.5 left-1/2 size-1.5 -translate-x-1/2 rounded-[2px] bg-rose transition-[opacity,transform,translate,scale,rotate] duration-200",
+                  expanded || (open === null && active) ? "scale-100 opacity-100" : "scale-75 opacity-0",
                 )}
               />
             );

@@ -1,9 +1,9 @@
-import Image from "next/image";
 import { engines } from "@/content/home";
 import { tools } from "@/content/brands";
 import { BrandMark } from "@/components/ui/BrandMark";
 import { AiMockup, ExecutionMockup, InstanceMockup } from "@/components/mockups/EngineMockups";
 import { Icon } from "@/components/ui/Icon";
+import { BrandIcon, type BrandIconName } from "@/components/ui/BrandIcon";
 import { Container, SectionHeader, cx } from "@/components/ui/primitives";
 import { Reveal } from "@/components/ui/motion";
 
@@ -12,6 +12,8 @@ const mockups = {
   ia: AiMockup,
   instance: InstanceMockup,
 };
+
+const ENGINE_ICONS: Record<string, BrandIconName> = { execution: "recording", ia: "ai", instance: "settings" };
 
 const tones = {
   navy: "on-dark bg-navy text-white",
@@ -50,7 +52,7 @@ export function Engines() {
                   className={cx(
                     "relative grid h-full gap-8 overflow-hidden rounded-[24px] p-6 sm:p-8 lg:p-10",
                     i === 0 && "lg:grid-cols-2 lg:items-center lg:gap-12",
-                    tones[item.tone],
+                    "bi-host", tones[item.tone],
                   )}
                 >
                   {item.tone === "night" ? (
@@ -67,7 +69,7 @@ export function Engines() {
                   ) : null}
 
                   <div className="relative flex flex-col gap-5">
-                    <Image src={`/creative/${item.id}.svg`} width={64} height={64} alt="" className="size-16" />
+                    <BrandIcon name={ENGINE_ICONS[item.id]} tone={dark ? "dark" : "light"} className="size-16" />
                     <p className={cx("eyebrow flex items-center gap-3", dark ? "text-white/70" : "text-muted")}>
                       <span className="font-mono">{item.index}</span>
                       <span aria-hidden className={cx("h-px w-8", dark ? "bg-white/30" : "bg-ink/20")} />

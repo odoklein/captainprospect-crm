@@ -8,6 +8,7 @@
  */
 import type { IconName } from "@/components/ui/Icon";
 import type { ImageKey } from "@/content/images";
+import type { BrandIconName } from "@/components/ui/BrandIcon";
 
 export type Link = { label: string; href: string };
 
@@ -29,7 +30,7 @@ export type ArticleSection = {
 export type Block =
   | (Head & { kind: "pains"; items: Array<{ title: string; body: string }> })
   /** howto: true publie aussi les étapes en données structurées HowTo. */
-  | (Head & { kind: "steps"; howto?: boolean; items: Array<{ title: string; body: string; when?: string }> })
+  | (Head & { kind: "steps"; howto?: boolean; items: Array<{ title: string; body: string; when?: string; icon?: BrandIconName }> })
   | (Head & { kind: "features"; items: Array<{ title: string; body: string; icon?: IconName }> })
   | (Head & { kind: "proof"; stats: Array<{ value: string; label: string }>; story?: string; note: string })
   | (Head & { kind: "compare"; columns: string[]; rows: Array<{ label: string; cells: string[] }>; note?: string })

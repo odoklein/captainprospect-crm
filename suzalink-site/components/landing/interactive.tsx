@@ -26,8 +26,8 @@ export function Spotlight({
     <Comp
       onPointerMove={onMove}
       className={cx(
-        "spotlight group/card relative isolate transition-[transform,box-shadow,border-color] duration-300 ease-out motion-safe:hover:-translate-y-1",
-        tone === "dark" ? "spotlight-dark" : "hover:border-navy/25 hover:shadow-[0_24px_48px_-28px_rgba(12,31,35,.35)]",
+        "spotlight group/card relative isolate transition-[translate,box-shadow] duration-200 ease-[ease] motion-safe:hover:-translate-y-1",
+        tone === "dark" ? "spotlight-dark" : "hover:shadow-[0_24px_48px_-28px_rgba(12,31,35,.35)]",
         className,
       )}
     >
@@ -151,7 +151,7 @@ export function StickyCta({ label, href }: { label: string; href: string }) {
   return (
     <div
       className={cx(
-        "fixed inset-x-3 bottom-3 z-40 transition-[transform,opacity] duration-300 sm:hidden",
+        "fixed inset-x-3 bottom-3 z-40 transition-[transform,translate,scale,rotate,opacity] duration-300 sm:hidden",
         show ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-6 opacity-0",
       )}
     >

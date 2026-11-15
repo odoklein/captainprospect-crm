@@ -15,6 +15,13 @@
   --color-line: #e4e1da;
   --color-night: #071518;
   --color-ok: #1f7a4d;
+  /* Deeper mint of the brand icon sheets (components/ui/BrandIcon.tsx): fills only, never behind text. */
+  --color-mint-strong: #93dbc1;
+
+  /* Motion curves (Emil Kowalski's UI values). They replace Tailwind's weak defaults, so every
+     existing `ease-out` / `ease-in-out` class gets the stronger curve. Never ease-in on UI. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 
   --radius-card: 20px;
   --radius-frame: 24px;
@@ -188,4 +195,153 @@
 .spotlight:hover::before,
 .spotlight:focus-within::before {
   opacity: 1;
+}
+
+/* ───────── Brand icons (components/ui/BrandIcon.tsx) ─────────
+   The navy parts follow --bi-ink so one drawing works on paper and on navy cards.
+   Hover gestures run only for a fine pointer and without a reduced-motion preference;
+   they are transitions or one-shot keyframes on transform/opacity, under 500 ms. */
+.bi-light {
+  --bi-ink: var(--color-navy);
+  --bi-paper: var(--color-paper);
+}
+.bi-dark {
+  --bi-ink: var(--color-paper);
+  --bi-paper: var(--color-navy);
+}
+.bi {
+  transition: transform 200ms ease;
+}
+.bi :is(.bi-bar, .bi-lift, .bi-side, .bi-arrow, .bi-gear, .bi-check, .bi-eye, .bi-spark, .bi-wiggle, .bi-wave, .bi-dot, .bi-dots > *) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.bi :is(.bi-bar, .bi-wave) {
+  transform-origin: center bottom;
+}
+.bi .bi-wave {
+  transform-origin: center;
+}
+.bi .bi-wiggle {
+  transform-origin: 30% 70%;
+}
+.bi :is(.bi-lift, .bi-side, .bi-arrow, .bi-check) {
+  transition: transform 220ms var(--ease-out);
+}
+.bi .bi-gear {
+  transition: transform 420ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  :is(a, button, .group, .group\/card, .group\/row, .bi-host):hover .bi {
+    transform: rotate(-4deg) translateY(-2px);
+  }
+  :is(a, button, .group, .group\/card, .group\/row, .bi-host):hover .bi {
+    .bi-spark {
+      animation: bi-spark 420ms var(--ease-out) var(--d, 0ms) both;
+    }
+    .bi-bar {
+      animation: bi-grow 380ms var(--ease-out) var(--d, 0ms) both;
+    }
+    .bi-wiggle {
+      animation: bi-wiggle 460ms ease both;
+    }
+    .bi-eye {
+      animation: bi-blink 260ms ease 80ms both;
+    }
+    .bi-wave {
+      animation: eq 640ms ease-in-out var(--d, 0ms) 2;
+    }
+    .bi-dot {
+      animation: bi-pulse 520ms ease both;
+    }
+    .bi-dots > * {
+      animation: bi-light 420ms ease var(--d, 0ms) both;
+    }
+    .bi-lift {
+      transform: translateY(-2px);
+    }
+    .bi-side-l {
+      transform: translateX(-1.5px);
+    }
+    .bi-side-r {
+      transform: translateX(1.5px);
+    }
+    .bi-arrow {
+      transform: translate(2px, -2px);
+    }
+    .bi-gear {
+      transform: rotate(45deg);
+    }
+    .bi-check {
+      transform: scale(1.12);
+    }
+  }
+}
+
+@keyframes bi-spark {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+@keyframes bi-grow {
+  from {
+    transform: scaleY(0.55);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes bi-wiggle {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  55% {
+    transform: rotate(7deg);
+  }
+  80% {
+    transform: rotate(-3deg);
+  }
+}
+@keyframes bi-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.12);
+  }
+}
+@keyframes bi-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+}
+@keyframes bi-light {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  45% {
+    opacity: 0.3;
+  }
 }

@@ -703,11 +703,11 @@ export const targets: Sector[] = [
         eyebrow: "Le déroulé",
         title: "De votre fichier à la démo",
         items: [
-          { title: "Cadrage", body: "Votre persona, votre offre, ce qui fait une démo qualifiée. Écrit ensemble.", when: "Jour 1" },
-          { title: "Fichier", body: "Construit ou nettoyé avant le premier appel.", when: "Jours 2 à 3" },
-          { title: "Appels", body: "Rappels à des heures différentes, chaque appel enregistré.", when: "Dès la 1re semaine" },
-          { title: "Démo réservée", body: "Dans l'agenda du commercial, avec la fiche de RDV.", when: "Au fil de l'eau" },
-          { title: "Bilan", body: "Coût réel d'une démo, objections entendues, ajustements.", when: "Chaque semaine" },
+          { icon: "settings", title: "Cadrage", body: "Votre persona, votre offre, ce qui fait une démo qualifiée. Écrit ensemble.", when: "Jour 1" },
+          { icon: "dashboard", title: "Fichier", body: "Construit ou nettoyé avant le premier appel.", when: "Jours 2 à 3" },
+          { icon: "phoneRing", title: "Appels", body: "Rappels à des heures différentes, chaque appel enregistré.", when: "Dès la 1re semaine" },
+          { icon: "calendarCheck", title: "Démo réservée", body: "Dans l'agenda du commercial, avec la fiche de RDV.", when: "Au fil de l'eau" },
+          { icon: "growth", title: "Bilan", body: "Coût réel d'une démo, objections entendues, ajustements.", when: "Chaque semaine" },
         ],
       },
       {
