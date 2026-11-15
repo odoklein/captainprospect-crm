@@ -3,7 +3,8 @@
  * Les listes se construisent toutes seules à partir de guides.ts et secteurs.ts.
  */
 import { guides } from "./guides";
-import { sectors } from "./secteurs";
+import { contacts, sectors } from "./secteurs";
+import { targetCard } from "@/lib/targets";
 import type { LandingPage } from "./types";
 
 export const guidesHub: LandingPage = {
@@ -13,7 +14,7 @@ export const guidesHub: LandingPage = {
   meta: {
     title: "Guides de prospection B2B et prise de rendez-vous",
     description:
-      "Nos guides de prospection B2B : externaliser, prix d'un RDV qualifié, barrage secrétaire. Écrits par une équipe qui appelle tous les jours, chiffres à l'appui.",
+      "Nos guides de prospection B2B : externaliser, prix d'un RDV, script d'appel, RGPD, barrage secrétaire. Écrits par une équipe qui appelle tous les jours.",
   },
   hero: {
     eyebrow: "Ressources",
@@ -47,39 +48,80 @@ export const guidesHub: LandingPage = {
 export const secteursHub: LandingPage = {
   path: "/secteurs",
   breadcrumb: "Secteurs",
-  updated: "2026-11-12",
+  updated: "2026-11-15",
   meta: {
-    title: "Prospection B2B par secteur : nos missions",
+    title: "Prospection B2B par secteur : notre méthode terrain",
     description:
-      "Les secteurs où nous avons déjà prospecté, avec les chiffres réels de nos missions : comment joindre le bon interlocuteur et ce qui fait dire oui.",
+      "Cabinets dentaires, industrie, transport, éditeurs de logiciels : qui décroche, quand appeler, quoi dire. Nos chiffres de mission quand ils sont publiés.",
   },
   hero: {
     eyebrow: "Secteurs",
     title: "Chaque cible se prospecte différemment",
-    lead: "Un cabinet dentaire ne décroche pas comme une direction financière. Nous ne publions une page secteur que lorsqu'une vraie mission nous a appris quelque chose de chiffré.",
+    lead: "Un cabinet dentaire ne décroche pas comme une direction financière. Chaque page dit qui répond, quand appeler et ce qui fait dire oui. Les chiffres n'y figurent que quand une mission est terminée.",
     primary: { label: "Tester sur mon secteur", href: "/demo?offre=sprint" },
-    secondary: { label: "Lire les guides", href: "/guides" },
+    secondary: { label: "Par interlocuteur", href: "/interlocuteurs" },
+    photo: "arches",
   },
   blocks: [
     {
-      kind: "links",
+      kind: "targets",
       id: "secteurs",
-      eyebrow: "Secteurs documentés",
-      title: "Nos missions, secteur par secteur",
-      items: sectors.map((s) => ({ label: s.name, href: s.path, body: s.meta.description })),
+      eyebrow: "Par secteur",
+      title: "Les secteurs que nous appelons",
+      intro: "« Chiffres publiés » : la mission est terminée et documentée. « Mission en cours » : la méthode est en ligne, les chiffres viendront à la fin.",
+      items: sectors.map(targetCard),
+    },
+    {
+      kind: "targets",
+      id: "interlocuteurs",
+      eyebrow: "Par interlocuteur",
+      title: "Les fonctions que nous appelons",
+      items: contacts.map(targetCard),
     },
     {
       kind: "pains",
-      id: "en-cours",
-      eyebrow: "En cours de documentation",
-      title: "D'autres cibles appelées en ce moment",
-      intro: "Ces pages sortiront quand les missions auront des résultats à montrer.",
+      id: "regles",
+      eyebrow: "Notre règle",
+      title: "Pourquoi si peu de chiffres",
       items: [
-        { title: "Directions financières", body: "DAF et contrôleurs de gestion : une cible qui filtre beaucoup, et qui demande un message très précis." },
-        { title: "Industrie et transport", body: "Dirigeants et directions financières de PME industrielles, prospectés par téléphone depuis 2025." },
-        { title: "Laboratoires dentaires", body: "Une base nationale nettoyée de 6 732 cabinets, appelée en 2026." },
-        { title: "Votre secteur ?", body: "Le [sprint test](/tarifs#sprint) vous dit en deux semaines ce que votre cible donne au téléphone." },
+        { title: "Rien d'inventé", body: "Un chiffre vient d'une mission terminée, daté, client anonymisé. Sinon, il n'apparaît pas." },
+        { title: "Votre secteur n'y est pas ?", body: "Le [sprint test](/tarifs#sprint) vous dit en deux semaines ce que votre cible donne au téléphone, et à quel coût." },
       ],
+    },
+  ],
+};
+
+export const interlocuteursHub: LandingPage = {
+  path: "/interlocuteurs",
+  breadcrumb: "Interlocuteurs",
+  updated: "2026-11-15",
+  meta: {
+    title: "Prospecter par fonction : DAF, dirigeants de PME",
+    description:
+      "Comment joindre un DAF ou un dirigeant de PME par téléphone : créneaux, barrage, objections et ouverture d'appel. La méthode terrain de nos SDR.",
+  },
+  hero: {
+    eyebrow: "Interlocuteurs",
+    title: "Joindre la bonne personne, au bon moment",
+    lead: "Un DAF, un dirigeant de PME et une assistante dentaire ne se joignent pas de la même façon. Pour chaque fonction : son calendrier, qui filtre, ce qu'elle objecte, et ce qui la fait accepter un échange.",
+    primary: { label: "Tester sur ma cible", href: "/demo?offre=sprint" },
+    secondary: { label: "Par secteur", href: "/secteurs" },
+    photo: "pathEmpty",
+  },
+  blocks: [
+    {
+      kind: "targets",
+      id: "interlocuteurs",
+      eyebrow: "Par interlocuteur",
+      title: "Les fonctions que nous appelons",
+      items: contacts.map(targetCard),
+    },
+    {
+      kind: "targets",
+      id: "secteurs",
+      eyebrow: "Par secteur",
+      title: "Et les secteurs",
+      items: sectors.map(targetCard),
     },
   ],
 };

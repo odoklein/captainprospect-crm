@@ -3,7 +3,7 @@ import { prospectionPage } from "@/content/pages/prospection-externalisee";
 import { crmAgencePage } from "@/content/pages/crm-agence-prospection";
 import { tarifsPage } from "@/content/pages/tarifs";
 import { guides } from "@/content/pages/guides";
-import { sectors } from "@/content/pages/secteurs";
+import { contacts, sectors } from "@/content/pages/secteurs";
 import { aPropos } from "@/content/pages/hubs";
 
 // llms.txt (https://llmstxt.org): a plain summary of the site for AI assistants and answer engines.
@@ -26,6 +26,9 @@ export function GET() {
     "",
     "## Secteurs",
     ...sectors.map(line),
+    "",
+    "## Interlocuteurs",
+    ...contacts.map(line),
     "",
     "## Guides",
     ...guides.map(line),

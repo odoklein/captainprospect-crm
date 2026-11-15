@@ -2,8 +2,10 @@ import { testimonial } from "@/content/home";
 import { ArrowLink, Container, Eyebrow, PlaceholderBadge } from "@/components/ui/primitives";
 import { Reveal } from "@/components/ui/motion";
 
-/** 10. Large testimonial. Placeholder until a real, approved quote exists. */
+/** 10. Large testimonial. Hidden until a real, approved quote exists. */
 export function Testimonial() {
+  // Never shown publicly until a real, approved quote exists (content/home.ts).
+  if (!testimonial.published) return null;
   return (
     <section aria-labelledby="testimonial-title" className="pb-24 sm:pb-32">
       <Container>

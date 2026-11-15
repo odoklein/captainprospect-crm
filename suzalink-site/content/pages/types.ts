@@ -7,6 +7,7 @@
  * paragraphe, réponse de FAQ ou carte. Le lien devient un vrai lien interne (maillage SEO).
  */
 import type { IconName } from "@/components/ui/Icon";
+import type { ImageKey } from "@/content/images";
 
 export type Link = { label: string; href: string };
 
@@ -50,7 +51,21 @@ export type Block =
   | (Head & { kind: "prose"; parts: Array<{ title: string; paragraphs: string[] }> })
   | (Head & { kind: "faq"; items: Array<{ q: string; a: string }> })
   | (Head & { kind: "links"; items: Array<Link & { body: string }> })
-  | (Head & { kind: "cta"; primary: Link; secondary?: Link; intro: string });
+  | (Head & { kind: "cta"; primary: Link; secondary?: Link; intro: string })
+  /** Pages secteur : qui décroche, qui décide, qui influence. */
+  | (Head & { kind: "people"; items: Array<{ role: "Décroche" | "Décide" | "Influence" | "Valide"; who: string; body: string }> })
+  /** Pages secteur : les bons créneaux et ceux à éviter. */
+  | (Head & { kind: "timing"; good: Array<{ when: string; why: string }>; avoid: Array<{ when: string; why: string }>; note?: string })
+  /** Objections entendues et ce que le SDR répond. Pas de données structurées : ce ne sont pas des questions de visiteurs. */
+  | (Head & { kind: "objections"; items: Array<{ objection: string; reply: string }> })
+  /** Exemple d'ouverture d'appel, présenté comme un exemple (jamais comme un appel réel). */
+  | (Head & { kind: "opener"; lines: Array<{ who: "SDR" | "Interlocuteur"; text: string }>; points: string[]; note: string })
+  /** Statut de la mission sur ce secteur quand aucun chiffre n'est encore publiable. */
+  | (Head & { kind: "status"; since: string; facts: string[]; promise: string; action: Link })
+  /** Cartes de pages cibles (secteurs, interlocuteurs), avec leur statut de mission. */
+  | (Head & { kind: "targets"; items: Array<{ label: string; href: string; body: string; icon: IconName; state: "documented" | "running" }> })
+  /** Photo de marque pleine largeur avec légende. */
+  | { kind: "photo"; id?: string; image: ImageKey; caption?: string };
 
 export type LandingPage = {
   /** URL de la page, commence par « / ». */
@@ -72,6 +87,10 @@ export type LandingPage = {
     bullets?: string[];
     /** Visuel à droite du titre (remplace la carte de puces). Fichier dans public/visuals/. */
     visual?: { src: string; alt: string; width: number; height: number };
+    /** Photo de marque à droite du titre (content/images.ts), à la place du visuel. */
+    photo?: ImageKey;
+    /** Badge sous l'eyebrow, ex. « Mission documentée » ou « Mission en cours ». */
+    badge?: { label: string; tone: "documented" | "running" };
   };
   blocks: Block[];
 };

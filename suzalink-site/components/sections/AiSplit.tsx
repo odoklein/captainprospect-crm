@@ -4,7 +4,7 @@ import { PhotoFrame } from "@/components/ui/PhotoFrame";
 import { SectionHeader } from "@/components/ui/primitives";
 import { Reveal } from "@/components/ui/motion";
 
-/** 5. Split band: text left, full-bleed warm photo of an SDR right. */
+/** 5. Split band: text left, full-bleed brand visual (the AI call summary) right. */
 export function AiSplit() {
   return (
     <section aria-labelledby="ai-split-title" className="bg-sand">
@@ -24,8 +24,7 @@ export function AiSplit() {
           image={resolveImage("sdrHeadset")}
           sizes="(min-width: 1024px) 50vw, 100vw"
           className="min-h-[420px] lg:min-h-full"
-          imgClassName="saturate-[.9]"
-          overlay={<div aria-hidden className="absolute inset-0 bg-[#C9864F]/15 mix-blend-multiply" />}
+          imgClassName="object-cover"
         />
       </div>
     </section>

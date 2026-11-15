@@ -61,8 +61,18 @@ export const menu: MenuItem[] = [
         title: "Par secteur",
         links: [
           { label: "Cabinets dentaires", href: "/secteurs/cabinets-dentaires", icon: "tooth" },
+          { label: "Industrie", href: "/secteurs/industrie", icon: "factory" },
+          { label: "Transport et logistique", href: "/secteurs/transport-logistique", icon: "truck" },
+          { label: "Éditeurs de logiciels", href: "/secteurs/editeurs-logiciels-saas", icon: "code" },
           { label: "Tous les secteurs", href: "/secteurs", icon: "map" },
-          { label: "Tester mon secteur en 2 semaines", href: "/tarifs#sprint", icon: "target" },
+        ],
+      },
+      {
+        title: "Par interlocuteur",
+        links: [
+          { label: "Directions financières", href: "/interlocuteurs/directions-financieres", icon: "euro" },
+          { label: "Dirigeants de PME", href: "/interlocuteurs/dirigeants-pme", icon: "briefcase" },
+          { label: "Tester ma cible en 2 semaines", href: "/tarifs#sprint", icon: "target" },
         ],
       },
       {
@@ -85,6 +95,9 @@ export const menu: MenuItem[] = [
           { label: "Externaliser sa prospection", href: "/guides/externaliser-prospection-commerciale", icon: "book" },
           { label: "Prix d'un RDV qualifié", href: "/guides/prix-rdv-qualifie", icon: "chart" },
           { label: "Passer le barrage secrétaire", href: "/guides/barrage-secretaire", icon: "phone" },
+          { label: "Script d'appel de prospection", href: "/guides/script-appel-prospection", icon: "quote" },
+          { label: "Prospection B2B et RGPD", href: "/guides/prospection-telephonique-b2b-rgpd", icon: "shield" },
+          { label: "Le métier de SDR", href: "/guides/sdr-business-developer", icon: "users" },
           { label: "Tous les guides", href: "/guides", icon: "grid" },
         ],
       },

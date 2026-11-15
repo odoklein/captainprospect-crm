@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { findSector, sectors } from "@/content/pages/secteurs";
 import { LandingPage } from "@/components/landing/Landing";
 import { pageMetadata } from "@/lib/page-meta";
+import { withRelated } from "@/lib/targets";
 
 export const dynamicParams = false;
 
@@ -17,5 +18,5 @@ export async function generateMetadata({ params }: { params: Promise<{ cible: st
 export default async function Page({ params }: { params: Promise<{ cible: string }> }) {
   const sector = findSector((await params).cible);
   if (!sector) notFound();
-  return <LandingPage page={sector} />;
+  return <LandingPage page={withRelated(sector)} />;
 }

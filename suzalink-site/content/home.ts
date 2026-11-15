@@ -183,22 +183,30 @@ export const stack = {
 };
 
 export const cases = {
-  eyebrow: "Cas clients",
-  title: "Pourquoi les équipes nous font confiance",
-  subtitle: "Une mission réelle, chiffres à l'appui. Les autres cas sont en cours de validation avec nos clients.",
-  action: { label: "Voir la mission dentaire", href: "/secteurs/cabinets-dentaires" },
-  placeholderBadge: "Placeholder",
-  readLabel: "Lire",
-  // TODO : remplacer les « XX » par des résultats réels, validés par écrit avec chaque client.
-  items: [
-    // Mission réelle (client anonymisé) : Drive « LES RDV », nov.–déc. 2025.
-    { image: "caseSmb", eyebrow: "Cabinets dentaires · 2025", title: "147 RDV terrain et 36 boîtes de collecte en deux mois", href: "/secteurs/cabinets-dentaires", placeholder: false },
-    { image: "caseAgency", eyebrow: "Agence de prospection", title: "XX SDRs pilotés sur une seule instance", href: "#" },
-    { image: "caseFreelance", eyebrow: "SDR indépendant", title: "XX appels par jour, sans changer d'outil", href: "#" },
-  ],
+  eyebrow: "Nos missions",
+  title: "Une mission chiffrée, d'autres en cours",
+  subtitle: "Nous publions les chiffres d'une mission quand elle est terminée, client anonymisé. Jamais avant.",
+  action: { label: "Tous les secteurs", href: "/secteurs" },
+  /** La mission documentée (Drive « LES RDV », nov.–déc. 2025). */
+  featured: {
+    image: "caseSmb",
+    eyebrow: "Cabinets dentaires, fin 2025",
+    title: "147 RDV terrain et 36 boîtes de collecte en deux mois",
+    stats: [
+      { value: "5 174", label: "appels" },
+      { value: "147", label: "RDV terrain" },
+      { value: "20+", label: "départements" },
+    ],
+    href: "/secteurs/cabinets-dentaires",
+    cta: "Lire la mission",
+  },
+  runningTitle: "En cours, chiffres à venir",
+  runningCta: { label: "Votre secteur en deux semaines", href: "/tarifs#sprint" },
 } as const;
 
 export const testimonial = {
+  /** false tant qu'aucune citation réelle et validée par écrit n'existe : la section ne s'affiche pas. */
+  published: false,
   eyebrow: "Témoignage",
   placeholderBadge: "Placeholder",
   // TODO : remplacer par une citation réelle, validée par écrit avant publication.

@@ -60,14 +60,27 @@ export const site = {
         ],
       },
       {
-        title: "Ressources",
+        title: "Guides",
         links: [
-          { label: "Guides", href: "/guides" },
+          { label: "Tous les guides", href: "/guides" },
           { label: "Externaliser sa prospection", href: "/guides/externaliser-prospection-commerciale" },
           { label: "Prix d'un RDV qualifié", href: "/guides/prix-rdv-qualifie" },
           { label: "Barrage secrétaire", href: "/guides/barrage-secretaire" },
-          { label: "Secteurs", href: "/secteurs" },
-          { label: "Prospection des cabinets dentaires", href: "/secteurs/cabinets-dentaires" },
+          { label: "Script d'appel", href: "/guides/script-appel-prospection" },
+          { label: "Prospection B2B et RGPD", href: "/guides/prospection-telephonique-b2b-rgpd" },
+          { label: "Le métier de SDR", href: "/guides/sdr-business-developer" },
+        ],
+      },
+      {
+        title: "Secteurs",
+        links: [
+          { label: "Tous les secteurs", href: "/secteurs" },
+          { label: "Cabinets dentaires", href: "/secteurs/cabinets-dentaires" },
+          { label: "Industrie", href: "/secteurs/industrie" },
+          { label: "Transport et logistique", href: "/secteurs/transport-logistique" },
+          { label: "Éditeurs de logiciels", href: "/secteurs/editeurs-logiciels-saas" },
+          { label: "Directions financières", href: "/interlocuteurs/directions-financieres" },
+          { label: "Dirigeants de PME", href: "/interlocuteurs/dirigeants-pme" },
         ],
       },
       {

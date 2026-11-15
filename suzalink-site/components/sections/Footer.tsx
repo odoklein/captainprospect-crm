@@ -4,7 +4,7 @@ import { Logo } from "@/components/brand/Logo";
 import { Icon } from "@/components/ui/Icon";
 import { Container } from "@/components/ui/primitives";
 
-/** 14. Footer: large logo, five link columns, FR/EN switch, socials, copyright. */
+/** 14. Footer: large logo, six link columns, FR/EN switch, socials, copyright. */
 export function Footer() {
   const { footer } = site;
   const year = new Date().getFullYear();
@@ -22,7 +22,7 @@ export function Footer() {
             </a>
           </div>
 
-          <nav aria-label="Pied de page" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-5">
+          <nav aria-label="Pied de page" className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 xl:grid-cols-6">
             {footer.columns.map((col) => (
               <div key={col.title}>
                 <h2 className="eyebrow text-muted">{col.title}</h2>

@@ -14,6 +14,8 @@ import { Pricing } from "@/components/sections/Pricing";
 import { Footer } from "@/components/sections/Footer";
 import { RichText, plainText } from "./RichText";
 import { CountUp, ReadingProgress, Spotlight, StickyCta, Toc } from "./interactive";
+import { resolveImage } from "@/lib/resolve-image";
+import { PhotoFrame } from "@/components/ui/PhotoFrame";
 
 // Pages d'offre, de secteur, de guide et de tarifs : une page = un fichier de content/pages/.
 // Ce fichier ne contient que la mise en page ; les textes sont dans content/.
@@ -138,7 +140,7 @@ function renderBlock(block: Block, i: number) {
   const id = block.id ?? `bloc-${i}`;
   const header =
     "eyebrow" in block && block.eyebrow ? (
-      <SectionHeader id={`${id}-title`} eyebrow={block.eyebrow} title={block.title} subtitle={block.intro} tone={block.kind === "proof" ? "dark" : "light"} />
+      <SectionHeader id={`${id}-title`} eyebrow={block.eyebrow} title={block.title} subtitle={block.intro} tone={block.kind === "proof" || block.kind === "opener" ? "dark" : "light"} />
     ) : null;
 
   switch (block.kind) {
@@ -550,6 +552,243 @@ function renderBlock(block: Block, i: number) {
         </Section>
       );
 
+    case "people": {
+      const tone: Record<string, string> = {
+        Décroche: "bg-mint/70 text-navy",
+        Décide: "bg-navy text-white",
+        Influence: "border border-navy/25 bg-white text-navy",
+        Valide: "border border-navy/25 bg-white text-navy",
+      };
+      return (
+        <Section key={id} id={id} tone="white">
+          <Reveal>{header}</Reveal>
+          <ol className={cx("relative mt-12 grid gap-4", block.items.length > 3 ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3")}>
+            <span aria-hidden className="absolute top-[42px] right-[12%] left-[12%] hidden h-px bg-[repeating-linear-gradient(90deg,var(--color-line)_0_6px,transparent_6px_12px)] md:block" />
+            {block.items.map((it, n) => (
+              <Spotlight as="li" key={it.who} className="relative flex flex-col rounded-[22px] border border-line bg-paper p-6">
+                <span className="flex items-center justify-between gap-3">
+                  <span className={cx("rounded-full px-3 py-1 text-[12px] font-semibold", tone[it.role])}>{it.role}</span>
+                  <span className="font-mono text-[12px] text-muted">{String(n + 1).padStart(2, "0")}</span>
+                </span>
+                <h3 className="mt-5 text-[19px] leading-snug font-semibold text-ink">{it.who}</h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                  <RichText text={it.body} />
+                </p>
+              </Spotlight>
+            ))}
+          </ol>
+        </Section>
+      );
+    }
+
+    case "timing":
+      return (
+        <Section key={id} id={id}>
+          <Reveal>{header}</Reveal>
+          <div className="mt-12 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-[24px] border border-navy/10 bg-[linear-gradient(160deg,rgba(185,237,214,.6),rgba(255,255,255,.95)_55%)] p-7 sm:p-8">
+              <p className="flex items-center gap-2.5 font-semibold text-ink">
+                <span aria-hidden className="grid size-8 place-items-center rounded-full bg-navy text-white">
+                  <Icon name="clock" className="size-4" />
+                </span>
+                Les bons créneaux
+              </p>
+              <ul className="mt-6 flex flex-col divide-y divide-navy/10">
+                {block.good.map((g) => (
+                  <li key={g.when} className="grid gap-1 py-4 first:pt-0 last:pb-0 sm:grid-cols-[170px_1fr] sm:gap-6">
+                    <span className="font-mono text-[13px] font-medium text-navy">{g.when}</span>
+                    <span className="text-[15px] leading-relaxed text-ink/80">
+                      <RichText text={g.why} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-[24px] border border-line bg-white p-7 sm:p-8">
+              <p className="flex items-center gap-2.5 font-semibold text-ink">
+                <span aria-hidden className="grid size-8 place-items-center rounded-full border border-line bg-paper text-ink">
+                  <Icon name="alert" className="size-4" />
+                </span>
+                À éviter
+              </p>
+              <ul className="mt-6 flex flex-col divide-y divide-line">
+                {block.avoid.map((g) => (
+                  <li key={g.when} className="grid gap-1 py-4 first:pt-0 last:pb-0 sm:grid-cols-[170px_1fr] sm:gap-6">
+                    <span className="font-mono text-[13px] font-medium text-ink/70">{g.when}</span>
+                    <span className="text-[15px] leading-relaxed text-muted">
+                      <RichText text={g.why} />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {block.note ? <p className="mt-5 max-w-[72ch] text-[14px] text-muted">{block.note}</p> : null}
+        </Section>
+      );
+
+    case "objections":
+      return (
+        <Section key={id} id={id} tone="white">
+          <Reveal>{header}</Reveal>
+          <ul className="mt-12 grid gap-5 lg:grid-cols-2">
+            {block.items.map((o) => (
+              <li key={o.objection} className="flex flex-col gap-3 rounded-[24px] border border-line bg-paper p-5 sm:p-6">
+                <p className="flex gap-3 self-start rounded-[18px] rounded-tl-[6px] border border-line bg-white px-4 py-3 text-[16px] text-ink">
+                  <Icon name="quote" className="mt-1 size-4 shrink-0 text-muted" />
+                  <span className="font-medium">« {o.objection} »</span>
+                </p>
+                <p className="ml-6 rounded-[18px] rounded-tr-[6px] bg-navy px-4 py-3 text-[15px] leading-relaxed text-white/90 sm:ml-10">
+                  <span className="eyebrow mb-1 block text-mint">Ce que répond le SDR</span>
+                  <RichText text={o.reply} linkClassName="font-medium text-white underline decoration-mint underline-offset-4" />
+                </p>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      );
+
+    case "opener":
+      return (
+        <Section key={id} id={id} tone="dark" className="relative overflow-hidden">
+          <div aria-hidden className="pointer-events-none absolute -bottom-48 -left-40 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.16),transparent)]" />
+          <div className="relative grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:gap-16">
+            <Reveal>
+              {header}
+              <ul className="mt-8 flex flex-col gap-3 text-[16px] text-white/85">
+                {block.points.map((p) => (
+                  <li key={p} className="flex gap-3">
+                    <Check dark />
+                    <span>
+                      <RichText text={p} linkClassName="font-medium text-white underline decoration-mint underline-offset-4" />
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
+            <figure className="rounded-[26px] border border-white/15 bg-white/[.06] p-5 shadow-[0_30px_60px_-30px_rgba(0,0,0,.6)] backdrop-blur sm:p-6">
+              <figcaption className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
+                <span className="flex items-center gap-2.5 text-[14px] font-medium text-white">
+                  <span aria-hidden className="grid size-8 place-items-center rounded-full bg-mint text-navy">
+                    <Icon name="waveform" className="size-4" />
+                  </span>
+                  Exemple d&apos;ouverture
+                </span>
+                <span className="font-mono text-[12px] text-white/55">≈ 30 secondes</span>
+              </figcaption>
+              <ol className="mt-5 flex flex-col gap-3">
+                {block.lines.map((l, n) => (
+                  <li key={n} className={cx("flex flex-col gap-1", l.who === "SDR" ? "items-start" : "items-end")}>
+                    <span className="font-mono text-[11px] tracking-wide text-white/50 uppercase">{l.who}</span>
+                    <p
+                      className={cx(
+                        "max-w-[92%] rounded-[16px] px-4 py-2.5 text-[15px] leading-relaxed",
+                        l.who === "SDR" ? "rounded-tl-[6px] bg-white text-ink" : "rounded-tr-[6px] bg-mint/90 text-navy",
+                      )}
+                    >
+                      {l.text}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-5 border-t border-white/10 pt-4 text-[13px] leading-relaxed text-white/60">{block.note}</p>
+            </figure>
+          </div>
+        </Section>
+      );
+
+    case "status":
+      return (
+        // Sits right under the « En bref » box: its own tight section, not a full-height band.
+        <section key={id} id={id} aria-labelledby={`${id}-title`} className="scroll-mt-20 pb-20 sm:pb-28">
+          <Container>
+          <div className="grid gap-8 rounded-[28px] border border-line bg-white p-7 sm:p-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-14">
+            <Reveal>
+              <p className="inline-flex items-center gap-2 rounded-full border border-line bg-paper px-3 py-1 text-[13px] font-medium text-ink">
+                <span aria-hidden className="relative flex size-2">
+                  <span className="absolute inline-flex size-full rounded-full bg-rose opacity-70 motion-safe:animate-ping" />
+                  <span className="relative inline-flex size-2 rounded-full bg-rose" />
+                </span>
+                Mission en cours {block.since}
+              </p>
+              <h2 id={`${id}-title`} className="font-display-tight mt-5 max-w-[22ch] text-[clamp(1.9rem,3.6vw,2.75rem)] leading-[1.05] font-light text-ink">
+                {block.title}
+              </h2>
+              {block.intro ? (
+                <p className="mt-4 max-w-[60ch] text-[17px] leading-relaxed text-muted">
+                  <RichText text={block.intro} />
+                </p>
+              ) : null}
+              <p className="mt-4 max-w-[60ch] text-[17px] leading-relaxed text-ink/85">
+                <RichText text={block.promise} />
+              </p>
+              <ButtonLink href={block.action.href} arrow className="mt-7">
+                {block.action.label}
+              </ButtonLink>
+            </Reveal>
+            <ul className="flex flex-col gap-3 self-center rounded-[20px] bg-paper p-5 text-[15px]">
+              {block.facts.map((f) => (
+                <li key={f} className="flex gap-3">
+                  <Check />
+                  <span>
+                    <RichText text={f} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          </Container>
+        </section>
+      );
+
+    case "targets":
+      return (
+        <Section key={id} id={id}>
+          <Reveal>{header}</Reveal>
+          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {block.items.map((t) => (
+              <Spotlight as="li" key={t.href} className="rounded-[22px] border border-line bg-white">
+                <Link href={t.href} className="flex h-full flex-col p-6">
+                  <span className="flex items-center justify-between gap-3">
+                    <span aria-hidden className="grid size-11 place-items-center rounded-[14px] bg-mint/60 text-navy transition-[background-color,color,transform] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
+                      <Icon name={t.icon} className="size-5" />
+                    </span>
+                    <span
+                      className={cx(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium",
+                        t.state === "documented" ? "bg-mint/70 text-navy" : "border border-line bg-paper text-ink/80",
+                      )}
+                    >
+                      {t.state === "documented" ? <Icon name="check" className="size-3.5" /> : <span aria-hidden className="size-1.5 rounded-full bg-rose" />}
+                      {t.state === "documented" ? "Chiffres publiés" : "Mission en cours"}
+                    </span>
+                  </span>
+                  <span className="mt-5 flex items-center justify-between gap-3 text-[19px] font-semibold text-ink">
+                    {t.label}
+                    <Icon name="arrowRight" className="size-4 shrink-0 text-navy transition-transform duration-300 group-hover/card:translate-x-0.5" />
+                  </span>
+                  <span className="mt-2 text-[15px] leading-relaxed text-muted">
+                    <RichText text={t.body} />
+                  </span>
+                </Link>
+              </Spotlight>
+            ))}
+          </ul>
+        </Section>
+      );
+
+    case "photo":
+      return (
+        <section key={id} id={id} className="py-4 sm:py-8">
+          <Container>
+            <figure>
+              <PhotoFrame image={resolveImage(block.image)} sizes="(min-width: 1280px) 1240px, 100vw" className="aspect-[16/9] rounded-[28px] sm:aspect-[21/9]" />
+              {block.caption ? <figcaption className="mt-3 text-[13px] text-muted">{block.caption}</figcaption> : null}
+            </figure>
+          </Container>
+        </section>
+      );
+
     case "cta":
       return (
         <section key={id} aria-labelledby={`${id}-title`} className="on-dark relative overflow-hidden bg-navy-deep py-24 text-white sm:py-32">
@@ -642,9 +881,22 @@ export function LandingPage({ page, extra, children }: { page: LandingPageData; 
           <div aria-hidden className="pointer-events-none absolute -top-24 right-[-10%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.6),rgba(185,237,214,0))]" />
           <Container className="relative">
             <Breadcrumbs trail={trail} />
-            <div className={cx("mt-10 grid gap-12 lg:items-end lg:gap-16", hero.visual ? "lg:grid-cols-[1fr_520px]" : "lg:grid-cols-[1fr_380px]")}>
+            <div className={cx("mt-10 grid gap-12 lg:items-end lg:gap-16", hero.visual || hero.photo ? "lg:grid-cols-[1fr_520px]" : "lg:grid-cols-[1fr_380px]")}>
               <div className="flex flex-col gap-6">
-                <Eyebrow>{hero.eyebrow}</Eyebrow>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Eyebrow>{hero.eyebrow}</Eyebrow>
+                  {hero.badge ? (
+                    <span
+                      className={cx(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium",
+                        hero.badge.tone === "documented" ? "bg-mint/70 text-navy" : "border border-line bg-white text-ink",
+                      )}
+                    >
+                      {hero.badge.tone === "documented" ? <Icon name="check" className="size-3.5" /> : <span aria-hidden className="size-1.5 rounded-full bg-rose" />}
+                      {hero.badge.label}
+                    </span>
+                  ) : null}
+                </div>
                 <h1 id="page-title" className="font-display-tight max-w-[18ch] text-[clamp(2.75rem,6.4vw,5rem)] leading-[1] font-light text-ink">
                   {hero.title}
                 </h1>
@@ -689,6 +941,27 @@ export function LandingPage({ page, extra, children }: { page: LandingPageData; 
                   sizes="(min-width: 1024px) 520px, 100vw"
                   className="h-auto w-full drop-shadow-[0_30px_50px_rgba(12,31,35,.18)]"
                 />
+              ) : hero.photo ? (
+                <div className="relative">
+                  <PhotoFrame
+                    image={resolveImage(hero.photo)}
+                    priority
+                    sizes="(min-width: 1024px) 520px, 100vw"
+                    className="aspect-[16/9] rounded-[28px] shadow-[0_40px_80px_-40px_rgba(12,31,35,.45)]"
+                  />
+                  {hero.bullets ? (
+                    <ul className="relative -mt-14 mr-4 ml-auto flex max-w-[340px] flex-col gap-2.5 rounded-[20px] border border-line bg-white/95 p-5 text-[14px] shadow-[0_18px_40px_-24px_rgba(12,31,35,.45)] backdrop-blur sm:-mt-20">
+                      {hero.bullets.map((b) => (
+                        <li key={b} className="flex gap-3">
+                          <Check />
+                          <span>
+                            <RichText text={b} />
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
               ) : hero.bullets ? (
                 <ul className="flex flex-col gap-3 rounded-[24px] border border-line bg-white/90 p-6 text-[15px] shadow-[0_18px_40px_-30px_rgba(12,31,35,.35)] backdrop-blur">
                   {hero.bullets.map((b) => (

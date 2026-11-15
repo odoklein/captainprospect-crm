@@ -122,7 +122,7 @@ function PanelContent({ item, onNavigate }: { item: Panel; onNavigate: () => voi
   return (
     <div className="overflow-hidden rounded-[24px] border border-line bg-white shadow-[0_40px_80px_-40px_rgba(7,21,24,.45)]">
       <div className={cx("grid gap-8 p-7", item.feature ? "grid-cols-[1fr_300px]" : "grid-cols-1")}>
-        <div className={cx("grid gap-8", cols === 3 ? "grid-cols-[1fr_1fr_1.4fr]" : cols === 2 ? "grid-cols-2" : "grid-cols-1")}>
+        <div className={cx("grid gap-8", cols === 4 ? "grid-cols-[1fr_1fr_1fr_1.3fr]" : cols === 3 ? "grid-cols-[1fr_1fr_1.4fr]" : cols === 2 ? "grid-cols-2" : "grid-cols-1")}>
           {item.columns.map((col) => (
             <div key={col.title}>
               <p className="eyebrow mb-3 px-2.5 text-muted">{col.title}</p>

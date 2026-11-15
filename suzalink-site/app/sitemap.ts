@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { site } from "@/content/site";
-import { sectors } from "@/content/pages/secteurs";
+import { contacts, sectors } from "@/content/pages/secteurs";
 import { guides } from "@/content/pages/guides";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -18,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     page("/tarifs", 0.9),
     page("/secteurs", 0.6),
     ...sectors.map((s) => page(s.path, 0.7)),
+    page("/interlocuteurs", 0.6),
+    ...contacts.map((s) => page(s.path, 0.7)),
     page("/guides", 0.6, "weekly"),
     ...guides.map((g) => page(g.path, 0.7)),
     page("/a-propos", 0.5),
