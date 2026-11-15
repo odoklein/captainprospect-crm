@@ -250,7 +250,7 @@ export function Features() {
                 <FeatureMarker />
                 <div className={cx("flex flex-col", wide && "lg:max-w-[620px]")}>
                   <p className="flex items-baseline gap-3">
-                    <span className="font-mono text-[12px] text-ink/40 tabular-nums">{String(n + 1).padStart(2, "0")}</span>
+                    <span className="font-mono text-[12px] text-muted tabular-nums">{String(n + 1).padStart(2, "0")}</span>
                     <span className="eyebrow text-ink/80">{step.moment}</span>
                   </p>
                   <h3 className="font-display-tight mt-4 text-[clamp(1.75rem,2.6vw,2.25rem)] leading-[1.05] font-light text-ink">{step.title}</h3>

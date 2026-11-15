@@ -207,7 +207,7 @@ function renderBlock(block: Block, i: number, no: number) {
           <ol className="mt-12 grid gap-x-12 md:grid-cols-2">
             {block.items.map((it, n) => (
               <li key={it.title} className="grid grid-cols-[40px_minmax(0,1fr)] gap-x-4 border-t border-ink/15 pt-6 pb-10">
-                <span aria-hidden className="font-mono text-[13px] text-ink/40 tabular-nums">{String(n + 1).padStart(2, "0")}</span>
+                <span aria-hidden className="font-mono text-[13px] text-muted tabular-nums">{String(n + 1).padStart(2, "0")}</span>
                 <div>
                   <h3 className={cardTitle}>{frTypo(it.title)}</h3>
                   <p className="mt-3 max-w-[48ch] leading-relaxed text-muted">
@@ -261,7 +261,7 @@ function renderBlock(block: Block, i: number, no: number) {
                     <span aria-hidden className="grid size-9 place-items-center rounded-[10px] bg-mint/55 text-navy transition-colors duration-200 group-hover/spec:bg-navy group-hover/spec:text-white">
                       <Icon name={(it.icon ?? "check") as IconName} className="size-[18px]" />
                     </span>
-                    <span aria-hidden className="font-mono text-[11px] text-ink/40 tabular-nums">{String(n + 1).padStart(2, "0")}</span>
+                    <span aria-hidden className="font-mono text-[11px] text-muted tabular-nums">{String(n + 1).padStart(2, "0")}</span>
                   </span>
                   <h3 className="mt-4 text-[19px] leading-snug font-semibold text-ink">{it.title}</h3>
                   <p className="mt-2 max-w-[44ch] text-[15.5px] leading-relaxed text-muted">

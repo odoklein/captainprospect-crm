@@ -139,7 +139,7 @@ export function HeroCall() {
                         <span className={cx("block truncate", active ? "font-semibold" : "font-medium text-ink/80")}>{row.name}</span>
                         <span className="block truncate text-[11px] text-muted">{active ? row.role : row.note}</span>
                       </span>
-                      <span className="font-mono text-[10px] text-ink/40 tabular-nums">{active ? "" : pos + 1}</span>
+                      <span className="font-mono text-[10px] text-muted tabular-nums">{active ? "" : pos + 1}</span>
                     </div>
                   );
                 })}

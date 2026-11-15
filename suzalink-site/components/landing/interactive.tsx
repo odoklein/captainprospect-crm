@@ -100,7 +100,7 @@ export function Toc({ items }: { items: Array<{ id: string; title: string }> }) 
               aria-current={active === i.id ? "true" : undefined}
               className="-ml-px flex gap-3 border-l-2 border-transparent py-1.5 pl-4 text-[14px] leading-snug text-muted transition-colors hover:text-ink aria-[current=true]:border-navy aria-[current=true]:font-medium aria-[current=true]:text-ink"
             >
-              <span className="font-mono text-[12px] text-muted/80">{String(n + 1).padStart(2, "0")}</span>
+              <span className="font-mono text-[12px] text-muted">{String(n + 1).padStart(2, "0")}</span>
               {i.title}
             </a>
           </li>

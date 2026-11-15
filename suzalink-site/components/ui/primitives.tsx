@@ -29,7 +29,7 @@ export function Eyebrow({
   return (
     <p className={cx("eyebrow flex items-baseline gap-3", tone === "dark" ? "text-white/75" : "text-muted", className)}>
       {index ? (
-        <span aria-hidden className={cx("tabular-nums", tone === "dark" ? "text-white/45" : "text-ink/40")}>
+        <span aria-hidden className={cx("tabular-nums", tone === "dark" ? "text-white/60" : "text-muted")}>
           {String(index).padStart(2, "0")}
         </span>
       ) : null}

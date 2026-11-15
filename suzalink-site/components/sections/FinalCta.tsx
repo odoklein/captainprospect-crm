@@ -31,7 +31,7 @@ export function FinalCta() {
           <ol className="mt-4 border-t border-line">
             {demo.points.map((p, i) => (
               <li key={p} className="flex gap-4 border-b border-line py-3.5 text-[16px]">
-                <span aria-hidden className="pt-0.5 font-mono text-[12px] text-ink/45 tabular-nums">
+                <span aria-hidden className="pt-0.5 font-mono text-[12px] text-muted tabular-nums">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 {p}
