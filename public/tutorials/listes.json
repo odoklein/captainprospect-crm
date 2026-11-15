@@ -3,7 +3,7 @@
   "title": "Listes",
   "section": "Prospection",
   "purpose": "Tous les fichiers de prospection de l'agence : leur taille, leur qualité et leur avancement, mission par mission.",
-  "durationSec": 36,
+  "durationSec": 28,
   "chapters": [
     {
       "label": "Vue d'ensemble",
@@ -15,25 +15,25 @@
       "label": "Étape 1 sur 3",
       "title": "Cherchez une liste",
       "detail": "Tapez le nom d'une liste, d'un client ou d'une mission : le tableau se filtre aussitôt.",
-      "start": 6.7
+      "start": 5.1
     },
     {
       "label": "Étape 2 sur 3",
       "title": "Lisez l'avancement",
       "detail": "La part des sociétés déjà traitées par les SDR, et l'état de la liste.",
-      "start": 15
+      "start": 11.3
     },
     {
       "label": "Étape 3 sur 3",
       "title": "Ouvrez la liste",
       "detail": "Vous accédez à ses sociétés, ses contacts et sa santé de prospection.",
-      "start": 22.2
+      "start": 16.7
     },
     {
       "label": "Résultat",
       "title": "La fiche de la liste est ouverte",
       "detail": "Sociétés, contacts, joignabilité : tout ce qu'il faut pour juger si la liste mérite d'être travaillée.",
-      "start": 29
+      "start": 21.8
     }
   ]
 }

@@ -9,8 +9,8 @@ export const TUTORIALS: TutorialEntry[] = [
         "match": [
             "/manager/dashboard"
         ],
-        "durationSec": 46,
-        "version": "7b5f1b6c"
+        "durationSec": 35,
+        "version": "a3e068b3"
     },
     {
         "id": "listes",
@@ -21,8 +21,8 @@ export const TUTORIALS: TutorialEntry[] = [
             "/manager/lists/new",
             "/manager/lists/import"
         ],
-        "durationSec": 36,
-        "version": "374e1094"
+        "durationSec": 28,
+        "version": "126155eb"
     },
     {
         "id": "sas-rdv",
@@ -31,8 +31,8 @@ export const TUTORIALS: TutorialEntry[] = [
         "match": [
             "/manager/rdv"
         ],
-        "durationSec": 44,
-        "version": "d46e4b9c"
+        "durationSec": 33,
+        "version": "9999c5f6"
     },
     {
         "id": "clients",
@@ -42,8 +42,8 @@ export const TUTORIALS: TutorialEntry[] = [
             "/manager/clients",
             "/manager/clients/*"
         ],
-        "durationSec": 41,
-        "version": "23f50947"
+        "durationSec": 32,
+        "version": "2b451c18"
     },
     {
         "id": "fiche-liste",
@@ -53,8 +53,8 @@ export const TUTORIALS: TutorialEntry[] = [
             "/manager/lists/*",
             "/manager/lists/*/edit"
         ],
-        "durationSec": 43,
-        "version": "9d639f8b"
+        "durationSec": 34,
+        "version": "b8104c4d"
     },
     {
         "id": "espace-mission",
@@ -63,8 +63,8 @@ export const TUTORIALS: TutorialEntry[] = [
         "match": [
             "/manager/clients?mission"
         ],
-        "durationSec": 44,
-        "version": "87c1a24b"
+        "durationSec": 33,
+        "version": "67c52618"
     },
     {
         "id": "appels",
@@ -73,8 +73,8 @@ export const TUTORIALS: TutorialEntry[] = [
         "match": [
             "/manager/prospection"
         ],
-        "durationSec": 33,
-        "version": "a97ee047"
+        "durationSec": 28,
+        "version": "ac422385"
     },
     {
         "id": "taches",
@@ -83,7 +83,7 @@ export const TUTORIALS: TutorialEntry[] = [
         "match": [
             "/manager/tasks"
         ],
-        "durationSec": 40,
-        "version": "92d4f913"
+        "durationSec": 32,
+        "version": "8e51dcb3"
     }
 ];

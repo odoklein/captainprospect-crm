@@ -19,10 +19,18 @@ export type CapturedStep = {
     target: Box;
     /** What changed and deserves the viewer's eye afterwards (optional). */
     result?: Box;
-    /** Text typed by a `type` step, shown as it is entered. */
+    /** Text typed by a `type` step, or the option label chosen by a `select` step. */
     typed?: string;
-    /** `type` steps: screenshots taken while the text is being typed. */
+    /** `type` steps: the focused empty field, then one screenshot per character typed. */
     partials?: string[];
+    /** Real hover state of the target, taken with the pointer on it. */
+    hover?: string;
+    /** `select` steps: labels of the options offered. */
+    options?: string[];
+    /** The page was scrolled before this step (its first screen differs from the previous one). */
+    scrolled?: boolean;
+    /** The page scrolled to show the result (new content below the fold). */
+    scrolledAfter?: boolean;
 };
 
 export type Capture = {

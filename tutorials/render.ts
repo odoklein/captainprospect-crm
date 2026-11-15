@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { STORYBOARDS } from "./capture/storyboards";
-import { FPS, captions, chapters, totalFrames } from "./video/src/timeline";
+import { FPS, POSTER_FRAME, captions, chapters, totalFrames } from "./video/src/timeline";
 import type { Capture } from "./video/src/types";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -51,10 +51,10 @@ function render(c: Capture) {
     const remotion = (...a: string[]) => execFileSync("npx", ["remotion", ...a, ...browserArgs], { cwd: VIDEO, stdio: ["ignore", "ignore", "inherit"] });
     remotion("render", c.id, raw, "--codec=h264", "--crf=18", "--jpeg-quality=95", "--concurrency=4");
     const out = join(PUBLIC, `${c.id}.mp4`);
-    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", raw, "-c:v", "libx264", "-preset", "veryslow", "-tune", "stillimage", "-crf", "29", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out]);
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-i", raw, "-c:v", "libx264", "-preset", "veryslow", "-crf", "31", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", out]);
     // Poster: the title card, once its text has settled.
     const still = join(TMP, `${c.id}-poster.png`);
-    remotion("still", c.id, still, "--frame=48");
+    remotion("still", c.id, still, `--frame=${POSTER_FRAME}`);
     execFileSync("ffmpeg", ["-v", "error", "-y", "-i", still, "-vf", "scale=1280:720", "-q:v", "5", join(PUBLIC, `${c.id}.jpg`)]);
     writeFileSync(join(PUBLIC, `${c.id}.vtt`), vtt(c));
     rmSync(raw, { force: true });
@@ -66,7 +66,7 @@ function syncText(c: Capture, sb: (typeof STORYBOARDS)[number]): Capture {
     if (sb.steps.length !== c.steps.length) throw new Error(`${sb.id}: storyboard has ${sb.steps.length} steps, capture has ${c.steps.length} — recapture it`);
     const next: Capture = {
         ...c, title: sb.title, section: sb.section, purpose: sb.purpose,
-        steps: c.steps.map((st, i) => ({ ...st, title: sb.steps[i].title, detail: sb.steps[i].detail })),
+        steps: c.steps.map((st, i) => ({ ...st, title: sb.steps[i].title, detail: sb.steps[i].detail, scrolled: !!sb.steps[i].before, scrolledAfter: !!sb.steps[i].scrollResult })),
         outcome: { ...c.outcome, title: sb.outcome.title, detail: sb.outcome.detail },
     };
     for (const t of [next.title, ...next.steps.map((x) => x.title), next.outcome.title]) if (t.length > 46) throw new Error(`${sb.id}: title too long for the caption band: « ${t} »`);

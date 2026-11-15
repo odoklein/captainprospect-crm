@@ -3,7 +3,7 @@
   "title": "SAS RDV",
   "section": "Rendez-vous",
   "purpose": "Chaque RDV pris par un SDR passe ici avant d'être annoncé au client. Vous le vérifiez, puis vous le confirmez ou le rejetez.",
-  "durationSec": 44,
+  "durationSec": 33,
   "chapters": [
     {
       "label": "Vue d'ensemble",
@@ -15,31 +15,31 @@
       "label": "Étape 1 sur 4",
       "title": "Filtrez les RDV en attente",
       "detail": "Le compteur indique combien de rendez-vous attendent votre validation.",
-      "start": 7.7
+      "start": 5.1
     },
     {
       "label": "Étape 2 sur 4",
       "title": "Repliez le bilan",
       "detail": "La liste des RDV apparaît dessous. Ce choix est mémorisé pour vos prochaines visites.",
-      "start": 14.2
+      "start": 9.9
     },
     {
       "label": "Étape 3 sur 4",
       "title": "Ouvrez un rendez-vous",
       "detail": "Vérifiez le contact, la société, la date et le type de RDV avant de décider.",
-      "start": 21.7
+      "start": 15.5
     },
     {
       "label": "Étape 4 sur 4",
       "title": "Confirmez le RDV",
       "detail": "Sans action de votre part, il est confirmé automatiquement au bout de 24 h.",
-      "start": 29.6
+      "start": 21.5
     },
     {
       "label": "Résultat",
       "title": "Le RDV est validé",
       "detail": "Il quitte la file d'attente, et le client peut désormais recevoir ses emails automatiques pour ce RDV.",
-      "start": 37.1
+      "start": 27.1
     }
   ]
 }

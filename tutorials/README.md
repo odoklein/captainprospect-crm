@@ -12,7 +12,7 @@ tutorials/
 │   ├── survey.ts        one screenshot per route (data/layout audit)
 │   └── measure-js.ts    JS downloaded on first load per route (bundle impact)
 ├── video/               Remotion project (one template, one composition per capture)
-│   └── src/             timeline.ts (single source of timing), camera.ts, scenes.tsx, parts.tsx
+│   └── src/             timeline.ts (single source of timing), camera.ts, Stage.tsx, Band.tsx, parts.tsx
 ├── render.ts            render → compress → poster → WebVTT → chapters JSON → route registry
 └── .claude/skills/      official Remotion agent skills (remotion-dev/skills, see skills-lock.json)
 ```
@@ -54,6 +54,8 @@ npx tsx render.ts                     # renders and publishes (or pass ids)
 ```
 
 - `capture.ts` reseeds first (steps change data, e.g. confirming a RDV); `--no-seed` skips it.
+  For each step it records the before/after screens, the target's hover state, one screen per
+  typed character and the options of dropdowns.
 - Remotion downloads its own headless browser; where `remotion.media` is unreachable, point
   `REMOTION_BROWSER` at a local `chrome-headless-shell`.
 - Preview while editing: `cd video && npx remotion studio`.
@@ -71,11 +73,27 @@ checked in the code), one idea per step, 3–5 steps, an observable result. All 
 
 ## Motion rules
 
-Everything is frame-driven (`useCurrentFrame` + `interpolate`), no CSS transitions. Per step:
-camera and pointer travel (34 f) → focus ring (12 f) → press (8 f) → before/after crossfade (12 f)
-→ camera settles on the result (30 f) → reading hold derived from the caption length.
-Captions live in a band under the interface, so they never cover it. Zoom is capped at 1.7×
-(captures are taken at 2× so text stays sharp).
+One continuous shot per tutorial: no cuts or crossfades between steps. Everything is
+frame-driven (`useCurrentFrame` + `interpolate`), never CSS transitions; `video/src/timeline.ts`
+holds every beat as an absolute frame.
+
+- **Title sequence**: the real page floats in perspective behind the title, then settles flat
+  into the stage while the caption band rises.
+- **Camera**: zoom-and-pan interpolation that pulls back slightly on long pans (van Wijk),
+  eased with a gentle launch and a long landing; it keeps drifting in a hair between moves.
+  A control near the top or bottom of the page may bring the window edge into frame.
+- **Pointer**: one glide per target on a shallow arc, decelerating into it, landing just after
+  the camera. It dims once the result is what matters, and while text is typed.
+- **Interaction**: the target shows its real hover state, the ring pops in, the press flashes,
+  and the new state spreads from the click as a ripple. Typing plays one real screenshot per
+  character; dropdowns show their options and the pick. A page that scrolled slides in.
+- **Result**: a green ring glides from the control to what it changed, then the camera frames
+  it (or the whole page when everything changed).
+- **Captions**: a band under the interface, so they never cover it. Words sharpen in one by
+  one; a chip names the gesture (Cliquez, Saisissez, Choisissez, Observez). A step lasts at
+  least as long as its caption takes to read (~3.5 words/s).
+- Springs have no bounce except on small accents (rings, the final check). Zoom is capped at
+  1.7× (captures are taken at 2× so text stays sharp).
 
 ## Notes
 

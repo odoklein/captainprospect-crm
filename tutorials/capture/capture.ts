@@ -8,6 +8,7 @@ import type { Page } from "playwright";
 import { BASE, DSF, VIEWPORT, launch, settle } from "./lib";
 import { resolve, type Storyboard, type Target } from "./storyboard";
 import { STORYBOARDS } from "./storyboards";
+import { hotspot } from "../video/src/geometry";
 import type { Box, Capture, CapturedStep } from "../video/src/types";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -68,21 +69,31 @@ async function run(page: Page, sb: Storyboard) {
         const before = await shot(page, dir, `s${i + 1}-before.jpg`);
         const loc = resolve(page, s.target);
         const partials: string[] = [];
+        // Real hover state: the pointer rests where the video's cursor will land.
+        let hover: string | undefined;
+        if (s.kind !== "point") {
+            const at = hotspot(target);
+            await page.mouse.move(at.x, at.y, { steps: 4 });
+            await page.waitForTimeout(250);
+            hover = `s${i + 1}-hover.jpg`;
+            await page.screenshot({ path: join(dir, hover), type: "jpeg", quality: 90 });
+        }
+        const options = s.kind === "select" ? (await loc.locator("option").allTextContents()).map((t) => t.trim()) : undefined;
         if (s.kind === "click") await loc.click();
         else if (s.kind === "hover") await loc.hover();
         else if (s.kind === "select") await loc.selectOption({ label: s.text ?? "" });
         else if (s.kind === "type") {
+            // Focused field, then one frame per character: the video types at the same rhythm.
             await loc.click();
+            await page.waitForTimeout(200);
+            partials.push(await shot(page, dir, `s${i + 1}-type0.jpg`));
             const text = s.text ?? "";
-            const cuts = [0.34, 0.67].map((f) => Math.max(1, Math.round(text.length * f)));
-            let typed = 0;
-            for (const [k, cut] of cuts.entries()) {
-                await page.keyboard.type(text.slice(typed, cut));
-                typed = cut;
-                await page.waitForTimeout(120);
+            for (let k = 0; k < text.length - 1; k++) {
+                await page.keyboard.type(text[k]);
+                await page.waitForTimeout(90);
                 partials.push(await shot(page, dir, `s${i + 1}-type${k + 1}.jpg`));
             }
-            await page.keyboard.type(text.slice(typed));
+            await page.keyboard.type(text.slice(-1));
         }
         if (typeof s.wait === "string") await page.locator(s.wait).first().waitFor({ state: "visible", timeout: 20_000 });
         await settle(page, typeof s.wait === "number" ? s.wait : 900);
@@ -92,7 +103,7 @@ async function run(page: Page, sb: Storyboard) {
         const after = s.kind === "hover"
             ? (await page.screenshot({ path: join(dir, `s${i + 1}-after.jpg`), type: "jpeg", quality: 90 }), `s${i + 1}-after.jpg`)
             : await shot(page, dir, `s${i + 1}-after.jpg`);
-        steps.push({ title: s.title, detail: s.detail, kind: s.kind, before, after, target, result, typed: s.text, partials: partials.length ? partials : undefined });
+        steps.push({ title: s.title, detail: s.detail, kind: s.kind, before, after, target, result, typed: s.text, partials: partials.length ? partials : undefined, hover, options });
         console.log(`  ${sb.id} step ${i + 1}: ${s.title}`);
     }
 
