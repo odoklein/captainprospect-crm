@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
+import { frTypo } from "@/lib/typo";
 
 // Tiny inline formatter for content strings: [label](/url) and **bold**. Nothing else,
 // so copy stays plain text that anyone (or ChatGPT) can edit safely.
+// French spacing (no break before « : » etc.) is applied here: see lib/typo.ts.
 
 const TOKEN = /\[([^\]]+)\]\(([^)\s]+)\)|\*\*([^*]+)\*\*/g;
 
@@ -11,7 +13,7 @@ export function RichText({ text, linkClassName }: { text: string; linkClassName?
   let last = 0;
   for (const m of text.matchAll(TOKEN)) {
     const at = m.index ?? 0;
-    if (at > last) out.push(text.slice(last, at));
+    if (at > last) out.push(frTypo(text.slice(last, at)));
     if (m[1] && m[2]) {
       const href = m[2];
       const cls =
@@ -20,24 +22,24 @@ export function RichText({ text, linkClassName }: { text: string; linkClassName?
       out.push(
         href.startsWith("/") || href.startsWith("#") ? (
           <Link key={at} href={href} className={cls}>
-            {m[1]}
+            {frTypo(m[1])}
           </Link>
         ) : (
           <a key={at} href={href} className={cls} rel="noopener" target="_blank">
-            {m[1]}
+            {frTypo(m[1])}
           </a>
         ),
       );
     } else if (m[3]) {
       out.push(
         <strong key={at} className="font-semibold text-ink">
-          {m[3]}
+          {frTypo(m[3])}
         </strong>,
       );
     }
     last = at + m[0].length;
   }
-  if (last < text.length) out.push(text.slice(last));
+  if (last < text.length) out.push(frTypo(text.slice(last)));
   return <Fragment>{out}</Fragment>;
 }
 

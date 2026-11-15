@@ -22,6 +22,7 @@ import { SiteHeader } from "@/components/sections/SiteHeader";
 import { Pricing } from "@/components/sections/Pricing";
 import { Footer } from "@/components/sections/Footer";
 import { RichText, plainText } from "./RichText";
+import { frTypo } from "@/lib/typo";
 import { CountUp, ReadingProgress, Spotlight, StickyCta, Toc } from "./interactive";
 import { resolveImage } from "@/lib/resolve-image";
 import { PhotoFrame } from "@/components/ui/PhotoFrame";
@@ -147,11 +148,26 @@ export function Guarantees() {
 
 const cardTitle = "font-display-tight text-[24px] leading-tight font-normal text-ink";
 
-function renderBlock(block: Block, i: number) {
+/** Blocks that sit beside their content: their heading stays stacked in its column. */
+const COLUMN_BLOCKS = new Set<Block["kind"]>(["features", "showcase", "prose", "faq", "opener"]);
+
+/**
+ * @param no Number of the block among the page's titled sections ("01", "02"…): full-width
+ * blocks show it in a left rail with their label, like an entry of the call log.
+ */
+function renderBlock(block: Block, i: number, no: number) {
   const id = block.id ?? `bloc-${i}`;
   const header =
     "eyebrow" in block && block.eyebrow ? (
-      <SectionHeader id={`${id}-title`} eyebrow={block.eyebrow} title={block.title} subtitle={block.intro} tone={block.kind === "proof" || block.kind === "opener" ? "dark" : "light"} />
+      <SectionHeader
+        id={`${id}-title`}
+        eyebrow={block.eyebrow}
+        index={no}
+        title={frTypo(block.title)}
+        subtitle={block.intro ? <RichText text={block.intro} /> : undefined}
+        layout={COLUMN_BLOCKS.has(block.kind) ? "stack" : "rail"}
+        tone={block.kind === "proof" || block.kind === "opener" ? "dark" : "light"}
+      />
     ) : null;
 
   switch (block.kind) {
@@ -159,18 +175,16 @@ function renderBlock(block: Block, i: number) {
       return (
         <section key={id} id={id} aria-label="En bref" className="-mt-6 pb-16 sm:pb-20">
           <Container>
-            <div className="answer-box grid gap-6 rounded-[28px] border border-navy/10 bg-[linear-gradient(135deg,rgba(185,237,214,.55),rgba(255,255,255,.9)_60%)] p-7 sm:p-10 lg:grid-cols-[1fr_320px] lg:gap-12">
+            <div className="answer-box grid gap-6 rounded-[24px] border border-line bg-white p-7 sm:p-10 lg:grid-cols-[1fr_320px] lg:gap-12">
               <div>
-                <p className="eyebrow flex items-center gap-2 text-navy">
-                  <Icon name="sparkle" className="size-4" /> En bref
-                </p>
+                <p className="eyebrow text-muted">En bref</p>
                 <h2 className="mt-4 text-[22px] leading-snug font-semibold text-ink sm:text-[26px]">{block.question}</h2>
                 <p className="mt-3 text-[17px] leading-relaxed text-ink/85 sm:text-lg">
                   <RichText text={block.answer} />
                 </p>
               </div>
               {block.facts ? (
-                <ul className="flex flex-col gap-3 self-center rounded-[20px] bg-white/80 p-5 text-[15px] backdrop-blur">
+                <ul className="flex flex-col gap-3 self-center rounded-[18px] bg-paper p-5 text-[15px]">
                   {block.facts.map((f) => (
                     <li key={f} className="flex gap-3">
                       <Check />
@@ -189,79 +203,80 @@ function renderBlock(block: Block, i: number) {
     case "pains":
       return (
         <Section key={id} id={id}>
-          <Reveal>{header}</Reveal>
-          <Stagger as="ul" className="mt-12 grid gap-4 md:grid-cols-2">
+          {header}
+          <ol className="mt-12 grid gap-x-12 md:grid-cols-2">
             {block.items.map((it, n) => (
-              <StaggerItem key={it.title}>
-                <Spotlight className="h-full rounded-[24px] border border-line bg-white p-7">
-                <span className="font-mono text-[12px] text-muted transition-colors group-hover/card:text-navy">{String(n + 1).padStart(2, "0")}</span>
-                <h3 className={cx(cardTitle, "mt-3")}>{it.title}</h3>
-                <p className="mt-3 leading-relaxed text-muted">
-                  <RichText text={it.body} />
-                </p>
-              </Spotlight>
-              </StaggerItem>
+              <li key={it.title} className="grid grid-cols-[40px_minmax(0,1fr)] gap-x-4 border-t border-ink/15 pt-6 pb-10">
+                <span aria-hidden className="font-mono text-[13px] text-ink/40 tabular-nums">{String(n + 1).padStart(2, "0")}</span>
+                <div>
+                  <h3 className={cardTitle}>{frTypo(it.title)}</h3>
+                  <p className="mt-3 max-w-[48ch] leading-relaxed text-muted">
+                    <RichText text={it.body} />
+                  </p>
+                </div>
+              </li>
             ))}
-          </Stagger>
+          </ol>
         </Section>
       );
 
     case "steps":
+      // A timeline: one rail, a numbered stop per step, the text under it. On phones the
+      // rail turns vertical, on the left.
       return (
         <Section key={id} id={id} tone="white">
-          <Reveal>{header}</Reveal>
-          <Stagger as="ol" className="relative mt-12 grid gap-4 lg:grid-cols-5">
-            <span aria-hidden className="absolute top-9 right-[10%] left-[10%] hidden h-px bg-[repeating-linear-gradient(90deg,var(--color-line)_0_6px,transparent_6px_12px)] lg:block" />
+          {header}
+          <ol className={cx("relative mt-14 grid gap-y-10 lg:gap-x-8", block.items.length >= 5 ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
+            <span aria-hidden className="absolute top-[18px] right-0 left-0 hidden h-px bg-ink/15 lg:block" />
+            <span aria-hidden className="absolute top-2 bottom-2 left-[18px] w-px bg-ink/15 lg:hidden" />
             {block.items.map((it, n) => (
-              <StaggerItem key={it.title}>
-                <Spotlight className="h-full flex flex-col rounded-[20px] border border-line bg-paper p-6">
-                <span className="flex items-center gap-3">
-                  {it.icon ? (
-                    <BrandIcon name={it.icon} className="size-11" />
-                  ) : (
-                    <span className="grid size-9 place-items-center rounded-full border border-line bg-white font-mono text-[13px] text-navy transition-colors duration-300 group-hover/card:bg-navy group-hover/card:text-white">
-                      {n + 1}
-                    </span>
-                  )}
-                  {it.when ? <span className="font-mono text-[12px] text-muted">{it.when}</span> : null}
+              <li key={it.title} className="relative grid grid-cols-[36px_minmax(0,1fr)] gap-x-5 lg:block">
+                <span className="relative z-[1] grid size-9 place-items-center rounded-full border border-ink/20 bg-white font-mono text-[13px] text-navy tabular-nums">
+                  {n + 1}
                 </span>
-                <h3 className="mt-4 text-[18px] leading-snug font-semibold text-ink">{it.title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                  <RichText text={it.body} />
-                </p>
-              </Spotlight>
-              </StaggerItem>
+                <div className="lg:mt-6 lg:pr-2">
+                  {it.when ? <p className="font-mono text-[12px] text-muted">{it.when}</p> : null}
+                  <h3 className="mt-1 text-[18px] leading-snug font-semibold text-ink">{frTypo(it.title)}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                    <RichText text={it.body} />
+                  </p>
+                </div>
+              </li>
             ))}
-          </Stagger>
+          </ol>
         </Section>
       );
 
     case "features":
+      // Spec sheet: the heading stays pinned on the left while the ruled list scrolls by.
+      // No boxes: a hairline above each feature, an icon set in the line of the title.
       return (
         <Section key={id} id={id}>
-          <Reveal>{header}</Reveal>
-          <Stagger as="ul" className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {block.items.map((it) => (
-              <StaggerItem key={it.title}>
-                <Spotlight className="h-full rounded-[20px] border border-line bg-white p-6">
-                <span aria-hidden className="grid size-11 place-items-center rounded-[14px] bg-mint/60 text-navy transition-[background-color,color,transform,translate,scale,rotate] duration-300 group-hover/card:-rotate-6 group-hover/card:bg-navy group-hover/card:text-white">
-                  <Icon name={(it.icon ?? "check") as IconName} className="size-5" />
-                </span>
-                <h3 className="mt-4 text-[18px] font-semibold text-ink">{it.title}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                  <RichText text={it.body} />
-                </p>
-              </Spotlight>
-              </StaggerItem>
-            ))}
-          </Stagger>
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)] lg:gap-20">
+            <div className="lg:sticky lg:top-28 lg:self-start">{header}</div>
+            <ul className="grid gap-x-12 sm:grid-cols-2">
+              {block.items.map((it, n) => (
+                <li key={it.title} className="group/spec flex flex-col border-t border-ink/15 pt-5 pb-9">
+                  <span className="flex items-center justify-between gap-4">
+                    <span aria-hidden className="grid size-9 place-items-center rounded-[10px] bg-mint/55 text-navy transition-colors duration-200 group-hover/spec:bg-navy group-hover/spec:text-white">
+                      <Icon name={(it.icon ?? "check") as IconName} className="size-[18px]" />
+                    </span>
+                    <span aria-hidden className="font-mono text-[11px] text-ink/40 tabular-nums">{String(n + 1).padStart(2, "0")}</span>
+                  </span>
+                  <h3 className="mt-4 text-[19px] leading-snug font-semibold text-ink">{it.title}</h3>
+                  <p className="mt-2 max-w-[44ch] text-[15.5px] leading-relaxed text-muted">
+                    <RichText text={it.body} />
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
         </Section>
       );
 
     case "proof":
       return (
         <Section key={id} id={id} tone="dark" className="relative overflow-hidden">
-          <div aria-hidden className="pointer-events-none absolute -top-40 -right-40 size-[520px] rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.18),transparent)]" />
           <Reveal>{header}</Reveal>
           <dl className="relative mt-12 grid gap-px overflow-hidden rounded-[24px] border border-white/15 bg-white/15 sm:grid-cols-2 lg:grid-cols-4">
             {block.stats.map((s) => (
@@ -486,20 +501,19 @@ function renderBlock(block: Block, i: number) {
                 </ul>
               ) : null}
               {block.action ? (
-                <ButtonLink href={block.action.href} variant="ghost" arrow className="mt-8">
+                <ButtonLink href={block.action.href} variant="ghost" className="mt-8">
                   {block.action.label}
                 </ButtonLink>
               ) : null}
             </Reveal>
-            <div className="group/visual relative">
-              <div aria-hidden className="absolute inset-[8%] -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.75),transparent)] blur-2xl transition-transform duration-300 ease-out group-hover/visual:scale-110" />
+            <div className="group/visual relative rounded-[28px] bg-sand px-6 py-10 sm:px-10 sm:py-14">
               <Image
                 src={block.image.src}
                 alt={block.image.alt}
                 width={block.image.width}
                 height={block.image.height}
                 sizes="(min-width: 1024px) 560px, 100vw"
-                className="mx-auto h-auto w-full max-w-[560px] drop-shadow-[0_30px_50px_rgba(12,31,35,.16)] transition-transform duration-300 ease-out motion-safe:group-hover/visual:-translate-y-1.5 motion-safe:group-hover/visual:rotate-[-0.6deg]"
+                className="mx-auto h-auto w-full max-w-[520px] drop-shadow-[0_24px_40px_rgba(12,31,35,.16)] transition-transform duration-200 ease-out fine:group-hover/visual:-translate-y-1"
               />
             </div>
           </div>
@@ -552,26 +566,23 @@ function renderBlock(block: Block, i: number) {
       );
 
     case "links":
+      // A ruled index of related pages: the whole row is the link, the arrow slides on hover.
       return (
         <Section key={id} id={id}>
           {header}
-          <Stagger as="ul" className="mt-10 grid gap-4 md:grid-cols-3">
+          <ul className="mt-10 grid gap-x-10 md:grid-cols-2 lg:grid-cols-3">
             {block.items.map((l) => (
-              <StaggerItem key={l.href}>
-                <Spotlight className="h-full rounded-[20px] border border-line bg-white">
-                <Link href={l.href} className="flex h-full flex-col p-6">
-                  <span className="flex items-center justify-between gap-3 text-[18px] font-semibold text-ink">
-                    {l.label}
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-mint/60 text-navy transition-[transform,translate,scale,rotate,background-color,color] duration-300 group-hover/card:translate-x-0.5 group-hover/card:bg-navy group-hover/card:text-white">
-                      <Icon name="arrowRight" className="size-4" />
-                    </span>
+              <li key={l.href} className="border-t border-ink/15">
+                <Link href={l.href} className="group/link flex h-full flex-col rounded-[6px] pt-5 pb-8">
+                  <span className="flex items-start justify-between gap-4 text-[18px] leading-snug font-semibold text-ink">
+                    <span className="underline-offset-4 group-hover/link:underline">{frTypo(l.label)}</span>
+                    <Icon name="arrowRight" className="mt-1 size-4 shrink-0 text-navy transition-transform duration-200 ease-out group-hover/link:translate-x-1" />
                   </span>
-                  <span className="mt-2 text-[15px] leading-relaxed text-muted">{l.body}</span>
+                  <span className="mt-2 max-w-[40ch] text-[15px] leading-relaxed text-muted">{frTypo(l.body)}</span>
                 </Link>
-              </Spotlight>
-              </StaggerItem>
+              </li>
             ))}
-          </Stagger>
+          </ul>
         </Section>
       );
 
@@ -611,7 +622,7 @@ function renderBlock(block: Block, i: number) {
         <Section key={id} id={id}>
           <Reveal>{header}</Reveal>
           <div className="mt-12 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-[24px] border border-navy/10 bg-[linear-gradient(160deg,rgba(185,237,214,.6),rgba(255,255,255,.95)_55%)] p-7 sm:p-8">
+            <div className="rounded-[24px] border border-line bg-white p-7 sm:p-8">
               <p className="flex items-center gap-2.5 font-semibold text-ink">
                 <span aria-hidden className="grid size-8 place-items-center rounded-full bg-navy text-white">
                   <Icon name="clock" className="size-4" />
@@ -629,7 +640,7 @@ function renderBlock(block: Block, i: number) {
                 ))}
               </ul>
             </div>
-            <div className="rounded-[24px] border border-line bg-white p-7 sm:p-8">
+            <div className="rounded-[24px] border border-dashed border-ink/20 p-7 sm:p-8">
               <p className="flex items-center gap-2.5 font-semibold text-ink">
                 <span aria-hidden className="grid size-8 place-items-center rounded-full border border-line bg-paper text-ink">
                   <Icon name="alert" className="size-4" />
@@ -676,7 +687,6 @@ function renderBlock(block: Block, i: number) {
     case "opener":
       return (
         <Section key={id} id={id} tone="dark" className="relative overflow-hidden">
-          <div aria-hidden className="pointer-events-none absolute -bottom-48 -left-40 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.16),transparent)]" />
           <div className="relative grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:gap-16">
             <Reveal>
               {header}
@@ -691,7 +701,7 @@ function renderBlock(block: Block, i: number) {
                 ))}
               </ul>
             </Reveal>
-            <figure className="rounded-[26px] border border-white/15 bg-white/[.06] p-5 shadow-[0_30px_60px_-30px_rgba(0,0,0,.6)] backdrop-blur sm:p-6">
+            <figure className="rounded-[24px] border border-white/15 bg-navy-deep p-5 sm:p-6">
               <figcaption className="flex items-center justify-between gap-3 border-b border-white/10 pb-4">
                 <span className="flex items-center gap-2.5 text-[14px] font-medium text-white">
                   <span aria-hidden className="grid size-8 place-items-center rounded-full bg-mint text-navy">
@@ -818,23 +828,25 @@ function renderBlock(block: Block, i: number) {
 
     case "cta":
       return (
-        <section key={id} aria-labelledby={`${id}-title`} className="on-dark relative overflow-hidden bg-navy-deep py-24 text-white sm:py-32">
-          <div aria-hidden className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(185,237,214,.14)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_50%_50%,black_10%,transparent_70%)]" />
-          <Container className="relative flex flex-col items-center gap-6 text-center">
-            <Eyebrow tone="dark">{block.eyebrow}</Eyebrow>
-            <h2 id={`${id}-title`} className="font-display-tight max-w-[18ch] text-[clamp(2.25rem,5vw,4rem)] leading-[1.02] font-light">
-              {block.title}
+        <section key={id} aria-labelledby={`${id}-title`} className="on-dark bg-navy py-20 text-white sm:py-28">
+          <Container className="grid items-end gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:gap-20">
+            <h2 id={`${id}-title`} className="font-display-tight max-w-[16ch] text-[clamp(2.25rem,4.8vw,3.75rem)] leading-[1.02] font-light">
+              {frTypo(block.title)}
             </h2>
-            <p className="max-w-[54ch] text-lg text-white/80">{block.intro}</p>
-            <div className="mt-2 flex flex-wrap justify-center gap-3">
-              <ButtonLink href={block.primary.href} variant="light" size="lg" arrow>
-                {block.primary.label}
-              </ButtonLink>
-              {block.secondary ? (
-                <ButtonLink href={block.secondary.href} variant="ghost-light" size="lg">
-                  {block.secondary.label}
+            <div className="flex flex-col items-start gap-6">
+              <p className="text-lg leading-relaxed text-white/80">
+                <RichText text={block.intro} linkClassName="font-medium text-white underline decoration-mint underline-offset-4" />
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <ButtonLink href={block.primary.href} variant="light" size="lg" arrow>
+                  {block.primary.label}
                 </ButtonLink>
-              ) : null}
+                {block.secondary ? (
+                  <ButtonLink href={block.secondary.href} variant="ghost-light" size="lg">
+                    {block.secondary.label}
+                  </ButtonLink>
+                ) : null}
+              </div>
             </div>
           </Container>
         </section>
@@ -900,12 +912,7 @@ export function LandingPage({ page, extra, children }: { page: LandingPageData; 
       {page.article ? <ReadingProgress /> : null}
       <SiteHeader />
       <main id="contenu" tabIndex={-1} className="outline-none">
-        <section aria-labelledby="page-title" className="relative overflow-hidden pt-10 pb-20 sm:pt-14 sm:pb-24">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 h-[560px] [background-image:radial-gradient(rgba(17,47,53,.12)_1px,transparent_1px)] [background-size:22px_22px] [mask-image:radial-gradient(ellipse_at_30%_20%,black_20%,transparent_70%)]"
-          />
-          <div aria-hidden className="pointer-events-none absolute -top-24 right-[-10%] h-[520px] w-[620px] rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.6),rgba(185,237,214,0))]" />
+        <section aria-labelledby="page-title" className="pt-8 pb-16 sm:pt-12 sm:pb-20">
           <Container className="relative">
             <Breadcrumbs trail={trail} />
             <div className={cx("mt-10 grid gap-12 lg:items-end lg:gap-16", hero.visual || hero.photo ? "lg:grid-cols-[1fr_520px]" : "lg:grid-cols-[1fr_380px]")}>
@@ -924,8 +931,8 @@ export function LandingPage({ page, extra, children }: { page: LandingPageData; 
                     </span>
                   ) : null}
                 </div>
-                <h1 id="page-title" className="font-display-tight max-w-[18ch] text-[clamp(2.75rem,6.4vw,5rem)] leading-[1] font-light text-ink">
-                  {hero.title}
+                <h1 id="page-title" className="font-display-tight max-w-[18ch] text-[clamp(2.5rem,5.6vw,4.5rem)] leading-[1] font-light text-ink">
+                  {frTypo(hero.title)}
                 </h1>
                 <p className="max-w-[58ch] text-lg leading-relaxed text-muted sm:text-xl">
                   <RichText text={hero.lead} />
@@ -1003,7 +1010,10 @@ export function LandingPage({ page, extra, children }: { page: LandingPageData; 
           </Container>
         </section>
         {children}
-        {page.blocks.map(renderBlock)}
+        {(() => {
+          let no = 0;
+          return page.blocks.map((b, i) => renderBlock(b, i, "eyebrow" in b && b.eyebrow ? ++no : 0));
+        })()}
       </main>
       <Footer />
       <StickyCta label={hero.primary.label} href={hero.primary.href} />

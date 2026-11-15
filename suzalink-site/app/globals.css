@@ -212,26 +212,6 @@
   }
 }
 
-/* ───────── Inside pages: hover light on cards (components/landing/interactive.tsx) ───────── */
-.spotlight::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s var(--ease-out);
-  background: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 0%), rgba(185, 237, 214, 0.5), transparent 65%);
-}
-.spotlight-dark::before {
-  background: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 0%), rgba(185, 237, 214, 0.16), transparent 65%);
-}
-.spotlight:hover::before,
-.spotlight:focus-within::before {
-  opacity: 1;
-}
-
 /* ───────── Brand icons (components/ui/BrandIcon.tsx) ─────────
    The navy parts follow --bi-ink so one drawing works on paper and on navy cards.
    Hover gestures run only for a fine pointer and without a reduced-motion preference;

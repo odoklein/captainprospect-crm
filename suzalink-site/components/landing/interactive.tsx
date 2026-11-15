@@ -2,10 +2,10 @@
 
 // Small client-side pieces for the inside pages. Every effect is decorative and stops
 // when the visitor asks for reduced motion; the content is always in the HTML.
-import { useEffect, useRef, useState, type ReactNode, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "@/components/ui/primitives";
 
-/** Card with a soft mint light that follows the pointer, plus a lift on hover. */
+/** Card that lifts a little on hover (fine pointers only, no reduced motion). */
 export function Spotlight({
   children,
   className,
@@ -17,17 +17,11 @@ export function Spotlight({
   as?: "div" | "li" | "article";
   tone?: "light" | "dark";
 }) {
-  const onMove = (e: PointerEvent<HTMLElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty("--spot-x", `${e.clientX - r.left}px`);
-    e.currentTarget.style.setProperty("--spot-y", `${e.clientY - r.top}px`);
-  };
   return (
     <Comp
-      onPointerMove={onMove}
       className={cx(
-        "spotlight group/card relative isolate transition-[translate,box-shadow] duration-200 ease-[ease] motion-safe:hover:-translate-y-1",
-        tone === "dark" ? "spotlight-dark" : "hover:shadow-[0_24px_48px_-28px_rgba(12,31,35,.35)]",
+        "group/card relative isolate transition-[translate,box-shadow] duration-200 ease-out fine:hover:-translate-y-0.5",
+        tone === "dark" ? "" : "fine:hover:shadow-[0_24px_48px_-30px_rgba(12,31,35,.35)]",
         className,
       )}
     >
