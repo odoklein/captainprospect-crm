@@ -1,43 +1,35 @@
 import { doors } from "@/content/home";
-import { Icon } from "@/components/ui/Icon";
 import { BrandIcon } from "@/components/ui/BrandIcon";
-import { Reveal } from "@/components/ui/motion";
 import { ButtonLink, Container, SectionHeader, cx } from "@/components/ui/primitives";
 
-/** Just below the hero: the two ways to work with Suzalink (service or software). */
+/**
+ * The two ways to work with Suzalink (service or software), as the two halves of one panel:
+ * the visitor picks a side. Each half ends on its own action.
+ */
 export function Doors() {
   return (
-    <section aria-labelledby="doors-title" className="pb-24 sm:pb-32">
+    <section aria-labelledby="doors-title" className="py-20 sm:py-28">
       <Container>
-        <Reveal>
-          <SectionHeader id="doors-title" eyebrow={doors.eyebrow} title={doors.title} align="center" />
-        </Reveal>
-        <ul className="mt-12 grid gap-5 md:grid-cols-2">
+        <SectionHeader id="doors-title" title={doors.title} />
+        <ul className="mt-10 grid overflow-hidden rounded-[28px] border border-line sm:mt-12 md:grid-cols-2">
           {doors.items.map((d, i) => {
             const dark = i === 0;
             return (
-              <li
-                key={d.title}
-                className={cx(
-                  "bi-host flex flex-col rounded-[28px] border p-8 sm:p-10",
-                  dark ? "on-dark border-navy bg-navy text-white" : "border-line bg-white",
-                )}
-              >
-                <BrandIcon name={dark ? "phoneRing" : "dashboard"} tone={dark ? "dark" : "light"} className="mb-6 size-14" />
-                <p className={cx("eyebrow", dark ? "text-mint" : "text-muted")}>{d.eyebrow}</p>
-                <h3 className="font-display-tight mt-4 text-[clamp(1.9rem,3.4vw,2.6rem)] leading-[1.05] font-light">{d.title}</h3>
-                <p className={cx("mt-4 max-w-[46ch] text-[17px] leading-relaxed", dark ? "text-white/80" : "text-muted")}>{d.body}</p>
-                <ul className="mt-6 flex flex-1 flex-col gap-3 text-[15px]">
+              <li key={d.title} className={cx("bi-host flex flex-col p-7 sm:p-10 lg:p-12", dark ? "on-dark bg-navy text-white" : "bg-white")}>
+                <div className="flex items-center justify-between gap-4">
+                  <p className={cx("eyebrow", dark ? "text-mint" : "text-muted")}>{d.eyebrow}</p>
+                  <BrandIcon name={dark ? "phoneRing" : "dashboard"} tone={dark ? "dark" : "light"} className="size-12" />
+                </div>
+                <h3 className="font-display-tight mt-6 max-w-[14ch] text-[clamp(2rem,3.6vw,2.875rem)] leading-[1.02] font-light">{d.title}</h3>
+                <p className={cx("mt-5 max-w-[44ch] text-[17px] leading-relaxed", dark ? "text-white/80" : "text-muted")}>{d.body}</p>
+                <ul className={cx("mt-8 flex flex-1 flex-col border-t text-[15px]", dark ? "border-white/15" : "border-line")}>
                   {d.points.map((p) => (
-                    <li key={p} className="flex gap-3">
-                      <span aria-hidden className={cx("mt-0.5 grid size-5 shrink-0 place-items-center rounded-full", dark ? "bg-mint text-navy" : "bg-navy text-white")}>
-                        <Icon name="check" className="size-3" />
-                      </span>
+                    <li key={p} className={cx("border-b py-3.5", dark ? "border-white/15 text-white/90" : "border-line text-ink/85")}>
                       {p}
                     </li>
                   ))}
                 </ul>
-                <ButtonLink href={d.action.href} variant={dark ? "light" : "primary"} arrow className="mt-8 w-fit">
+                <ButtonLink href={d.action.href} variant={dark ? "light" : "primary"} className="mt-8 w-full sm:w-fit">
                   {d.action.label}
                 </ButtonLink>
               </li>

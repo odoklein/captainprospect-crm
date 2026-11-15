@@ -13,11 +13,11 @@ export const site = {
   lang: "fr",
 
   seo: {
-    title: "Suzalink — RDV B2B qualifiés et CRM de prospection",
+    title: "Suzalink : RDV B2B qualifiés et CRM de prospection",
     titleTemplate: "%s · Suzalink",
     description:
       "Nos SDR prennent vos RDV B2B, ou votre équipe appelle avec notre CRM : téléphonie, appels enregistrés, IA et portail client. Une marque de Suzali Conseil.",
-    ogImageAlt: "Suzalink — Votre prospection. Vos règles.",
+    ogImageAlt: "Suzalink : votre prospection, vos règles.",
   },
 
   /** Lien « Se connecter ». TODO : URL de l'application. */
@@ -94,7 +94,7 @@ export const site = {
       },
       {
         title: "Légal",
-        // TODO : créer ces pages avant la mise en ligne.
+        // TODO : créer ces pages avant la mise en ligne. Tant qu'un lien vaut "#", il n'est pas affiché.
         links: [
           { label: "Mentions légales", href: "#" },
           { label: "Confidentialité", href: "#" },
@@ -103,7 +103,7 @@ export const site = {
         ],
       },
     ],
-    // TODO : renseigner les vrais comptes.
+    // TODO : renseigner les vrais comptes. Tant qu'un lien vaut "#", il n'est pas affiché.
     socials: [
       { label: "LinkedIn", href: "#", icon: "linkedin" },
       { label: "YouTube", href: "#", icon: "youtube" },

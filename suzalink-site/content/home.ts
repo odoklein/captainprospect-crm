@@ -14,15 +14,60 @@ export type Action = { label: string; href: string };
 
 export const hero = {
   eyebrow: "CRM d'exécution outbound",
-  /** Pill above the title: who Suzalink is for. */
-  audience: "PME, agences de prospection et équipes SDR",
+  /** Line above the title: who Suzalink is for. */
+  audience: "Pour les PME, les agences de prospection et les équipes SDR",
   titleLines: ["Votre prospection.", "Vos règles."],
   subtitle:
     "Nos SDR prennent vos RDV B2B, ou votre équipe appelle avec notre CRM. Dans les deux cas, chaque appel reste visible.",
   primary: { label: "Demander une démo", href: "/demo" },
   secondary: { label: "Faire prospecter par nos SDR", href: "/prospection-externalisee" },
-  mockupLabel:
-    "Aperçu de l'espace SDR : file d'appels, fiche du contact en cours, résultats en un clic et bouton Appel suivant.",
+  /**
+   * Ligne de preuve sous les boutons : les chiffres de la mission documentée
+   * (les mêmes que `cases.featured`, plus bas dans ce fichier).
+   */
+  proof: {
+    label: "Mission cabinets dentaires, fin 2025",
+    href: "/secteurs/cabinets-dentaires",
+    cta: "Lire la mission",
+  },
+  /**
+   * L'écran d'appel animé du hero : un appel sans réponse, puis un appel qui aboutit à un RDV.
+   * C'est une DÉMONSTRATION (données d'exemple, affichées comme telles). L'échange reprend
+   * l'exemple d'ouverture de la page /secteurs/cabinets-dentaires : gardez les deux alignés.
+   */
+  call: {
+    label:
+      "Démonstration de l'espace SDR, avec des données d'exemple : la file du jour, un appel qui sonne, l'échange avec l'accueil d'un cabinet, puis le résultat « RDV pris » et le créneau du mardi à 9 h 30 ajouté à l'agenda.",
+    windowTitle: "File du jour",
+    mission: "Mission cabinets dentaires",
+    sample: "Données d'exemple",
+    queue: [
+      { name: "Cabinet dentaire · Nord", role: "Accueil", note: "1er appel" },
+      { name: "Cabinet dentaire · Rhône", role: "Accueil", note: "2e tentative" },
+      { name: "Cabinet dentaire · Gironde", role: "Assistante", note: "1er appel" },
+      { name: "Cabinet dentaire · Var", role: "Accueil", note: "Rappel 11 h 40" },
+      { name: "Cabinet dentaire · Loiret", role: "Assistante", note: "1er appel" },
+      { name: "Cabinet dentaire · Hérault", role: "Accueil", note: "2e tentative" },
+      { name: "Cabinet dentaire · Somme", role: "Accueil", note: "1er appel" },
+    ],
+    status: { ring: "Sonnerie", live: "En appel", missed: "Sans réponse", done: "Terminé" },
+    transcriptTitle: "Échange",
+    speakers: { sdr: "SDR", other: "Accueil" },
+    lines: [
+      { who: "sdr", text: "Notre commercial passe dans votre secteur la semaine prochaine. Il peut déposer une boîte de collecte à l'accueil ?" },
+      { who: "other", text: "Ça dépend du jour, on est fermés le mercredi." },
+      { who: "sdr", text: "Alors mardi matin, vers 9 h 30 ? Je vous envoie la confirmation par mail." },
+    ],
+    missedNote: "Personne ne décroche. Le rappel part à une autre heure.",
+    outcomesTitle: "Résultat en 1 touche",
+    outcomes: ["RDV pris", "Rappel", "Barrage", "Messagerie"],
+    booked: { day: "Mar.", time: "9 h 30", title: "RDV pris" },
+    callback: { day: "Jeu.", time: "11 h 40", title: "Rappel" },
+    week: ["Lun.", "Mar.", "Mer.", "Jeu.", "Ven."],
+    next: "Appel suivant",
+    pause: "Mettre la démonstration en pause",
+    play: "Relancer la démonstration",
+  },
 };
 
 /** Juste sous le hero : les deux façons de travailler avec Suzalink. */
@@ -53,27 +98,6 @@ export const logos = {
   subtitle: "Agences de prospection et centres d'appels B2B.",
   action: { label: "Lire les cas clients", href: "/#cas-clients" },
   // La liste des clients et leurs logos : content/brands.ts
-};
-
-export const features = {
-  eyebrow: "Fonctionnalités",
-  title: "Tout ce qu'il faut pour appeler plus.",
-  /** Description of the whole grid for screen readers (the cards are UI illustrations). */
-  label:
-    "Aperçu des fonctionnalités : file d'appels, résultat en une touche, résumé et résultat proposés par l'IA, journal d'appels avec enregistrements, portail client avec les RDV de la semaine.",
-  queue: { title: "File d'appels", body: "Le prochain prospect arrive tout seul." },
-  keys: { title: "Résultat en 1 touche", body: "Qualifiez l'appel sans quitter le clavier." },
-  ai: { title: "Résumé et résultat par l'IA", body: "Un résumé automatique et un résultat suggéré, à confirmer." },
-  journal: { title: "Journal d'appels", body: "Suivez l'activité, écoutez les appels et mesurez la qualité des échanges." },
-  portal: { title: "Portail client", body: "Vos clients voient leurs rendez-vous, à jour, sans vous écrire." },
-};
-
-export const aiSplit = {
-  eyebrow: "IA intégrée",
-  title: "L'IA au service de vos SDRs, pas l'inverse",
-  subtitle:
-    "L'IA prépare la fiche de RDV, résume la journée et signale les urgences. Vos SDRs gardent la main sur chaque appel.",
-  action: { label: "Découvrir l'IA", href: "/#ia" },
 };
 
 export const engines = {
@@ -249,7 +273,11 @@ export const security = {
 
 export const finalCta = {
   eyebrow: "Démo",
-  title: "Prêt à passer votre prospection en pilote automatique ?",
+  title: "Voyez un appel, de la file au RDV",
   subtitle: "Une démo sur vos propres cas d'usage, avec vos SDRs et vos managers.",
   action: { label: "Demander une démo", href: "/demo" },
+  /** Lien secondaire : l'autre porte d'entrée (la prospection faite par nos SDR). */
+  secondary: { label: "Ou commencer par un sprint test", href: "/tarifs#sprint" },
+  /** Titre de la liste « ce que montre la démo » (les points viennent de content/demo.ts). */
+  agendaTitle: "Au programme de la démo",
 };

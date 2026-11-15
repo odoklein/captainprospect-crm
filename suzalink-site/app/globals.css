@@ -177,6 +177,33 @@
   }
 }
 
+/* ───────── Hero call console (components/sections/HeroCall.tsx) ─────────
+   The ring behind the status dot, and the key press of the chosen outcome. Transform/opacity only. */
+.call-ring {
+  animation: call-ring 1.2s var(--ease-out) infinite;
+}
+.call-press {
+  animation: call-press 220ms var(--ease-out) both;
+}
+@keyframes call-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+@keyframes call-press {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
 /* ───────── Inside pages: hover light on cards (components/landing/interactive.tsx) ───────── */
 .spotlight::before {
   content: "";
@@ -186,7 +213,7 @@
   border-radius: inherit;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.35s ease;
+  transition: opacity 0.2s var(--ease-out);
   background: radial-gradient(380px circle at var(--spot-x, 50%) var(--spot-y, 0%), rgba(185, 237, 214, 0.5), transparent 65%);
 }
 .spotlight-dark::before {

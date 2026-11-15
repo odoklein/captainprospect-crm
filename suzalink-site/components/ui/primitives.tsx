@@ -10,18 +10,29 @@ export function Container({ children, className }: { children: ReactNode; classN
   return <div className={cx("mx-auto w-full max-w-[1240px] px-4 sm:px-6 lg:px-8", className)}>{children}</div>;
 }
 
+/**
+ * Section label, set like a line of the call log: mono capitals, optionally preceded by an
+ * entry number. No bullet: the yellow is kept for live states (ringing, booked).
+ */
 export function Eyebrow({
   children,
   tone = "light",
+  index,
   className,
 }: {
   children: ReactNode;
   tone?: "light" | "dark";
+  /** Entry number shown before the label ("02"). */
+  index?: number;
   className?: string;
 }) {
   return (
-    <p className={cx("eyebrow inline-flex items-center gap-2", tone === "dark" ? "text-white/75" : "text-muted", className)}>
-      <span aria-hidden className="size-1.5 rounded-full bg-rose" />
+    <p className={cx("eyebrow flex items-baseline gap-3", tone === "dark" ? "text-white/75" : "text-muted", className)}>
+      {index ? (
+        <span aria-hidden className={cx("tabular-nums", tone === "dark" ? "text-white/45" : "text-ink/40")}>
+          {String(index).padStart(2, "0")}
+        </span>
+      ) : null}
       {children}
     </p>
   );
@@ -109,61 +120,108 @@ export function ArrowLink({
   );
 }
 
-/** Eyebrow + headline + 1–2 lines of subtext + one action. */
+/**
+ * Section heading. Three layouts, so that sections do not all open the same way:
+ * - "stack" (default): label, title, text, action, one under the other (narrow columns);
+ * - "split": title on the left, text and action on the right, bottom-aligned (uses the full width);
+ * - "rail": a hairline, the numbered label in a left rail and the title beside it, like an
+ *   entry of the call log (inside pages).
+ * The label is optional: leave it out when it only repeats the title.
+ * The section action is a plain button: the arrow pill is kept for the page's main action.
+ */
 export function SectionHeader({
   id,
   eyebrow,
+  index,
   title,
   subtitle,
   action,
   align = "left",
+  layout = "stack",
   tone = "light",
   as: Heading = "h2",
   actionVariant,
   className,
 }: {
   id?: string;
-  eyebrow: string;
+  eyebrow?: string;
+  index?: number;
   title: ReactNode;
   subtitle?: ReactNode;
   action?: { label: string; href: string };
   align?: "left" | "center";
+  layout?: "stack" | "split" | "rail";
   tone?: "light" | "dark";
   as?: "h1" | "h2";
   actionVariant?: ButtonVariant;
   className?: string;
 }) {
-  const centered = align === "center";
+  const centered = align === "center" && layout === "stack";
+  const dark = tone === "dark";
+  const label = eyebrow ? (
+    <Eyebrow tone={tone} index={index}>
+      {eyebrow}
+    </Eyebrow>
+  ) : null;
+  const heading = (
+    <Heading
+      id={id}
+      className={cx(
+        "font-display-tight text-[clamp(2.125rem,4.4vw,3.5rem)] leading-[1.04] font-light",
+        dark ? "text-white" : "text-ink",
+        layout === "stack" ? (centered ? "max-w-[20ch]" : "max-w-[18ch]") : "max-w-[22ch]",
+      )}
+    >
+      {title}
+    </Heading>
+  );
+  const text = subtitle ? (
+    <p className={cx("max-w-[54ch] text-[17px] leading-relaxed sm:text-lg", dark ? "text-white/75" : "text-muted")}>{subtitle}</p>
+  ) : null;
+  const button = action ? (
+    <div>
+      <ButtonLink href={action.href} variant={actionVariant ?? (dark ? "ghost-light" : "ghost")}>
+        {action.label}
+      </ButtonLink>
+    </div>
+  ) : null;
+
+  if (layout === "rail") {
+    return (
+      <div className={cx("grid gap-x-10 gap-y-5 border-t pt-6 lg:grid-cols-[200px_minmax(0,1fr)]", dark ? "border-white/20" : "border-ink/15", className)}>
+        <div className="lg:pt-2">{label}</div>
+        <div className="flex flex-col gap-5">
+          {heading}
+          {text}
+          {button}
+        </div>
+      </div>
+    );
+  }
+
+  if (layout === "split") {
+    return (
+      <div className={cx("grid gap-x-16 gap-y-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] lg:items-end", className)}>
+        <div className="flex flex-col gap-5">
+          {label}
+          {heading}
+        </div>
+        {text || button ? (
+          <div className="flex flex-col gap-5 lg:pb-1.5">
+            {text}
+            {button}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className={cx("flex flex-col gap-5", centered && "mx-auto items-center text-center", className)}>
-      <Eyebrow tone={tone}>{eyebrow}</Eyebrow>
-      <Heading
-        id={id}
-        className={cx(
-          "font-display-tight text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.02] font-light",
-          tone === "dark" ? "text-white" : "text-ink",
-          centered ? "max-w-[18ch]" : "max-w-[16ch]",
-        )}
-      >
-        {title}
-      </Heading>
-      {subtitle ? (
-        <p
-          className={cx(
-            "max-w-[56ch] text-[17px] leading-relaxed sm:text-lg",
-            tone === "dark" ? "text-white/75" : "text-muted",
-          )}
-        >
-          {subtitle}
-        </p>
-      ) : null}
-      {action ? (
-        <div className="mt-2">
-          <ButtonLink href={action.href} variant={actionVariant ?? (tone === "dark" ? "light" : "primary")} arrow>
-            {action.label}
-          </ButtonLink>
-        </div>
-      ) : null}
+      {label}
+      {heading}
+      {text}
+      {button}
     </div>
   );
 }

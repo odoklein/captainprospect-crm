@@ -17,9 +17,7 @@ export function CaseStudies() {
   return (
     <section id="cas-clients" aria-labelledby="cases-title" className="py-24 sm:py-32">
       <Container>
-        <Reveal>
-          <SectionHeader id="cases-title" eyebrow={cases.eyebrow} title={cases.title} subtitle={cases.subtitle} action={cases.action} actionVariant="ghost" />
-        </Reveal>
+        <SectionHeader id="cases-title" eyebrow={cases.eyebrow} title={cases.title} subtitle={cases.subtitle} action={cases.action} layout="split" />
 
         <div className="mt-14 grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
           <Reveal className="min-w-0">

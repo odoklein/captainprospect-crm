@@ -17,7 +17,6 @@ export function StackCost() {
           <Reveal className="flex min-w-0 flex-col gap-12">
             <SectionHeader
               id="stack-title"
-              eyebrow={stack.eyebrow}
               title={stack.title}
               subtitle={stack.subtitle}
               action={stack.action}

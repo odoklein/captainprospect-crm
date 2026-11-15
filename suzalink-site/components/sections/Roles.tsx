@@ -7,7 +7,7 @@ import { ClientPortalMockup } from "@/components/mockups/ClientPortalMockup";
 import { ManagerDashboardMockup } from "@/components/mockups/ManagerDashboardMockup";
 import { MeetingBriefMockup } from "@/components/mockups/MeetingBriefMockup";
 import { SdrQueueMockup } from "@/components/mockups/SdrQueueMockup";
-import { ButtonLink, Container, Eyebrow, cx } from "@/components/ui/primitives";
+import { ButtonLink, Container, cx } from "@/components/ui/primitives";
 import { BrandIcon, type BrandIconName } from "@/components/ui/BrandIcon";
 
 type TabId = (typeof roles.tabs)[number]["id"];
@@ -63,8 +63,7 @@ export function Roles() {
       <Container>
         <div className="grid gap-10 lg:grid-cols-[380px_1fr] lg:gap-14">
           <div className="flex flex-col gap-5">
-            <Eyebrow>{roles.eyebrow}</Eyebrow>
-            <h2 id="roles-title" className="font-display-tight text-[clamp(2.25rem,4.6vw,3.75rem)] leading-[1.02] font-light">
+            <h2 id="roles-title" className="font-display-tight text-[clamp(2.125rem,4.4vw,3.5rem)] leading-[1.04] font-light">
               {roles.title}
             </h2>
             <p className="text-[17px] leading-relaxed text-muted sm:text-lg">{roles.subtitle}</p>
@@ -104,7 +103,7 @@ export function Roles() {
             </div>
 
             <div className="mt-4">
-              <ButtonLink href={roles.action.href} arrow>
+              <ButtonLink href={roles.action.href} variant="ghost">
                 {roles.action.label}
               </ButtonLink>
             </div>
@@ -114,7 +113,7 @@ export function Roles() {
             role="tabpanel"
             id={`${baseId}-panel`}
             aria-labelledby={`${baseId}-tab-${current.id}`}
-            className="relative grid min-h-[480px] place-items-center overflow-hidden rounded-[24px] bg-[linear-gradient(160deg,#E3F1EB_0%,#F3EFE2_100%)] p-4 sm:p-8 lg:p-12"
+            className="relative grid min-h-[480px] place-items-center overflow-hidden rounded-[24px] bg-sand p-4 sm:p-8 lg:p-12"
           >
             <AnimatePresence mode="wait" initial={false}>
               <m.div
@@ -123,7 +122,7 @@ export function Roles() {
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
               >
                 <RoleMockup id={current.id} label={current.mockupLabel} />
               </m.div>

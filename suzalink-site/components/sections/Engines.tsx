@@ -5,7 +5,6 @@ import { AiMockup, ExecutionMockup, InstanceMockup } from "@/components/mockups/
 import { Icon } from "@/components/ui/Icon";
 import { BrandIcon, type BrandIconName } from "@/components/ui/BrandIcon";
 import { Container, SectionHeader, cx } from "@/components/ui/primitives";
-import { Reveal } from "@/components/ui/motion";
 
 const mockups = {
   execution: ExecutionMockup,
@@ -24,18 +23,9 @@ const tones = {
 /** 6. "Une plateforme, trois moteurs": a wide execution card above two complementary feature cards. */
 export function Engines() {
   return (
-    <section id="produit" aria-labelledby="engines-title" className="py-24 sm:py-32">
+    <section id="produit" aria-labelledby="engines-title" className="pb-20 sm:pb-28">
       <Container>
-        <Reveal>
-          <SectionHeader
-            id="engines-title"
-            eyebrow={engines.eyebrow}
-            title={engines.title}
-            subtitle={engines.subtitle}
-            action={engines.action}
-            align="center"
-          />
-        </Reveal>
+        <SectionHeader id="engines-title" title={engines.title} subtitle={engines.subtitle} layout="split" />
 
         <ol className="mt-12 grid gap-5 sm:mt-16 lg:grid-cols-2">
           {engines.items.map((item, i) => {
@@ -55,19 +45,6 @@ export function Engines() {
                     "bi-host", tones[item.tone],
                   )}
                 >
-                  {item.tone === "night" ? (
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute -top-40 -right-32 size-[620px] rounded-full bg-[radial-gradient(closest-side,rgba(185,237,214,.22),rgba(185,237,214,0))]"
-                    />
-                  ) : null}
-                  {item.tone === "navy" ? (
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute -bottom-48 -left-40 size-[560px] rounded-full bg-[radial-gradient(closest-side,rgba(255,255,255,.08),rgba(255,255,255,0))]"
-                    />
-                  ) : null}
-
                   <div className="relative flex flex-col gap-5">
                     <BrandIcon name={ENGINE_ICONS[item.id]} tone={dark ? "dark" : "light"} className="size-16" />
                     <p className={cx("eyebrow flex items-center gap-3", dark ? "text-white/70" : "text-muted")}>

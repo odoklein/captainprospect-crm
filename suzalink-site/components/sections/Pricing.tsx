@@ -13,7 +13,7 @@ export function Pricing() {
   return (
     <section id="tarifs" aria-labelledby="pricing-title" className="border-t border-line bg-white py-24 sm:py-32">
       <Container>
-        <SectionHeader id="pricing-title" eyebrow={pricing.eyebrow} title={pricing.title} subtitle={pricing.subtitle} align="center" />
+        <SectionHeader id="pricing-title" title={pricing.title} subtitle={pricing.subtitle} align="center" />
 
         <fieldset className="mx-auto mt-10 flex w-fit rounded-full border border-line bg-paper p-1">
           <legend className="sr-only">{pricing.periodLegend}</legend>
@@ -21,7 +21,7 @@ export function Pricing() {
             <label
               key={p}
               className={cx(
-                "relative flex cursor-pointer items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-medium transition-colors duration-200 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-rose",
+                "relative flex cursor-pointer items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-medium transition-colors duration-200 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-navy",
                 period === p ? "bg-navy text-white" : "text-ink/75 hover:text-ink",
               )}
             >
