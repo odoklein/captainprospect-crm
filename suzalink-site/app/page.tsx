@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/sections/SiteHeader";
 import { Hero } from "@/components/sections/Hero";
 import { LogoStrip } from "@/components/sections/LogoStrip";
 import { Doors } from "@/components/sections/Doors";
+import { Features } from "@/components/sections/Features";
 import { Engines } from "@/components/sections/Engines";
 import { Roles } from "@/components/sections/Roles";
 import { StackCost } from "@/components/sections/StackCost";
@@ -71,6 +72,7 @@ export default function HomePage() {
         <Hero />
         <LogoStrip />
         <Doors />
+        <Features />
         <Engines />
         <Roles />
         <StackCost />

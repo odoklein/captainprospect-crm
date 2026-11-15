@@ -100,6 +100,25 @@ export const logos = {
   // La liste des clients et leurs logos : content/brands.ts
 };
 
+/**
+ * Juste après les deux offres : le fil d'un appel, en cinq moments.
+ * Chaque moment = une fonctionnalité réelle du CRM, illustrée par son écran (données d'exemple).
+ */
+export const features = {
+  title: "Ce que fait Suzalink pendant un appel",
+  subtitle: "De la file au portail client, chaque étape laisse une trace que vous pouvez relire.",
+  /** Description of the whole timeline for screen readers (the screens are illustrations). */
+  label:
+    "Le fil d'un appel en cinq moments : la file d'appels avant l'appel, le résultat en une touche pendant l'appel, le résumé proposé par l'IA juste après, le journal d'appels le soir, et le portail client le lendemain.",
+  steps: [
+    { id: "file", moment: "Avant l'appel", title: "File d'appels", body: "Le prochain prospect arrive tout seul. Les rappels reviennent à l'heure prévue." },
+    { id: "touche", moment: "Pendant", title: "Résultat en 1 touche", body: "Qualifiez l'appel sans quitter le clavier, puis passez au suivant." },
+    { id: "resume", moment: "Juste après", title: "Résumé et résultat par l'IA", body: "Un résumé automatique et un résultat suggéré. Le SDR confirme ou corrige." },
+    { id: "journal", moment: "Le soir", title: "Journal d'appels", body: "Suivez l'activité, écoutez les appels et mesurez la qualité des échanges." },
+    { id: "portail", moment: "Le lendemain", title: "Portail client", body: "Vos clients voient leurs rendez-vous, à jour, sans vous écrire." },
+  ],
+} as const;
+
 export const engines = {
   eyebrow: "Plateforme",
   title: "Une plateforme, trois moteurs",
