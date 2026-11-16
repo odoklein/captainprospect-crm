@@ -82,3 +82,13 @@ build/
 .env
 .env.local
 .env.*.local
+
+# customer / prospect data must never be committed
+/extracted_leads/
+/uploads/
+/private/
+scripts/**/data/
+scripts/denterlab/*.csv
+scripts/denterlab/import.sql
+scripts/la-collecte-dentaire/*.csv
+scripts/la-collecte-dentaire/*.sql
