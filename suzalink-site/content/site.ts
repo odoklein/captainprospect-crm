@@ -7,7 +7,7 @@ export type NavLink = { label: string; href: string };
 
 export const site = {
   name: "Suzalink",
-  /** URL publique, utilisée pour le SEO, le sitemap et l'image de partage. TODO : domaine définitif. */
+  /** URL publique (suzalink.com), utilisée pour le SEO, le sitemap et l'image de partage. */
   url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://suzalink.com",
   locale: "fr_FR",
   lang: "fr",
@@ -20,7 +20,7 @@ export const site = {
     ogImageAlt: "Suzalink : votre prospection, vos règles.",
   },
 
-  /** Lien « Se connecter ». TODO : URL de l'application. */
+  /** Lien « Se connecter » : le CRM (app.suzalink.com). */
   loginUrl: "https://app.suzalink.com",
   /** Toutes les actions « Demander une démo » mènent ici. */
   demoHref: "/demo",

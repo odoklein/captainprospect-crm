@@ -225,16 +225,3 @@ export function SectionHeader({
     </div>
   );
 }
-
-export function PlaceholderBadge({ children, tone = "light" }: { children: ReactNode; tone?: "light" | "dark" }) {
-  return (
-    <span
-      className={cx(
-        "eyebrow inline-flex items-center rounded-full border border-dashed px-2.5 py-1",
-        tone === "dark" ? "border-white/40 text-white/80" : "border-muted/50 text-muted",
-      )}
-    >
-      {children}
-    </span>
-  );
-}

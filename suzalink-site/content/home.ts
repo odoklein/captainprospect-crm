@@ -92,12 +92,49 @@ export const doors = {
   ],
 } as const;
 
-export const logos = {
-  eyebrow: "Références",
+/**
+ * Section « Ils prospectent avec Suzalink » : les témoignages et la liste des clients
+ * (les clients et leurs logos sont dans content/brands.ts, repérés ici par leur domaine).
+ *
+ * Témoignages : rédigés par Suzalink. Chacun ne s'affiche que si `published` vaut true,
+ * c'est-à-dire quand l'entreprise citée a validé le texte PAR ÉCRIT (un email suffit).
+ * `relation` dit honnêtement qui parle : maison mère, même plateforme, client.
+ * TODO : remplacer « L'équipe … » par le prénom, le nom et le poste de la personne qui valide.
+ */
+export const clients = {
   title: "Ils prospectent avec Suzalink",
-  subtitle: "Agences de prospection et centres d'appels B2B.",
-  action: { label: "Lire les cas clients", href: "/#cas-clients" },
-  // La liste des clients et leurs logos : content/brands.ts
+  subtitle: "Des agences de prospection, des centres d'appels B2B, et notre propre équipe.",
+  quotes: [
+    {
+      domain: "suzaliconseil.com",
+      published: true,
+      who: "L'équipe Suzali Conseil",
+      relation: "Maison mère de Suzalink",
+      uses: "Prospection et CRM",
+      quote:
+        "Nos SDR changent de client plusieurs fois par jour. Avant, chaque mission vivait dans un outil différent. Aujourd'hui, une vingtaine de SDR appellent depuis la même file, et chaque client voit ses appels le jour même.",
+    },
+    {
+      domain: "captainprospect.fr",
+      published: true,
+      who: "L'équipe Captain Prospect",
+      relation: "Sur la même plateforme que Suzalink",
+      uses: "CRM",
+      quote:
+        "Nos clients voulaient entendre les appels, pas lire un tableau le vendredi. Avec le portail, ils écoutent l'enregistrement et retrouvent le RDV le jour même.",
+    },
+    {
+      domain: "ping-leadagency.fr",
+      // En attente de l'accord écrit de Ping Lead Agency : ne pas publier avant.
+      published: false,
+      who: "L'équipe Ping Lead Agency",
+      relation: "Client",
+      uses: "CRM en marque blanche",
+      quote:
+        "Le CRM est à nos couleurs. Nos clients ouvrent leur portail, voient leurs RDV et n'ont plus besoin de nous écrire pour savoir où en est la mission.",
+    },
+  ],
+  rosterLabel: "Sur Suzalink",
 };
 
 /**
@@ -246,20 +283,6 @@ export const cases = {
   runningTitle: "En cours, chiffres à venir",
   runningCta: { label: "Votre secteur en deux semaines", href: "/tarifs#sprint" },
 } as const;
-
-export const testimonial = {
-  /** false tant qu'aucune citation réelle et validée par écrit n'existe : la section ne s'affiche pas. */
-  published: false,
-  eyebrow: "Témoignage",
-  placeholderBadge: "Placeholder",
-  // TODO : remplacer par une citation réelle, validée par écrit avant publication.
-  quote:
-    "Emplacement réservé à un témoignage client. Remplacez ce texte par une citation réelle et validée.",
-  name: "Prénom Nom",
-  role: "Poste, Entreprise",
-  logoLabel: "Logo client",
-  action: { label: "Lire le cas client", href: "#" }, // TODO
-};
 
 export const pricing = {
   eyebrow: "Tarifs",
