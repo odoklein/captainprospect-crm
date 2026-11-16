@@ -14,6 +14,8 @@ import { NavSection, getNavByRole, ROLE_CONFIG } from "@/lib/navigation/config";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { TodayTasksMenu } from "@/components/layout/TodayTasksMenu";
 import { TutorialLauncher } from "@/components/tutorials/TutorialLauncher";
+import { ChangelogProvider } from "@/components/changelog/ChangelogProvider";
+import { ChangelogBanner, ChangelogLauncher } from "@/components/changelog/ChangelogLauncher";
 import { IncomingCallPanel } from "@/components/incoming-calls/IncomingCallPanel";
 import { SmsDockItem } from "@/components/messaging/SmsDockItem";
 import { SoftphoneProvider } from "@/components/telephony/SoftphoneProvider";
@@ -209,7 +211,10 @@ function InnerLayout({
     };
     const currentPage = pageLabels[rawPage?.toLowerCase()] || rawPage;
 
-    return (
+    // « Nouveautés » are for the agency's team, never for its clients.
+    const seesChangelog = !!userRole && userRole !== UserRole.CLIENT && userRole !== UserRole.COMMERCIAL;
+
+    const layout = (
         <div className={cn("cp-layout", pathname.startsWith("/sdr") && "sdr-studio", isClientWorkspace && "manager-client-studio")}>
             <GlobalSearchModal
                 open={searchOpen}
@@ -273,9 +278,11 @@ function InnerLayout({
                         >
                             <RefreshCw className="w-3.5 h-3.5" />
                         </button>
+                        <ChangelogLauncher />
                         <NotificationBell />
                     </div>
                 </header>}
+                {!isAssistantChat && <ChangelogBanner />}
                 <div className="cp-call-space shrink-0" aria-hidden />
 
                 {isEmailHub || isRdvPage || isTicketBoard || isPlanningBoard || isAssistantChat || isCallWorkspace ? (
@@ -381,6 +388,7 @@ function InnerLayout({
             <FloatingDock railed={pathname === "/sdr/focus"} />
         </div>
     );
+    return seesChangelog ? <ChangelogProvider>{layout}</ChangelogProvider> : layout;
 }
 
 export function AppLayoutShell(props: AppLayoutShellProps) {

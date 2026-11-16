@@ -506,6 +506,7 @@ model User {
   // Outbound calls placed from the in-app Twilio softphone
   telephonyCalls TelephonyCall[] @relation("SdrTelephonyCalls")
   onoffCalls     OnoffCall[]     @relation("SdrOnoffCalls")
+  changelogSeen  ChangelogSeen[]
   smsMessages    SmsMessage[]    @relation("SdrSmsMessages")
 
   // Advanced Planning: allocations, capacity, absences
@@ -1376,6 +1377,44 @@ enum TelephonyDirection {
 /// actionId links the call to the qualification the SDR saved right after.
 /// contactId / companyId / campaignId are plain ids (no FK), like IncomingCall,
 /// so the call log survives a list being deleted or re-imported.
+// « Nouveautés »: release notes and announcements the Console publishes to this
+// instance (signed PUT /api/instance/changelog, docs/CONSOLE_CHANGELOG.md). The
+// Console owns the content; the CRM stores it, shows it, and counts who saw it.
+model ChangelogEntry {
+  id          String          @id @default(cuid())
+  externalId  String          @unique // the Console's id: PUT is an upsert on it, DELETE retracts it
+  kind        String // RELEASE | ANNOUNCEMENT
+  title       String
+  summary     String?         @db.Text // release intro, or the announcement's text
+  version     String? // release: the image tag
+  items       Json? // release notes: [{ type: new|improved|fixed, title, body?, module? }]
+  category    String? // announcement: feature | maintenance | info | billing
+  severity    String          @default("info") // info | warning (warning also shows a banner)
+  audience    String          @default("managers") // managers | everyone (never clients)
+  ctaLabel    String?
+  ctaUrl      String?
+  startsAt    DateTime? // shown from (maintenance windows, scheduled news)
+  endsAt      DateTime? // hidden after
+  publishedAt DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  seen        ChangelogSeen[]
+
+  @@index([publishedAt])
+}
+
+model ChangelogSeen {
+  entryId           String
+  entry             ChangelogEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seenAt            DateTime       @default(now())
+  bannerDismissedAt DateTime?
+
+  @@id([entryId, userId])
+  @@index([userId])
+}
+
 // Calls pushed by Onoff Business (webhook « Appels », Advanced/Max plans) to
 // /api/webhooks/onoff. Read as a call source by lib/call-enrichment (« Onoff »);
 // the recording is streamed through /api/actions/[id]/recording (stored there as
