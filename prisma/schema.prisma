@@ -477,6 +477,7 @@ model User {
   // Profile (all roles)
   phone              String?
   alloPhoneNumber    String?
+  onoffPhoneNumber   String? // Onoff Business line: matches the calls Onoff pushes (/api/webhooks/onoff) to this user
   twilioCallerId     String? // E.164 Twilio number assigned in Paramètres → Téléphonie; null = no integrated phone (Allo)
   twilioReceiveCalls Boolean @default(true) // inbound calls ring in the browser; false = straight to voicemail
   voicemailGreeting  String? // spoken to callers when unavailable; null = default greeting
@@ -504,6 +505,7 @@ model User {
 
   // Outbound calls placed from the in-app Twilio softphone
   telephonyCalls TelephonyCall[] @relation("SdrTelephonyCalls")
+  onoffCalls     OnoffCall[]     @relation("SdrOnoffCalls")
   smsMessages    SmsMessage[]    @relation("SdrSmsMessages")
 
   // Advanced Planning: allocations, capacity, absences
@@ -932,15 +934,15 @@ model ClientPage {
 }
 
 model Mission {
-  id        String    @id @default(cuid())
-  clientId  String
-  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  name      String
-  objective String
+  id             String    @id @default(cuid())
+  clientId       String
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name           String
+  objective      String
   /// Meetings the mission aims for over its period (« RDV visés »). Null: no numeric target, pace is not computed.
   targetMeetings Int?
-  channel   Channel // Primary (first channel); kept for backward compatibility
-  channels  Channel[] @default([CALL]) // Multi-channel: mission can run on CALL + EMAIL + LINKEDIN
+  channel        Channel // Primary (first channel); kept for backward compatibility
+  channels       Channel[] @default([CALL]) // Multi-channel: mission can run on CALL + EMAIL + LINKEDIN
 
   // Default mailbox for this mission (optional)
   defaultMailboxId String?
@@ -1374,6 +1376,36 @@ enum TelephonyDirection {
 /// actionId links the call to the qualification the SDR saved right after.
 /// contactId / companyId / campaignId are plain ids (no FK), like IncomingCall,
 /// so the call log survives a list being deleted or re-imported.
+// Calls pushed by Onoff Business (webhook « Appels », Advanced/Max plans) to
+// /api/webhooks/onoff. Read as a call source by lib/call-enrichment (« Onoff »);
+// the recording is streamed through /api/actions/[id]/recording (stored there as
+// the stable reference "onoff:<id>", never Onoff's own URL).
+model OnoffCall {
+  id              String    @id // Onoff's event id: retries carry the same one (idempotent upsert)
+  event           String // CDR | RECORDING | VM
+  sdrId           String? // CRM user matched by e-mail, then by onoffPhoneNumber
+  sdr             User?     @relation("SdrOnoffCalls", fields: [sdrId], references: [id], onDelete: SetNull)
+  onoffUserEmail  String?
+  onoffUserNumber String?
+  externalNumber  String // the prospect's number, as sent
+  externalKey     String? // last 9 digits (lib/exclusions phoneKey): country-agnostic match
+  externalName    String?
+  direction       String // INBOUND | OUTBOUND
+  status          String // ANSWERED | MISSED_CALL | BUSY | WRONG_NUMBER | VMS | UNKNOWN
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSec     Int?
+  recordingUrl    String?   @db.Text
+  voicemailUrl    String?   @db.Text
+  notes           String?   @db.Text
+  tags            Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([externalKey, startedAt])
+  @@index([sdrId, startedAt])
+}
+
 model TelephonyCall {
   id        String             @id @default(cuid())
   provider  String             @default("twilio")

@@ -10,6 +10,7 @@ const input = { phones: ['+33612345678'], alloNumbers: ['+33100000000'], sdrId: 
 const allAvailable: SourceAvailability[] = [
   { source: 'vault', available: true },
   { source: 'twilio', available: true },
+  { source: 'onoff', available: true },
   { source: 'allo', available: true },
 ];
 
@@ -25,14 +26,15 @@ function fake(byWindow: Record<string, CallRecord | null | Error>, calls: string
   };
 }
 
-const none = (): Record<CallSourceKey, CallProvider | null> => ({ vault: fake({}), twilio: fake({}), allo: fake({}) });
+const none = (): Record<CallSourceKey, CallProvider | null> => ({ vault: fake({}), twilio: fake({}), onoff: fake({}), allo: fake({}) });
 
-describe('call source chain (Call Vault → Twilio → Allo)', () => {
+describe('call source chain (Call Vault → Twilio → Onoff → Allo)', () => {
   it('stops at the first source that has the call', async () => {
     const alloCalls: string[] = [];
     const { record, attempts } = await walkSources(input, allAvailable, {
       vault: fake({}),
       twilio: fake({ 'Prise du RDV ±24h': { recordingUrl: 'https://api.twilio.com/x' } }),
+      onoff: fake({}),
       allo: fake({ 'Jour de prise du RDV': { summary: 'allo' } }, alloCalls),
     });
     assert.equal(record?.source, 'twilio');
@@ -56,7 +58,20 @@ describe('call source chain (Call Vault → Twilio → Allo)', () => {
       allo: fake({ 'Prise du RDV ±24h': { summary: 'Rappel le 12' } }),
     });
     assert.equal(record?.source, 'allo');
-    assert.deepEqual(attempts.map((a) => a.status), ['empty', 'empty', 'found']);
+    assert.deepEqual(attempts.map((a) => a.status), ['empty', 'empty', 'empty', 'found']);
+  });
+
+  it('Onoff answers before the slow Allo API', async () => {
+    const alloCalls: string[] = [];
+    const { record, attempts } = await walkSources(input, allAvailable, {
+      ...none(),
+      onoff: fake({ 'Jour de prise du RDV': { recordingUrl: 'onoff:evt-1', duration: 184 } }),
+      allo: fake({ 'Jour de prise du RDV': { summary: 'allo' } }, alloCalls),
+    });
+    assert.equal(record?.source, 'onoff');
+    assert.equal(record?.recordingUrl, 'onoff:evt-1');
+    assert.deepEqual(attempts.map((a) => `${a.source}:${a.status}`), ['vault:empty', 'twilio:empty', 'onoff:found']);
+    assert.equal(alloCalls.length, 0);
   });
 
   it('a failing source does not block the next ones', async () => {
@@ -75,6 +90,7 @@ describe('call source chain (Call Vault → Twilio → Allo)', () => {
       [
         { source: 'vault', available: false, reason: 'Call Vault non configuré' },
         { source: 'twilio', available: true },
+        { source: 'onoff', available: false, reason: 'Onoff non connecté' },
         { source: 'allo', available: false, reason: 'Aucune ligne Allo pour ce SDR' },
       ],
       none(),
@@ -83,6 +99,7 @@ describe('call source chain (Call Vault → Twilio → Allo)', () => {
     assert.deepEqual(attempts, [
       { source: 'vault', status: 'skipped', reason: 'Call Vault non configuré' },
       { source: 'twilio', status: 'empty' },
+      { source: 'onoff', status: 'skipped', reason: 'Onoff non connecté' },
       { source: 'allo', status: 'skipped', reason: 'Aucune ligne Allo pour ce SDR' },
     ]);
   });

@@ -69,6 +69,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
                 role: true,
                 isActive: true,
                 alloPhoneNumber: true,
+                onoffPhoneNumber: true,
                 createdAt: true,
                 updatedAt: true,
                 lastSignInAt: true,
@@ -116,6 +117,7 @@ const createUserSchema = z.object({
     role: z.enum(['SDR', 'MANAGER', 'CLIENT', 'DEVELOPER', 'BUSINESS_DEVELOPER']).default('SDR'),
     clientId: z.string().optional(),
     alloPhoneNumber: z.string().optional(),
+    onoffPhoneNumber: z.string().optional(),
 });
 
 export const POST = withErrorHandler(async (request: NextRequest) => {
@@ -152,6 +154,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 isActive: true,
                 clientId: data.clientId,
                 alloPhoneNumber: data.alloPhoneNumber?.trim() || null,
+                onoffPhoneNumber: data.onoffPhoneNumber?.trim() || null,
                 managerId,
             },
             select: {
@@ -161,6 +164,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
                 role: true,
                 isActive: true,
                 alloPhoneNumber: true,
+                onoffPhoneNumber: true,
                 createdAt: true,
             },
         });

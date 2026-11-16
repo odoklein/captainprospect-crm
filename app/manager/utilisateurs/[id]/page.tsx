@@ -38,7 +38,7 @@ type TabId = "apercu" | "activite" | "planning" | "rendezvous" | "historique" | 
 
 interface UserDetail {
     id: string; name: string; email: string; role: string;
-    isActive: boolean; alloPhoneNumber?: string | null; twilioCallerId?: string | null;
+    isActive: boolean; alloPhoneNumber?: string | null; onoffPhoneNumber?: string | null; twilioCallerId?: string | null;
     createdAt: string; lastSignInAt?: string | null;
     lastSignInIp?: string | null; lastSignInCountry?: string | null;
     lastConnectedAt?: string | null;
@@ -381,6 +381,7 @@ function ApercuTab({ user, stats }: { user: UserDetail; stats: UserStats | null 
                             {new Date(user.createdAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
                         </FactRow>
                         {user.alloPhoneNumber && <FactRow label="Allo"><Mono>{user.alloPhoneNumber}</Mono></FactRow>}
+                        {user.onoffPhoneNumber && <FactRow label="Onoff"><Mono>{user.onoffPhoneNumber}</Mono></FactRow>}
                         {user.twilioCallerId && <FactRow label="Twilio"><Mono>{user.twilioCallerId}</Mono></FactRow>}
                         {user.client && <FactRow label="Client">{user.client.name}</FactRow>}
                         {(user.role === "SDR" || user.role === "BOOKER") && user.preferences?.sdrFeedback && (
@@ -940,7 +941,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [formData, setFormData]       = useState({
         name: user.name, email: user.email, password: "",
-        role: user.role, alloPhoneNumber: user.alloPhoneNumber ?? "",
+        role: user.role, alloPhoneNumber: user.alloPhoneNumber ?? "", onoffPhoneNumber: user.onoffPhoneNumber ?? "",
         twilioCallerId: user.twilioCallerId ?? "",
         clientId: user.client?.id ?? "",
         sdrFeedbackPromptTime: user.preferences?.sdrFeedback?.promptTime ?? "15:45",
@@ -1012,6 +1013,7 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
             const payload: Record<string, unknown> = {
                 name: formData.name, email: formData.email, role: formData.role,
                 alloPhoneNumber: formData.alloPhoneNumber.trim() || null,
+                onoffPhoneNumber: formData.onoffPhoneNumber.trim() || null,
                 twilioCallerId: formData.twilioCallerId.trim() || null,
             };
             if (formData.password) payload.password = formData.password;
@@ -1089,6 +1091,9 @@ function AccesTab({ user, onUserUpdate }: { user: UserDetail; onUserUpdate: (u: 
                             </Field>
                             <Field id="acc-allo" label="Numéro Allo">
                                 <input id="acc-allo" className={cn(FIELD, "tabular-nums")} value={formData.alloPhoneNumber} onChange={(e) => patch({ alloPhoneNumber: e.target.value })} placeholder="+33…" />
+                            </Field>
+                            <Field id="acc-onoff" label={<>Numéro Onoff <span className="font-normal text-ink-3">(si son e-mail Onoff diffère de celui du CRM)</span></>}>
+                                <input id="acc-onoff" className={cn(FIELD, "tabular-nums")} value={formData.onoffPhoneNumber} onChange={(e) => patch({ onoffPhoneNumber: e.target.value })} placeholder="+33…" />
                             </Field>
                             <Field id="acc-twilio" label={<>Numéro Twilio sortant <span className="font-normal text-ink-3">(vide = Allo · à choisir dans Paramètres → Téléphonie)</span></>}>
                                 <input id="acc-twilio" className={cn(FIELD, "tabular-nums")} value={formData.twilioCallerId} onChange={(e) => patch({ twilioCallerId: e.target.value })} placeholder="+33…" />

@@ -7,7 +7,7 @@
 // characters. Same store as the Console (lib/integrations/store).
 // ============================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import { CircleCheck, CircleX, Cpu, Database, ExternalLink, KeyRound, Loader2, Lock, Mic, PhoneCall, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useToast } from "@/components/ui";
@@ -97,6 +97,7 @@ export function IntegrationKeysPanel({ onlyGroup, initialTool }: { onlyGroup?: I
                         right={<StatusPill tone={on === items.length ? "emerald" : on ? "amber" : "slate"}>{on}/{items.length}</StatusPill>}
                     >
                         {group === "meetings" && <MeetingsIntro />}
+                        {group === "telephony" && <OnoffSetup connected={["stored", "env"].includes(keys.find((x) => x.name === "ONOFF_WEBHOOK_KEY")?.source ?? "none")} />}
                         <ul className="divide-y divide-slate-100 -my-2">
                             {group === "meetings" && <LeexiPointer />}
                             {items.map((k) => {
@@ -163,6 +164,55 @@ function MeetingsIntro() {
             </div>
             <ol className="grid gap-2 sm:grid-cols-3">
                 {NOTETAKER_HOW_IT_WORKS.map((step, i) => (
+                    <li key={step} className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600">
+                        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-zinc-900 ring-1 ring-zinc-200">
+                            {i + 1}
+                        </span>
+                        {step}
+                    </li>
+                ))}
+            </ol>
+        </div>
+    );
+}
+
+const ONOFF_WEBHOOK_PATH = "/api/webhooks/onoff";
+const noSubscribe = () => () => {};
+
+/** Onoff pushes calls to us: the agency pastes this URL and its own key into Onoff's console. */
+function OnoffSetup({ connected }: { connected: boolean }) {
+    const { success } = useToast();
+    // This agency's own address (each sub-agency has its domain); a path on the server render.
+    const url = useSyncExternalStore(noSubscribe, () => `${window.location.origin}${ONOFF_WEBHOOK_PATH}`, () => ONOFF_WEBHOOK_PATH);
+    const steps = [
+        "Créez une clé de 24 caractères minimum et enregistrez-la ci-dessous dans « Onoff — clé du webhook ».",
+        "Dans la console B2B Onoff : Intégrations → Webhook « Appels », collez l'adresse et la même clé (« Api key »), puis « Intégrer ».",
+        "Activez l'enregistrement des appels dans Onoff, et renseignez le numéro Onoff de chaque SDR dans sa fiche (si son e-mail Onoff diffère).",
+    ];
+    return (
+        <div className="mb-4 space-y-3 rounded-2xl bg-zinc-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-bold text-zinc-900">Onoff Business</p>
+                <StatusPill tone={connected ? "emerald" : "slate"}>{connected ? "Clé enregistrée" : "Non connecté"}</StatusPill>
+            </div>
+            <p className="text-xs font-medium leading-relaxed text-zinc-600">
+                Onoff envoie chaque appel de vos SDR au CRM : durée, notes et enregistrement sont rattachés au bon prospect et au RDV.
+                Nécessite un abonnement Onoff Business Advanced ou Max.
+            </p>
+            <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-zinc-800 ring-1 ring-zinc-200">{url}</code>
+                <button
+                    type="button"
+                    className={SECONDARY_BUTTON}
+                    onClick={() => {
+                        void navigator.clipboard?.writeText(url).then(() => success("Adresse copiée", "Collez-la dans Onoff → Intégrations → Webhook « Appels »."));
+                    }}
+                >
+                    Copier
+                </button>
+            </div>
+            <ol className="grid gap-2 sm:grid-cols-3">
+                {steps.map((step, i) => (
                     <li key={step} className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600">
                         <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-zinc-900 ring-1 ring-zinc-200">
                             {i + 1}

@@ -3,6 +3,7 @@ import { requireRole, withErrorHandler, errorResponse, successResponse } from "@
 import { fetchVaultCallMatches, vaultRecordingProxyUrl } from "@/lib/call-vault-client";
 import { AlloProvider } from "@/lib/call-enrichment/allo-provider";
 import { findTwilioCalls } from "@/lib/call-enrichment/twilio-provider";
+import { findOnoffCalls } from "@/lib/onoff/service";
 import { callSourceAvailability, CALL_SOURCE_ORDER, type CallSourceKey } from "@/lib/call-enrichment/provider";
 import { loadRdvCallContext, numberMatches, type PhoneSourceKey } from "@/lib/call-enrichment/rdv-call-context";
 import { integrationKey } from "@/lib/integrations/keys";
@@ -39,7 +40,7 @@ interface RdvCandidateCall {
 
 /**
  * GET /api/manager/rdv/[id]/calls — every call of the RDV's prospect the call sources
- * know about, for the manager to pick from. Call Vault and Twilio are always read;
+ * know about, for the manager to pick from. Call Vault, Twilio and Onoff are always read;
  * Allo (slow, rate-limited) is read when both came back empty, or on ?allo=1.
  */
 export const GET = withErrorHandler(async (
@@ -57,6 +58,7 @@ export const GET = withErrorHandler(async (
   const status: Record<CallSourceKey, { status: SourceStatus; count: number; reason?: string }> = {
     vault: { status: "not_asked", count: 0 },
     twilio: { status: "not_asked", count: 0 },
+    onoff: { status: "not_asked", count: 0 },
     allo: { status: "not_asked", count: 0 },
   };
   for (const a of availability) if (!a.available) status[a.source] = { status: "skipped", count: 0, reason: a.reason };
@@ -139,7 +141,40 @@ export const GET = withErrorHandler(async (
     }
   };
 
-  await Promise.all([readVault(), readTwilio()]);
+  const readOnoff = async () => {
+    if (status.onoff.status === "skipped") return;
+    if (!ctx.phones.length) {
+      status.onoff = { status: "skipped", count: 0, reason: "Aucun numéro exploitable" };
+      return;
+    }
+    try {
+      const matches = await findOnoffCalls({ phones: ctx.phones, windowStart, windowEnd, limit: CANDIDATE_LIMIT });
+      for (const m of matches) {
+        calls.push({
+          id: `onoff:${m.id}`,
+          source: "onoff",
+          providerCallId: m.id,
+          from: m.fromNumber,
+          to: m.toNumber,
+          direction: m.direction,
+          durationSec: m.durationSec,
+          startedAt: m.startedAt,
+          status: m.status,
+          summary: m.notes,
+          transcription: null,
+          recordingUrl: m.recordingUrl,
+          matchedPhones: matchedPhones(m.fromNumber, m.toNumber),
+          linkedToRdv: false,
+          inProgress: false,
+        });
+      }
+      status.onoff = { status: matches.length ? "ok" : "empty", count: matches.length };
+    } catch {
+      status.onoff = { status: "error", count: 0, reason: "Lecture des appels Onoff impossible" };
+    }
+  };
+
+  await Promise.all([readVault(), readTwilio(), readOnoff()]);
 
   const shouldReadAllo = status.allo.status !== "skipped" && (forceAllo || calls.length === 0);
   if (shouldReadAllo) {

@@ -30,7 +30,7 @@ export interface IntegrationKeyDef {
 
 export const INTEGRATION_GROUPS: Record<IntegrationGroup, { label: string; hint: string }> = {
     ai: { label: "Intelligence artificielle", hint: "Assistant, fiches, analyses et rédaction" },
-    telephony: { label: "Téléphonie", hint: "Téléphone intégré (Twilio), statistiques d'appels et enregistrements" },
+    telephony: { label: "Téléphonie", hint: "Téléphone intégré (Twilio), lignes Allo et Onoff, statistiques d'appels et enregistrements" },
     meetings: { label: "Enregistreurs de réunions", hint: "Importer un appel de closing dans « Nouveau client »" },
     data: { label: "Données & prospection", hint: "Sourcing, enrichissement, recherche d'entreprises" },
 };
@@ -82,6 +82,17 @@ export const INTEGRATION_KEYS = [
         label: "Allo — secret du webhook",
         group: "telephony",
         usedFor: "Accepter les appels envoyés par Allo en temps réel (/api/webhooks/allo)",
+    },
+    // Onoff Business (lib/onoff): the agency's own Onoff lines. Onoff pushes every call to
+    // /api/webhooks/onoff with this key in X-API-KEY; calls then feed the « Onoff » call source.
+    {
+        name: "ONOFF_WEBHOOK_KEY",
+        label: "Onoff — clé du webhook",
+        group: "telephony",
+        usedFor:
+            "Recevoir les appels Onoff Business (durée, enregistrement) et les rattacher aux RDV. Collez la même clé dans Onoff → Intégrations → Webhook « Appels » (champ « Api key »)",
+        placeholder: "24 caractères minimum, ex. généré par un gestionnaire de mots de passe",
+        docsUrl: "https://docs.onoffbusiness.com/webhook/getting-started",
     },
     // Twilio (lib/telephony): in-app softphone. All six are needed for the « Appeler » button
     // to dial from the browser; with any missing, phone links fall back to tel: (Allo).
@@ -246,6 +257,8 @@ export function checkIntegrationValue(name: IntegrationKeyName, raw: string): { 
     if (!value) return { ok: false, message: "Valeur vide" };
     if (value.length > 512) return { ok: false, message: "Valeur trop longue (512 caractères maximum)" };
     if (/\s/.test(value)) return { ok: false, message: "Une clé ne contient pas d'espace ni de retour à la ligne" };
+    // A key we invent ourselves guards a public URL: it must not be guessable.
+    if (name === "ONOFF_WEBHOOK_KEY" && value.length < 24) return { ok: false, message: "24 caractères minimum : cette clé protège l'adresse publique du webhook" };
     return { ok: true, value };
 }
 

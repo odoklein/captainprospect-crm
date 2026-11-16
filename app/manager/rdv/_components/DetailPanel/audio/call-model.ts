@@ -1,15 +1,16 @@
 // Client-side model of the « Audio & IA » tab: where a call came from, and how
 // a stored transcript reads as a conversation.
 
-export type CallSourceKey = "vault" | "twilio" | "allo";
-/** Where the audio attached to an RDV comes from — the 3 call sources, or a file a manager uploaded. */
+export type CallSourceKey = "vault" | "twilio" | "onoff" | "allo";
+/** Where the audio attached to an RDV comes from — the call sources, or a file a manager uploaded. */
 export type AudioOrigin = CallSourceKey | "upload";
 
-export const SOURCE_ORDER: CallSourceKey[] = ["vault", "twilio", "allo"];
+export const SOURCE_ORDER: CallSourceKey[] = ["vault", "twilio", "onoff", "allo"];
 
 export const ORIGIN_META: Record<AudioOrigin, { label: string; hint: string }> = {
   vault: { label: "Call Vault", hint: "Archive synchronisée des lignes téléphoniques" },
   twilio: { label: "Twilio", hint: "Softphone intégré au CRM" },
+  onoff: { label: "Onoff", hint: "Lignes Onoff Business (webhook)" },
   allo: { label: "Allo", hint: "API WithAllo (repli)" },
   upload: { label: "Fichier importé", hint: "Audio importé à la main" },
 };
@@ -19,6 +20,7 @@ export function originOfRecording(url: string | null | undefined): AudioOrigin |
   const u = url?.trim();
   if (!u) return null;
   if (u.includes("api.twilio.com")) return "twilio";
+  if (u.startsWith("onoff:")) return "onoff";
   if (u.includes("withallo.com")) return "allo";
   if (u.includes("call-recordings/")) return "upload";
   if (/\/api\/calls\/[^/]+\/recording$/.test(u)) return "vault";

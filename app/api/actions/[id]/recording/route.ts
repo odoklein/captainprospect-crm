@@ -11,6 +11,8 @@ import { storageService } from "@/lib/storage/storage-service";
 import { resolveAudioMime } from "@/lib/audio-upload";
 import { integrationKey } from "@/lib/integrations/keys";
 import { isTwilioRecordingUrl } from "@/lib/telephony/twilio";
+import { parseOnoffRecordingRef } from "@/lib/onoff/webhook";
+import { onoffAudioUrl } from "@/lib/onoff/service";
 
 const ALLO_HOST = "api.withallo.com";
 const ALLO_RECORDINGS_PATH_PREFIX = "/v1/assets/recordings/";
@@ -68,7 +70,7 @@ async function serveUploadedRecording(request: NextRequest, key: string) {
     return new NextResponse(new Uint8Array(data), { status: 200, headers });
 }
 
-type Upstream = { url: URL; authHeader: string };
+type Upstream = { url: URL; authHeader: string | null };
 
 /**
  * Resolves a stored callRecordingUrl to an allowed upstream + the auth header it needs. Two
@@ -112,6 +114,25 @@ function resolveUpstream(urlString: string): Upstream {
     throw new NotFoundError("Enregistrement introuvable");
 }
 
+/**
+ * Onoff Business calls are stored as "onoff:<call id>" (lib/onoff): the audio link
+ * Onoff sent with the call stays server-side, read here at playback time. Onoff signs
+ * its own links, so no Authorization header is added; only https links are kept.
+ */
+async function resolveOnoff(stored: string): Promise<Upstream | null> {
+    const callId = parseOnoffRecordingRef(stored);
+    if (!callId) return null;
+    const link = await onoffAudioUrl(callId);
+    let u: URL;
+    try {
+        u = new URL(link ?? "");
+    } catch {
+        throw new NotFoundError("Enregistrement introuvable");
+    }
+    if (u.protocol !== "https:") throw new NotFoundError("Enregistrement introuvable");
+    return { url: u, authHeader: null };
+}
+
 async function assertCanStreamRecording(
     userId: string,
     role: string,
@@ -126,7 +147,7 @@ async function assertCanStreamRecording(
     throw new NotFoundError("Enregistrement introuvable");
 }
 
-// GET /api/actions/[id]/recording — stream the recording (Allo or call-vault) with a server-side
+// GET /api/actions/[id]/recording — stream the recording (Allo, Twilio, Onoff, call-vault) with a server-side
 // key the browser can't send itself.
 export const GET = withErrorHandler(
     async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -156,16 +177,22 @@ export const GET = withErrorHandler(
             return serveUploadedRecording(request, uploadedKey);
         }
 
-        const { url: targetUrl, authHeader } = resolveUpstream(action.callRecordingUrl);
+        const { url: targetUrl, authHeader } = await resolveOnoff(action.callRecordingUrl) ?? resolveUpstream(action.callRecordingUrl);
 
         const range = request.headers.get("Range") ?? undefined;
-        const upstream = await fetch(targetUrl.toString(), {
-            headers: {
-                Authorization: authHeader,
-                ...(range ? { Range: range } : {}),
-            },
-            cache: "no-store",
-        });
+        let upstream: Response;
+        try {
+            upstream = await fetch(targetUrl.toString(), {
+                headers: {
+                    ...(authHeader ? { Authorization: authHeader } : {}),
+                    ...(range ? { Range: range } : {}),
+                },
+                cache: "no-store",
+            });
+        } catch {
+            // Host unreachable (DNS, TLS, timeout): the provider is down, not our server.
+            return errorResponse("Impossible de lire l'enregistrement", 502);
+        }
 
         if (!upstream.ok && upstream.status !== 206) {
             return errorResponse("Impossible de lire l'enregistrement", upstream.status >= 500 ? 502 : 404);

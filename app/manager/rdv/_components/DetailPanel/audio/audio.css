@@ -54,6 +54,7 @@
 .rdv-origin[data-origin="vault"] { background: var(--accentLight); color: var(--accentInk); }
 .rdv-origin[data-origin="twilio"] { background: var(--roseLight); color: var(--roseInk); }
 .rdv-origin[data-origin="allo"] { background: var(--amberLight); color: var(--amberInk); }
+.rdv-origin[data-origin="onoff"] { background: var(--blueLight); color: var(--blueInk); }
 .rdv-origin[data-origin="upload"] { background: var(--surface3); color: var(--ink2); }
 .rdv-origin[data-on-dark="true"] {
   background: color-mix(in oklab, #ffffff 10%, transparent);

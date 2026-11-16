@@ -33,6 +33,7 @@ export const GET = withErrorHandler(async (
             role: true,
             isActive: true,
             alloPhoneNumber: true,
+            onoffPhoneNumber: true,
             twilioCallerId: true,
             createdAt: true,
             updatedAt: true,
@@ -90,6 +91,7 @@ const updateUserSchema = z.object({
     password: z.string().min(6).optional(),
     clientId: z.string().nullable().optional(),
     alloPhoneNumber: z.string().nullable().optional(),
+    onoffPhoneNumber: z.string().nullable().optional(),
     // E.164 Twilio number presented to prospects by the in-app softphone; empty = workspace default.
     twilioCallerId: z
         .string()
@@ -128,6 +130,7 @@ export const PUT = withErrorHandler(async (
             isActive: true,
             clientId: true,
             alloPhoneNumber: true,
+            onoffPhoneNumber: true,
             twilioCallerId: true,
             preferences: true,
         },
@@ -162,6 +165,9 @@ export const PUT = withErrorHandler(async (
     if (data.alloPhoneNumber !== undefined) {
         updateData.alloPhoneNumber = data.alloPhoneNumber?.trim() || null;
     }
+    if (data.onoffPhoneNumber !== undefined) {
+        updateData.onoffPhoneNumber = data.onoffPhoneNumber?.trim() || null;
+    }
     if (data.twilioCallerId !== undefined) {
         updateData.twilioCallerId = data.twilioCallerId || null;
     }
@@ -191,6 +197,7 @@ export const PUT = withErrorHandler(async (
             role: true,
             isActive: true,
             alloPhoneNumber: true,
+            onoffPhoneNumber: true,
             twilioCallerId: true,
             preferences: true,
             clientId: true,
@@ -230,6 +237,10 @@ export const PUT = withErrorHandler(async (
     if (data.alloPhoneNumber !== undefined && updatedUser.alloPhoneNumber !== existingUser.alloPhoneNumber) {
         before.alloPhoneNumber = existingUser.alloPhoneNumber;
         after.alloPhoneNumber = updatedUser.alloPhoneNumber;
+    }
+    if (data.onoffPhoneNumber !== undefined && updatedUser.onoffPhoneNumber !== existingUser.onoffPhoneNumber) {
+        before.onoffPhoneNumber = existingUser.onoffPhoneNumber;
+        after.onoffPhoneNumber = updatedUser.onoffPhoneNumber;
     }
     const passwordChanged = !!data.password;
     // The profile form re-sends preferences on every save — only count a real change.

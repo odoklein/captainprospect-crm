@@ -35,6 +35,7 @@ interface User {
     role: string;
     isActive: boolean;
     alloPhoneNumber?: string | null;
+    onoffPhoneNumber?: string | null;
     createdAt: string;
     lastSignInAt?: string | null;
     lastSignInIp?: string | null;
@@ -72,7 +73,7 @@ const VIEW_PREF = "users.view";
 
 const EMPTY_FORM = {
     name: "", email: "", password: "", role: "SDR",
-    clientId: "", alloPhoneNumber: "", sdrFeedbackPromptTime: "15:45", sdrFeedbackRequiredDaily: true,
+    clientId: "", alloPhoneNumber: "", onoffPhoneNumber: "", sdrFeedbackPromptTime: "15:45", sdrFeedbackRequiredDaily: true,
 };
 
 // ============================================
@@ -310,6 +311,10 @@ function UserFormFields({
                     <label htmlFor="nu-allo" className={label}>Numéro Allo{optional}</label>
                     <input id="nu-allo" className={cn(field(), "tabular-nums")} value={data.alloPhoneNumber} onChange={(e) => onChange({ alloPhoneNumber: e.target.value })} placeholder="+33612345678" />
                 </div>
+                <div>
+                    <label htmlFor="nu-onoff" className={label}>Numéro Onoff{optional}</label>
+                    <input id="nu-onoff" className={cn(field(), "tabular-nums")} value={data.onoffPhoneNumber} onChange={(e) => onChange({ onoffPhoneNumber: e.target.value })} placeholder="+33612345678" />
+                </div>
             </div>
             {(data.role === "SDR" || data.role === "BOOKER") && (
                 <fieldset className="rounded-xl border border-line bg-surface-2 p-4">
@@ -450,6 +455,7 @@ export default function UtilisateursPage() {
                 password: formData.password || undefined,
                 role: formData.role,
                 alloPhoneNumber: formData.alloPhoneNumber.trim() || undefined,
+                onoffPhoneNumber: formData.onoffPhoneNumber.trim() || undefined,
             };
             if (formData.role === "CLIENT" && formData.clientId) payload.clientId = formData.clientId;
 

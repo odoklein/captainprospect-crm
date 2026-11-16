@@ -1,6 +1,8 @@
 import { AlloProvider } from './allo-provider';
 import { VaultProvider } from './vault-provider';
 import { TwilioProvider } from './twilio-provider';
+import { OnoffProvider } from './onoff-provider';
+import { isOnoffConfigured } from '@/lib/onoff/service';
 import { isVaultConfigured } from '@/lib/call-vault-client';
 import { integrationKey } from "@/lib/integrations/keys";
 
@@ -9,18 +11,21 @@ import { integrationKey } from "@/lib/integrations/keys";
 //
 //   1. Call Vault — the synced archive of every telephony line (Allo, Leexi…)
 //   2. Twilio     — the in-app softphone, stored in our own database
-//   3. Allo       — WithAllo's API directly, last resort (vault lag / outage /
+//   3. Onoff      — Onoff Business lines, pushed by its webhook into our database
+//                   (/api/webhooks/onoff). Needs ONOFF_WEBHOOK_KEY.
+//   4. Allo       — WithAllo's API directly, last resort (vault lag / outage /
 //                   vault not deployed). Needs ALLO_API_KEY + the SDR's lines;
 //                   CALL_ENRICHMENT_ALLO_FALLBACK=0 turns it off.
 // ============================================
 
-export type CallSourceKey = 'vault' | 'twilio' | 'allo';
+export type CallSourceKey = 'vault' | 'twilio' | 'onoff' | 'allo';
 
-export const CALL_SOURCE_ORDER: CallSourceKey[] = ['vault', 'twilio', 'allo'];
+export const CALL_SOURCE_ORDER: CallSourceKey[] = ['vault', 'twilio', 'onoff', 'allo'];
 
 export const CALL_SOURCE_LABELS: Record<CallSourceKey, string> = {
   vault: 'Call Vault',
   twilio: 'Twilio',
+  onoff: 'Onoff',
   allo: 'Allo',
 };
 
@@ -88,6 +93,9 @@ export function callSourceAvailability(input?: { alloNumbers?: string[] }): Sour
       ? { source: 'vault', available: true }
       : { source: 'vault', available: false, reason: 'Call Vault non configuré' },
     { source: 'twilio', available: true },
+    isOnoffConfigured()
+      ? { source: 'onoff', available: true }
+      : { source: 'onoff', available: false, reason: 'Onoff non connecté' },
     !alloKey
       ? { source: 'allo', available: false, reason: 'Clé API Allo absente' }
       : !alloFallbackEnabled()
@@ -109,6 +117,7 @@ function providers(): Record<CallSourceKey, CallProvider | null> {
       providers: {
         vault: new VaultProvider(),
         twilio: new TwilioProvider(),
+        onoff: new OnoffProvider(),
         allo: alloKey ? new AlloProvider(alloKey) : null,
       },
     };
@@ -121,7 +130,7 @@ function hasContent(r: CallRecord | null): r is CallRecord {
 }
 
 /**
- * Walks Call Vault → Twilio → Allo and returns the first source's best call, trying
+ * Walks Call Vault → Twilio → Onoff → Allo and returns the first source's best call, trying
  * each source on every window (closest window first) before moving to the next
  * source. A source that fails is recorded and skipped — it never blocks the others.
  */
