@@ -98,6 +98,7 @@ import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProv
 import { SmsThread } from "@/components/messaging/SmsThread";
 import { ResultPicker } from "./ResultPicker";
 import { ProspectCallStrip } from "./ProspectCallStrip";
+import { ProspectFiche, HistoryFold, phoneFact, type FicheFact } from "./ProspectFiche";
 import { PaneTabs } from "./PaneTabs";
 import type { ScriptVars } from "@/lib/sdr-queue/script-fill";
 import { Kbd } from "@/components/ui/Kbd";
@@ -1810,12 +1811,83 @@ export function UnifiedActionDrawer({
         ) : undefined;
 
     const wrongContact = ["BAD_CONTACT", "MAUVAIS_FAUX", "MAUVAIS_INTERLOCUTEUR"].includes(newActionResult);
+    // ── Docked pane: the folded history line and the compact fiche ──
+    const startEditContact = () => {
+        if (!contact) return;
+        setEditContactData({
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            title: contact.title,
+            email: contact.email,
+            phone: contact.phone,
+            additionalPhones: Array.isArray(contact.additionalPhones) ? contact.additionalPhones : [],
+            additionalEmails: Array.isArray(contact.additionalEmails) ? contact.additionalEmails : [],
+            linkedin: contact.linkedin,
+        });
+        setIsEditingContact(true);
+    };
+    const startEditCompany = () => {
+        if (!company) return;
+        setEditCompanyData({
+            name: company.name,
+            industry: company.industry,
+            country: company.country,
+            website: company.website,
+            size: company.size,
+            phone: company.phone,
+        });
+        setIsEditingCompany(true);
+    };
+    const newestAction = actions.reduce<(typeof actions)[number] | null>(
+        (best, a) => (!best || Date.parse(a.createdAt) > Date.parse(best.createdAt) ? a : best),
+        null,
+    );
+    const lastAction = newestAction
+        ? { label: statusLabels[newestAction.result] ?? newestAction.result.replaceAll("_", " "), at: newestAction.createdAt, by: newestAction.sdr?.name ?? null }
+        : null;
+    const headcountText = company ? companyHeadcountText(company.size, company.customData) : null;
+    const revenueText = company ? companyRevenueText(company.customData) : null;
+    const ficheFacts: FicheFact[] = [];
+    if (contact?.title) ficheFacts.push({ label: "Poste", value: contact.title });
+    if (company) ficheFacts.push({ label: "Société", value: [company.name, company.industry].filter(Boolean).join(" · ") });
+    // The dialled number is in the call strip; the others are listed here once.
+    const dialled = primaryPhone?.number ?? null;
+    const morePhones = [
+        ...(company?.phone ? [{ label: "Standard", n: company.phone }] : []),
+        ...(contact?.additionalPhones ?? []).filter(Boolean).map((n) => ({ label: "Autre n°", n })),
+        ...companyAdditionalPhones.map((n) => ({ label: "Autre n°", n })),
+    ].filter((p, i, all) => p.n !== dialled && all.findIndex((q) => q.n === p.n) === i);
+    for (const p of morePhones) ficheFacts.push(phoneFact(p.label, p.n));
+    for (const em of (contact?.additionalEmails ?? []).filter((e) => e && e !== primaryEmail)) {
+        ficheFacts.push({ label: "Autre email", value: em, copy: em, href: `mailto:${em}` });
+    }
+    if (company?.country) ficheFacts.push({ label: "Pays", value: company.country });
+    if (headcountText) ficheFacts.push({ label: "Effectif", value: headcountText });
+    if (revenueText) ficheFacts.push({ label: "CA", value: revenueText });
+    const shownTexts = new Set([headcountText, revenueText].filter(Boolean).map((t) => String(t).trim()));
+    const ficheExtras = [contact?.customData, company?.customData].flatMap((data) =>
+        data && typeof data === "object"
+            ? Object.entries(data as Record<string, unknown>)
+                  .filter(([key, v]) => key !== "additionalPhones" && v != null && v !== "" && typeof v !== "object")
+                  .filter(([, v]) => !shownTexts.has(String(v).trim()))
+                  .map(([key, v]) => ({ label: formatCustomLabel(key), value: String(v) }))
+            : [],
+    );
+    const prospectOriginText = prospectOrigin
+        ? `Ajoutée par ${prospectOrigin.addedByName} le ${new Date(prospectOrigin.at).toLocaleDateString("fr-FR")} · ${
+              prospectOrigin.source === "REFERRAL" && prospectOrigin.referrer
+                  ? `Recommandée par ${prospectOrigin.referrer.label}`
+                  : PROSPECT_SOURCE_LABELS[prospectOrigin.source]
+          }${prospectOrigin.note ? ` — ${prospectOrigin.note}` : ""}`
+        : null;
+
     const callActions = (
         <>
             {/* ── Quick Action Bar ── (docked: one compact call strip) */}
             {docked ? (
                 inPane("appel") && (
                     <ProspectCallStrip
+                        embedded={!isEditingContact && !isEditingCompany}
                         phone={primaryPhone?.number ?? null}
                         phoneKind={primaryPhone?.label === "Société" ? "Standard" : "Direct"}
                         live={callHere === "live"}
@@ -2077,19 +2149,7 @@ export function UnifiedActionDrawer({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setEditContactData({
-                                                firstName: contact.firstName,
-                                                lastName: contact.lastName,
-                                                title: contact.title,
-                                                email: contact.email,
-                                                phone: contact.phone,
-                                                additionalPhones: Array.isArray(contact.additionalPhones) ? contact.additionalPhones : [],
-                                                additionalEmails: Array.isArray(contact.additionalEmails) ? contact.additionalEmails : [],
-                                                linkedin: contact.linkedin,
-                                            });
-                                            setIsEditingContact(true);
-                                        }}
+                                        onClick={startEditContact}
                                         aria-label="Modifier le contact"
                                         className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300"
                                     >
@@ -2613,17 +2673,7 @@ export function UnifiedActionDrawer({
                             ) : (
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setEditCompanyData({
-                                            name: company.name,
-                                            industry: company.industry,
-                                            country: company.country,
-                                            website: company.website,
-                                            size: company.size,
-                                            phone: company.phone,
-                                        });
-                                        setIsEditingCompany(true);
-                                    }}
+                                    onClick={startEditCompany}
                                     aria-label="Modifier la société"
                                     className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-accent-600 hover:bg-accent-50 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
                                 >
@@ -3083,7 +3133,8 @@ export function UnifiedActionDrawer({
                         </div>
                     )}
 
-                    <div className={cn(docked && "order-4 border-t border-line-subtle pt-6", !inPane("appel") && "hidden")}>
+                    <div className={cn(docked && "order-1", !inPane("appel") && "hidden")}>
+                        <HistoryFold folded={docked} count={actions.length} last={lastAction} loading={actionsLoading}>
                         <ActivityTimeline companyId={companyId ?? undefined} events={actionsToEvents(actions,statusLabels)} loading={actionsLoading} />
                         <details className="sdr-history-management"><summary>Gérer les activités · modifier ou supprimer</summary>
                     {/* ── Unified history section (moved to top) ── */}
@@ -3450,9 +3501,10 @@ export function UnifiedActionDrawer({
                     </section>
 
                         </details>
+                        </HistoryFold>
                     </div>
 
-                    {(docked || !summary) && callActions}
+                    {!docked && !summary && callActions}
                     {!docked && !summary && ficheSections}
 
                     {/* ── Record Action Section ── */}
@@ -3461,7 +3513,7 @@ export function UnifiedActionDrawer({
                         className={cn(
                             "rounded-2xl border border-primary-100 bg-white shadow-sm overflow-hidden ring-1 ring-primary-50",
                             // Result first; overflow-clip (not hidden) keeps the save bar sticky.
-                            docked && "order-2 rounded-none border-0 bg-transparent shadow-none ring-0 !overflow-visible",
+                            docked && "order-3 rounded-none border-0 bg-transparent shadow-none ring-0 !overflow-visible",
                             !inPane("appel") && "hidden",
                         )}
                         style={{ animation: "uadSectionIn 250ms 150ms cubic-bezier(0.16, 1, 0.3, 1) both" }}
@@ -4049,13 +4101,37 @@ export function UnifiedActionDrawer({
                     </section>
 
                     {docked && inPane("appel") && (
-                        <div className="order-3 space-y-3 border-t border-line-subtle pt-4">
-                            {ficheSections}
-                            {company && !wrongContact && <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} onSelect={onContactSelect} />}
-                            {!activeExclusion && company && (
-                                <Button type="button" variant="secondary" size="sm" onClick={() => setExcludeDialogOpen(true)}>
-                                    <Ban className="size-3.5" aria-hidden="true" /> Blacklister
-                                </Button>
+                        <div className="order-2 space-y-3">
+                            {isEditingContact || isEditingCompany ? (
+                                <>
+                                    {callActions}
+                                    {ficheSections}
+                                </>
+                            ) : (
+                                <ProspectFiche
+                                    callStrip={callActions}
+                                    facts={ficheFacts}
+                                    extras={ficheExtras}
+                                    note={prospectOriginText}
+                                    enrichment={
+                                        showCompanyAiEnrichment && company ? (
+                                            <CompanyAiEnrichment companyId={company.id} company={company} onApplied={handleGooglePhoneApplied} />
+                                        ) : null
+                                    }
+                                    hasContact={!!contact}
+                                    accountCount={company?.contacts?.length ?? 0}
+                                    account={
+                                        company && !wrongContact ? (
+                                            <AccountMap company={company} contacts={company.contacts ?? []} selectedId={contactId} actions={actions} labels={statusLabels} onSelect={onContactSelect} />
+                                        ) : null
+                                    }
+                                    onBadContact={contact ? () => handleBadContact() : undefined}
+                                    onEditContact={contact ? startEditContact : undefined}
+                                    onEditCompany={company ? startEditCompany : undefined}
+                                    onBlacklist={!activeExclusion && company ? () => setExcludeDialogOpen(true) : undefined}
+                                    onAddContact={!contact && company ? () => setShowAddContact(true) : undefined}
+                                    onNewCompany={!contact && canAddProspect ? () => setShowNewProspect(true) : undefined}
+                                />
                             )}
                         </div>
                     )}

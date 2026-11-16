@@ -30,6 +30,18 @@ async function pendingMeetings() {
     }
 }
 
+/** Today's planning: SDRs only see the missions they are scheduled on (ScheduleBlock). */
+async function todayPlanning() {
+    const parisDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const date = new Date(`${parisDay}T00:00:00.000Z`);
+    const assignments = await prisma.sDRAssignment.findMany({ include: { mission: { select: { status: true } } } });
+    for (const a of assignments) {
+        if (a.mission.status !== "ACTIVE") continue;
+        await prisma.scheduleBlock.create({ data: { sdrId: a.sdrId, missionId: a.missionId, date, startTime: "09:00", endTime: "18:00", createdById: ids.manager } });
+    }
+}
+
 export async function seedExtras() {
     await pendingMeetings();
+    await todayPlanning();
 }

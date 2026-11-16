@@ -5,11 +5,13 @@
 //
 // The 6 results SDRs log most (no answer, callback, gatekeeper, interested,
 // refusal, meeting) come first in a compact 2-column list with their key
-// (1–6) and colour; every other configured result stays visible.
+// (1–6) and colour. The other configured results fold under « Autres
+// résultats » (remembered per browser); a result picked there stays shown.
 // Keys work while focus is not in a text field.
 // ============================================
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ResultOption {
@@ -27,6 +29,7 @@ const PRIORITY: string[][] = [
     ["REFUS", "NOT_INTERESTED", "REFUS_CATEGORIQUE", "REFUS_ARGU"],
 ];
 const MEETING = "MEETING_BOOKED";
+const OTHERS_KEY = "cp.results.others";
 
 /** « Rappel (interlocuteur indisponible) » → « Rappel »: the detail stays in the tooltip. */
 export function shortLabel(label: string): string {
@@ -76,6 +79,23 @@ export function ResultPicker({
     keys?: boolean;
 }) {
     const { main, others } = useMemo(() => splitResults(options), [options]);
+    // Rendered once campaigns have loaded (client-side), so reading storage here is safe.
+    const [open, setOpen] = useState(() => {
+        try {
+            return typeof window !== "undefined" && localStorage.getItem(OTHERS_KEY) === "1";
+        } catch {
+            return false;
+        }
+    });
+    const toggle = () => {
+        setOpen((v) => {
+            try {
+                localStorage.setItem(OTHERS_KEY, v ? "0" : "1");
+            } catch {}
+            return !v;
+        });
+    };
+    const pickedOther = others.find((o) => o.value === value);
 
     useEffect(() => {
         if (!keys) return;
@@ -93,7 +113,7 @@ export function ResultPicker({
         return () => window.removeEventListener("keydown", onKey);
     }, [keys, main, onChange]);
 
-    const renderRow = (o: ResultOption, k?: number) => {
+    const renderRow = (o: ResultOption, k?: number, dense = false) => {
         const selected = value === o.value;
         return (
             <button
@@ -104,7 +124,8 @@ export function ResultPicker({
                 title={o.title ? `${o.label}\n${o.title}` : o.label}
                 onClick={() => onChange(o.value)}
                 className={cn(
-                    "group flex min-h-10 min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    "group flex min-w-0 items-center gap-2 rounded-lg px-2.5 text-left leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    dense ? "min-h-8 py-1 text-[12.5px]" : "min-h-10 py-1.5 text-[13px]",
                     selected
                         ? "cp-flash bg-primary-soft font-semibold text-primary-soft-ink ring-1 ring-inset ring-primary/35"
                         : "bg-surface text-ink-2 ring-1 ring-inset ring-line hover:bg-surface-2 hover:text-ink hover:ring-line-strong",
@@ -134,8 +155,27 @@ export function ResultPicker({
         <div role="radiogroup" aria-label="Résultat de l'appel" aria-required="true">
             <div className="grid grid-cols-2 gap-1.5">
                 {main.map((o, i) => renderRow(o, keys ? i + 1 : undefined))}
-                {others.map((o) => renderRow(o))}
+                {!open && pickedOther && renderRow(pickedOther)}
             </div>
+            {others.length > 0 && (
+                <>
+                    <button
+                        type="button"
+                        onClick={toggle}
+                        aria-expanded={open}
+                        aria-controls="result-picker-others"
+                        className="mt-2 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[12.5px] font-medium text-ink-3 transition-colors hover:bg-surface-3 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                        Autres résultats <span className="tabular-nums text-ink-4">· {others.length}</span>
+                        <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
+                    </button>
+                    {open && (
+                        <div id="result-picker-others" className="mt-1 grid grid-cols-2 gap-1">
+                            {others.map((o) => renderRow(o, undefined, true))}
+                        </div>
+                    )}
+                </>
+            )}
         </div>
     );
 }

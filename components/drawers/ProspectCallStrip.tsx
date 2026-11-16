@@ -22,6 +22,7 @@ export function ProspectCallStrip({
     email,
     linkedin,
     website,
+    embedded = false,
 }: {
     phone: string | null;
     phoneKind: "Direct" | "Standard";
@@ -31,6 +32,8 @@ export function ProspectCallStrip({
     email: string | null;
     linkedin: string | null;
     website: string | null;
+    /** Inside a card that already draws the border (the docked fiche). */
+    embedded?: boolean;
 }) {
     const [copied, setCopied] = useState(false);
     const url = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
@@ -43,7 +46,8 @@ export function ProspectCallStrip({
         <section
             aria-label="Joindre le prospect"
             className={cn(
-                "rounded-xl border bg-surface transition-colors duration-300",
+                "bg-surface transition-colors duration-300",
+                !embedded && "rounded-xl border",
                 live ? "border-success-line bg-success-soft/40" : "border-line",
             )}
         >
