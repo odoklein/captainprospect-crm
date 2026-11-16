@@ -24,5 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...guides.map((g) => page(g.path, 0.7)),
     page("/a-propos", 0.5),
     page("/demo", 0.6),
+    page("/mentions-legales", 0.2),
+    page("/confidentialite", 0.2),
   ];
 }

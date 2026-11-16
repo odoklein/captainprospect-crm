@@ -26,6 +26,8 @@ UI). Explique ce que tu fais en français simple, sans jargon technique, et mont
 | Logos clients et outils cités | `content/brands.ts` (+ fichiers dans `public/logos/`) |
 | Photos et leur texte alternatif | `content/images.ts` (+ fichiers dans `public/photos/`) |
 | Page et formulaire de démo | `content/demo.ts` |
+| Témoignages et liste des clients de l'accueil | `content/home.ts` (`clients`) + `content/brands.ts` |
+| Mentions légales, confidentialité et cookies | `content/pages/legal.ts` |
 | Mise en page d'une section | `components/sections/<Section>.tsx` |
 | Couleurs, typographie | `app/globals.css` (bloc `@theme`) |
 

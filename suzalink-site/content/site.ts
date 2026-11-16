@@ -1,6 +1,6 @@
 /**
  * Réglages globaux du site : nom, URL, SEO, barre d'annonce, navigation, pied de page.
- * Les liens marqués TODO pointent vers des pages qui n'existent pas encore.
+ * Les liens qui valent "#" ne sont pas affichés tant qu'ils n'ont pas de vraie adresse.
  */
 
 export type NavLink = { label: string; href: string };
@@ -94,12 +94,12 @@ export const site = {
       },
       {
         title: "Légal",
-        // TODO : créer ces pages avant la mise en ligne. Tant qu'un lien vaut "#", il n'est pas affiché.
+        // Textes dans content/pages/legal.ts. TODO : CGV à rédiger ; tant qu'un lien vaut "#", il n'est pas affiché.
         links: [
-          { label: "Mentions légales", href: "#" },
-          { label: "Confidentialité", href: "#" },
+          { label: "Mentions légales", href: "/mentions-legales" },
+          { label: "Confidentialité", href: "/confidentialite" },
+          { label: "Cookies", href: "/confidentialite#cookies" },
           { label: "CGV", href: "#" },
-          { label: "Cookies", href: "#" },
         ],
       },
     ],

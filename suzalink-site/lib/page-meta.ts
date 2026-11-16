@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { LandingPage } from "@/content/pages/types";
 
 /** Title, description, canonical and Open Graph for a content/pages entry. */
-export function pageMetadata(page: LandingPage): Metadata {
+export function pageMetadata(page: Pick<LandingPage, "meta" | "path">): Metadata {
   return {
     title: page.meta.title,
     description: page.meta.description,
