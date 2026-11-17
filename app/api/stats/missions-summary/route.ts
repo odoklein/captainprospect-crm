@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { DateTime } from 'luxon';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { APP_TIMEZONE } from '@/lib/stats/metrics';
 import {
@@ -76,52 +77,51 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const dateFrom = rangeFrom.toJSDate();
     const rangeToDate = rangeTo.toJSDate();
 
-    const [missions, actionsInPeriod] = await Promise.all([
-        prisma.mission.findMany({
-            where: { isActive: true },
-            take: limit,
-            orderBy: { updatedAt: 'desc' },
-            select: {
-                id: true,
-                name: true,
-                isActive: true,
-                client: { select: { id: true, name: true } },
-                _count: { select: { sdrAssignments: true } },
-            },
-        }),
-        prisma.action.findMany({
-            where: {
-                channel: 'CALL',
-                createdAt: { gte: dateFrom, lt: rangeToDate },
-            },
-            select: {
-                result: true,
-                confirmationStatus: true,
-                createdAt: true,
-                campaign: { select: { missionId: true } },
-            },
-        }),
-    ]);
+    const missions = await prisma.mission.findMany({
+        where: { isActive: true },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+            id: true,
+            name: true,
+            isActive: true,
+            client: { select: { id: true, name: true } },
+            _count: { select: { sdrAssignments: true } },
+        },
+    });
 
-    const missionIds = new Set(missions.map((m) => m.id));
+    // Aggregated in the database, for these missions only. This used to load every
+    // call of the period (all missions, with a campaign join) and tally in JS, which
+    // took seconds on long periods.
     const byMission: Record<
         string,
         { actionsCount: number; meetingsCount: number; lastActionAt: Date | null }
     > = {};
-    for (const m of missions) {
-        byMission[m.id] = { actionsCount: 0, meetingsCount: 0, lastActionAt: null };
-    }
-    for (const a of actionsInPeriod) {
-        const missionId = a.campaign?.missionId;
-        if (!missionId || !missionIds.has(missionId)) continue;
-        const row = byMission[missionId];
-        if (!row) continue;
-        row.actionsCount += 1;
-        // Cancelled RDV (either a MEETING_CANCELLED row or a CANCELLED status) are
-        // not "meetings this period"; they are counted on the RDV screen instead.
-        if (a.result === 'MEETING_BOOKED' && a.confirmationStatus !== 'CANCELLED') row.meetingsCount += 1;
-        if (!row.lastActionAt || a.createdAt > row.lastActionAt) {
-            row.lastActionAt = a.createdAt;
+    if (missions.length > 0) {
+        const rows = await prisma.$queryRaw<
+            { missionId: string; actions: number; meetings: number; lastActionAt: Date | null }[]
+        >`
+            SELECT c."missionId" AS "missionId",
+                   COUNT(*)::int AS actions,
+                   COUNT(*) FILTER (
+                       WHERE a."result" = 'MEETING_BOOKED' AND a."confirmationStatus" <> 'CANCELLED'
+                   )::int AS meetings,
+                   MAX(a."createdAt") AS "lastActionAt"
+            FROM "Action" a
+            JOIN "Campaign" c ON c.id = a."campaignId"
+            WHERE a."channel" = 'CALL'
+              AND a."createdAt" >= ${dateFrom} AND a."createdAt" < ${rangeToDate}
+              AND c."missionId" IN (${Prisma.join(missions.map((m) => m.id))})
+            GROUP BY c."missionId"
+        `;
+        for (const r of rows) {
+            // Cancelled RDV (either a MEETING_CANCELLED row or a CANCELLED status) are
+            // not "meetings this period"; they are counted on the RDV screen instead.
+            byMission[r.missionId] = {
+                actionsCount: Number(r.actions),
+                meetingsCount: Number(r.meetings),
+                lastActionAt: r.lastActionAt ? new Date(r.lastActionAt) : null,
+            };
         }
     }
 

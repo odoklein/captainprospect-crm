@@ -59,6 +59,10 @@ export interface ManagerDashboardViewProps {
     firstName: string;
     stats: ManagerDashboardStats | null;
     missions: MissionSummaryItem[];
+    /** Missions summary still on its first load (the card shows a placeholder, not "empty"). */
+    missionsLoading?: boolean;
+    /** Allo call tags of the leaderboard still loading (they arrive after the KPIs). */
+    callMetricsLoading?: boolean;
     period: ManagerHomePeriod | null;
     isLoading: boolean;
     isFetching: boolean;
@@ -115,7 +119,8 @@ function pct1(n: number): string {
 
 export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     const {
-        firstName, stats, missions, period, isLoading, isFetching, updatedAt, onRefresh,
+        firstName, stats, missions, missionsLoading = false, callMetricsLoading = false,
+        period, isLoading, isFetching, updatedAt, onRefresh,
         periodLabel, rangeDays, dateRange, onDateRangeChange, missionFilter, onMissionFilterChange,
     } = props;
 
@@ -268,11 +273,11 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
                         <ResultsCard slices={outcomes.slices} total={outcomes.total} breakdown={stats?.resultBreakdown ?? {}} />
                         <FollowUpCard callbacks={callbackCount} interested={interestedCount} />
                     </div>
-                    <MissionsCard missions={missionsNearGoal} />
+                    <MissionsCard missions={missionsNearGoal} loading={missionsLoading} />
                 </div>
 
                 <div className="xl:col-span-4 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-1 gap-6 min-w-0">
-                    <LeaderboardCard stats={stats} delta={deltas.meetings} />
+                    <LeaderboardCard stats={stats} delta={deltas.meetings} callsLoading={callMetricsLoading} />
                     <RecentRdvCard period={period} />
                 </div>
             </div>
@@ -487,7 +492,7 @@ function FollowUpCard({ callbacks, interested }: { callbacks: number; interested
 
 // ─── Missions qui produisent des RDV ────────────────────────────────────────
 
-function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
+function MissionsCard({ missions, loading }: { missions: MissionSummaryItem[]; loading: boolean }) {
     return (
         <section className={cn(CARD, "p-6 space-y-3 min-w-0")}>
             <SectionHeader
@@ -497,7 +502,11 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
                 subtitle="Missions actives classées par RDV sur la période"
                 right={<TextLink href="/manager/clients">Voir toutes</TextLink>}
             />
-            {missions.length === 0 ? (
+            {loading && missions.length === 0 ? (
+                <div className="space-y-3 py-1" aria-busy="true" aria-label="Chargement des missions">
+                    {[0, 1, 2].map((i) => <Shimmer key={i} className="h-10" />)}
+                </div>
+            ) : missions.length === 0 ? (
                 <EmptyBlock compact icon={Target} tone="slate" title="Aucune mission active avec des RDV" hint="Les missions apparaissent ici dès leur premier RDV sur la période." />
             ) : (
                 <ul className="divide-y divide-slate-100">
@@ -544,7 +553,7 @@ function MissionsCard({ missions }: { missions: MissionSummaryItem[] }) {
 // Top-3 rank colours (gold, silver, bronze) — flat text, no medal emoji.
 const RANK_TEXT = ["text-amber-600", "text-slate-500", "text-orange-700"];
 
-function LeaderboardCard({ stats, delta }: { stats: ManagerDashboardStats | null; delta: number | null }) {
+function LeaderboardCard({ stats, delta, callsLoading }: { stats: ManagerDashboardStats | null; delta: number | null; callsLoading: boolean }) {
     const rows = stats?.rdvLeaderboard ?? [];
     const max = rows[0]?.rdv || 1;
     const status: { text: string; tone: AccueilTone } = delta === null
@@ -596,8 +605,9 @@ function LeaderboardCard({ stats, delta }: { stats: ManagerDashboardStats | null
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-1 mt-1">
-                                        <MiniTag tone="indigo">Appels {formatInt(calls?.calls ?? 0)}</MiniTag>
-                                        <MiniTag tone="emerald">Connectés {formatInt(calls?.connectedCalls ?? 0)}</MiniTag>
+                                        {/* Allo totals arrive after the KPIs: "…" while they load, never a fake 0. */}
+                                        <MiniTag tone="indigo">Appels {calls ? formatInt(calls.calls) : callsLoading ? "…" : "—"}</MiniTag>
+                                        <MiniTag tone="emerald">Connectés {calls ? formatInt(calls.connectedCalls) : callsLoading ? "…" : "—"}</MiniTag>
                                         <MiniTag tone="slate">Actions CRM {formatInt(person.actions)}</MiniTag>
                                     </div>
                                     <ProgressBar

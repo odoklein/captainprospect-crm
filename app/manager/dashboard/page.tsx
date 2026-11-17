@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
@@ -52,22 +52,36 @@ function daysBetween(start: string, end: string): number {
 }
 
 /* ─── Data ─── */
-interface DashboardData {
-    stats: ManagerDashboardStats | null;
-    missions: MissionSummaryItem[];
+// Each card's data is its own query: the KPIs render as soon as /api/stats answers,
+// without waiting for the missions table, the period chart or the Allo call tags.
+
+type CallMetrics = Record<string, { calls: number; connectedCalls: number }>;
+
+async function getJson<T>(url: string): Promise<T | null> {
+    const res = await fetch(url);
+    const json = await res.json();
+    return json.success ? (json.data as T) : null;
 }
 
-async function fetchDashboardData(start: string, end: string, missionId: string): Promise<DashboardData> {
-    const statsUrl = `/api/stats?startDate=${start}&endDate=${end}${missionId ? `&missionId=${missionId}` : ""}`;
-    const [statsRes, missionsRes] = await Promise.all([
-        fetch(statsUrl),
-        fetch(`/api/stats/missions-summary?startDate=${start}&endDate=${end}&limit=10`),
-    ]);
-    const [statsJson, missionsJson] = await Promise.all([statsRes.json(), missionsRes.json()]);
-    return {
-        stats: statsJson.success ? statsJson.data : null,
-        missions: missionsJson.success ? missionsJson.data?.missions ?? [] : [],
-    };
+function fetchStats(start: string, end: string, missionId: string) {
+    // callMetrics=0: the Allo crawl is loaded separately (fetchCallMetrics).
+    return getJson<ManagerDashboardStats>(
+        `/api/stats?startDate=${start}&endDate=${end}&callMetrics=0${missionId ? `&missionId=${missionId}` : ""}`,
+    );
+}
+
+async function fetchMissions(start: string, end: string): Promise<MissionSummaryItem[]> {
+    const data = await getJson<{ missions: MissionSummaryItem[] }>(
+        `/api/stats/missions-summary?startDate=${start}&endDate=${end}&limit=10`,
+    );
+    return data?.missions ?? [];
+}
+
+async function fetchCallMetrics(start: string, end: string, sdrIds: string[]): Promise<CallMetrics> {
+    const data = await getJson<{ metrics: CallMetrics }>(
+        `/api/stats/sdr-call-metrics?startDate=${start}&endDate=${end}&sdrIds=${sdrIds.map(encodeURIComponent).join(",")}`,
+    );
+    return data?.metrics ?? {};
 }
 
 /** Real series, previous-period totals and recent RDVs (see lib/manager-home). */
@@ -99,11 +113,18 @@ export default function ManagerDashboard() {
     const start = dateRange.startDate && dateRange.endDate ? dateRange.startDate : toISO(fallback.start);
     const end = dateRange.startDate && dateRange.endDate ? dateRange.endDate : toISO(fallback.end);
 
-    const main = useQuery({
-        queryKey: ["manager", "dashboard", start, end, missionFilter],
-        queryFn: () => fetchDashboardData(start, end, missionFilter),
+    const statsQuery = useQuery({
+        queryKey: ["manager", "dashboard", "stats", start, end, missionFilter],
+        queryFn: () => fetchStats(start, end, missionFilter),
         refetchInterval: 60_000,
         // Hold the previous render while a new period loads — no skeleton flash.
+        placeholderData: keepPreviousData,
+    });
+    // Not filtered by mission: it also feeds the mission picker.
+    const missionsQuery = useQuery({
+        queryKey: ["manager", "dashboard", "missions", start, end],
+        queryFn: () => fetchMissions(start, end),
+        refetchInterval: 60_000,
         placeholderData: keepPreviousData,
     });
     const periodQuery = useQuery({
@@ -113,6 +134,34 @@ export default function ManagerDashboard() {
         placeholderData: keepPreviousData,
     });
 
+    // Allo tags for the people on the RDV leaderboard, once we know who they are.
+    // Server-cached 5 min, so polling faster than that would only re-read the cache.
+    const leaderIds = useMemo(
+        () => (statsQuery.data?.rdvLeaderboard ?? []).map((r) => r.id).sort(),
+        [statsQuery.data?.rdvLeaderboard],
+    );
+    const callsQuery = useQuery({
+        queryKey: ["manager", "dashboard", "calls", start, end, leaderIds.join(",")],
+        queryFn: () => fetchCallMetrics(start, end, leaderIds),
+        enabled: leaderIds.length > 0,
+        staleTime: 5 * 60_000,
+        refetchInterval: 5 * 60_000,
+        placeholderData: keepPreviousData,
+    });
+
+    const stats = useMemo<ManagerDashboardStats | null>(() => {
+        const s = statsQuery.data;
+        if (!s) return null;
+        const metrics = callsQuery.data;
+        // Absent entries render as "loading" in the leaderboard, not as 0.
+        const leaderboard = metrics
+            ? s.rdvLeaderboard
+                .filter((r) => metrics[r.id])
+                .map((r) => ({ id: r.id, name: r.name, actions: r.actions, ...metrics[r.id] }))
+            : [];
+        return { ...s, leaderboard };
+    }, [statsQuery.data, callsQuery.data]);
+
     const periodLabel = dateRange.preset
         ? PRESET_LABELS[dateRange.preset]
         : `Du ${new Date(`${start}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} au ${new Date(`${end}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
@@ -121,15 +170,19 @@ export default function ManagerDashboard() {
         <div className="space-y-6">
         <ManagerDashboardView
             firstName={session?.user?.name?.split(" ")[0] ?? "Manager"}
-            stats={main.data?.stats ?? null}
-            missions={main.data?.missions ?? []}
+            stats={stats}
+            missions={missionsQuery.data ?? []}
+            missionsLoading={missionsQuery.isLoading}
+            callMetricsLoading={leaderIds.length > 0 && !callsQuery.data}
             period={periodQuery.data ?? null}
-            isLoading={main.isLoading}
-            isFetching={main.isFetching || periodQuery.isFetching}
-            updatedAt={main.dataUpdatedAt}
+            isLoading={statsQuery.isLoading}
+            isFetching={statsQuery.isFetching || missionsQuery.isFetching || periodQuery.isFetching}
+            updatedAt={statsQuery.dataUpdatedAt}
             onRefresh={() => {
-                void main.refetch();
+                void statsQuery.refetch();
+                void missionsQuery.refetch();
                 void periodQuery.refetch();
+                if (leaderIds.length > 0) void callsQuery.refetch();
             }}
             periodLabel={periodLabel}
             rangeDays={daysBetween(start, end)}
