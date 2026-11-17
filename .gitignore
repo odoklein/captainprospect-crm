@@ -82,3 +82,7 @@ build/
 .env
 .env.local
 .env.*.local
+
+# graphify intermediates (regenerable)
+graphify-out/cache/
+graphify-out/converted/
