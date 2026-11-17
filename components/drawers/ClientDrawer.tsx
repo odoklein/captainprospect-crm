@@ -30,6 +30,7 @@ import { ClientCalCredentials } from "./_sections/ClientCalCredentials";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
 import { OnboardingChecklist, onboardingChecklistKey } from "@/components/onboarding/OnboardingChecklist";
 import { AccessLinksCard } from "@/components/onboarding/AccessLinksCard";
+import { ClientOnboardingLinkCard } from "@/components/onboarding/ClientOnboardingLinkCard";
 import { WeeklyBilanModal } from "@/components/reporting/WeeklyBilanModal";
 import type { ChecklistView } from "@/lib/onboarding/checklist-service";
 import { NewMissionDialog } from "@/components/missions/NewMissionDialog";
@@ -1858,6 +1859,7 @@ export function ClientDrawer({
                             {activeTab === "sessions" && SessionsTab}
                             {activeTab === "onboarding" && client && (
                                 <div className="space-y-4">
+                                    <ClientOnboardingLinkCard clientId={client.id} />
                                     <OnboardingChecklist clientId={client.id} />
                                     <AccessLinksCard clientId={client.id} />
                                 </div>

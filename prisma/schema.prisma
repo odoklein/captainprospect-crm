@@ -748,6 +748,17 @@ model ClientOnboarding {
   // Created by BD
   createdById String
 
+  // Client-facing onboarding link (/onboarding/[token]): the client fills the
+  // questionnaire without an account. Answers live in
+  // onboardingData.clientQuestionnaire (lib/client-onboarding).
+  shareToken        String?   @unique
+  shareCreatedAt    DateTime?
+  shareCreatedById  String?
+  shareExpiresAt    DateTime?
+  clientOpenedAt    DateTime?
+  clientLastSeenAt  DateTime?
+  clientSubmittedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -103,6 +103,8 @@ export const config = {
         // and /api/brand/assets/* + /api/public-config (public brand files and config, on the login page too)
         // and /api/instance/* (control-plane provisioning: HMAC-signed, verified by lib/instance/auth)
         // and /api/license-state (suspension probe the middleware itself calls)
-        "/api/((?!auth/|webhooks/|v1/|mcp|brand/assets/|public-config|license-state|instance/).*)",
+        // and /api/public/* (client-facing links: the token in the URL is the credential,
+        //     each route checks it — e.g. the onboarding portal, lib/client-onboarding)
+        "/api/((?!auth/|webhooks/|v1/|mcp|brand/assets/|public-config|license-state|instance/|public/).*)",
     ],
 };
