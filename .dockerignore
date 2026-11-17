@@ -20,6 +20,7 @@ tsconfig.tsbuildinfo
 *.log
 # Not part of the app: working files, notes and exports (the build context was ~100 MB of them).
 work
+graphify-out
 extracted_leads
 sqsq
 .github
