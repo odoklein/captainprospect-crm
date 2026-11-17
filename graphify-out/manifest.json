@@ -4358,10 +4358,10 @@
     "semantic_hash": "81de0d82d881aaa7fef82db2f37d82e5"
   },
   "app/manager/clients/page.tsx": {
-    "mtime": 1794907794.269729,
-    "seen": 1794907864.7314544,
-    "ast_hash": "8895ed9073d7489a318442e86d19810a",
-    "semantic_hash": "8895ed9073d7489a318442e86d19810a"
+    "mtime": 1794908586.2780902,
+    "seen": 1794908700.9165335,
+    "ast_hash": "1f1c2efc87b80445267b0fd4b1030ac8",
+    "semantic_hash": ""
   },
   "app/manager/comms/page.tsx": {
     "mtime": 1794907794.2700431,
@@ -6290,10 +6290,10 @@
     "semantic_hash": "1828245e5885f952b8740459dce70c76"
   },
   "components/drawers/ClientDrawer.tsx": {
-    "mtime": 1794907794.3048968,
-    "seen": 1794907864.738705,
-    "ast_hash": "4ab1c8b533b691818e9853afff741219",
-    "semantic_hash": "4ab1c8b533b691818e9853afff741219"
+    "mtime": 1794908392.1846824,
+    "seen": 1794908700.9169452,
+    "ast_hash": "b67093860c1dc37044b4f45fcfef983f",
+    "semantic_hash": ""
   },
   "components/drawers/CompanyDrawer.tsx": {
     "mtime": 1794907794.3074932,
@@ -6848,10 +6848,10 @@
     "semantic_hash": "de9cab0e109f1e4f03cf0b5ef6c1f215"
   },
   "components/layout/AppLayoutShell.tsx": {
-    "mtime": 1794907794.3179688,
-    "seen": 1794907864.740781,
-    "ast_hash": "3b34c385a36f68e3f549f4499ff003e5",
-    "semantic_hash": "3b34c385a36f68e3f549f4499ff003e5"
+    "mtime": 1794908361.4731312,
+    "seen": 1794908700.9170575,
+    "ast_hash": "2e03078853310798ee2134b10ed678d4",
+    "semantic_hash": ""
   },
   "components/layout/FloatingDock.tsx": {
     "mtime": 1794907794.3183417,
@@ -6878,10 +6878,10 @@
     "semantic_hash": "4bd430dd27dffe05ce74a8dbf56e01b0"
   },
   "components/layout/SidebarProvider.tsx": {
-    "mtime": 1794907794.3183417,
-    "seen": 1794907864.7408736,
-    "ast_hash": "ea484f5075f27f5cc9760cb5d8a49b44",
-    "semantic_hash": "ea484f5075f27f5cc9760cb5d8a49b44"
+    "mtime": 1794908361.478077,
+    "seen": 1794908700.9170637,
+    "ast_hash": "15d627944eb1e909810741e1eb477bcd",
+    "semantic_hash": ""
   },
   "components/layout/SidebarUserMenu.tsx": {
     "mtime": 1794907794.3183417,
@@ -7118,10 +7118,10 @@
     "semantic_hash": "b33d97fce681a0c8f7fe94b8df42d772"
   },
   "components/missions/MissionWorkspace.tsx": {
-    "mtime": 1794907794.3220432,
-    "seen": 1794907864.7417085,
-    "ast_hash": "49b8d0a20bdf909f261e2263d563b9d9",
-    "semantic_hash": "49b8d0a20bdf909f261e2263d563b9d9"
+    "mtime": 1794908367.318077,
+    "seen": 1794908700.9171135,
+    "ast_hash": "ffeb6423a5e61944e1b4fa3900247f1f",
+    "semantic_hash": ""
   },
   "components/missions/NewMissionDialog.tsx": {
     "mtime": 1794907794.3220432,
@@ -7130,10 +7130,10 @@
     "semantic_hash": "b7cf15fe85604064705cefd4713b4591"
   },
   "components/missions/ReadinessPanel.tsx": {
-    "mtime": 1794907794.3220432,
-    "seen": 1794907864.7417462,
-    "ast_hash": "5fc14ae3085e94d54086783769345a12",
-    "semantic_hash": "5fc14ae3085e94d54086783769345a12"
+    "mtime": 1794908582.6780899,
+    "seen": 1794908700.9171162,
+    "ast_hash": "fd72b21463be9558094fd20d75b0a55c",
+    "semantic_hash": ""
   },
   "components/missions/StrategyByListTab.tsx": {
     "mtime": 1794907794.3220432,
@@ -15664,5 +15664,2369 @@
     "seen": 1794907864.770795,
     "ast_hash": "6e737f803e6985f733417d97d619ef6c",
     "semantic_hash": "6e737f803e6985f733417d97d619ef6c"
+  },
+  ".cursor/plans/enrichissement_appel_fire-and-forget_6961eadb.plan.md": {
+    "mtime": 1794907794.2053497,
+    "seen": 1794908700.9194403,
+    "ast_hash": "77462cac48afa480911f9fd22764e5be",
+    "semantic_hash": ""
+  },
+  ".cursor/plans/session_cr_task_enhancements_40fce404.plan.md": {
+    "mtime": 1794907794.2060344,
+    "seen": 1794908700.9194427,
+    "ast_hash": "21108ea856454666b45a9ed8d5bc12ad",
+    "semantic_hash": ""
+  },
+  ".gemini/ACTIVITY_IMPROVEMENTS_APPLIED.md": {
+    "mtime": 1794907794.2140431,
+    "seen": 1794908700.9194443,
+    "ast_hash": "4ee950c9e0c8cd850a2ad28230f4e2ff",
+    "semantic_hash": ""
+  },
+  ".gemini/SDR_DRAWER_IMPROVEMENTS.md": {
+    "mtime": 1794907794.2167754,
+    "seen": 1794908700.9194458,
+    "ast_hash": "d2cea51e3410bb4806261d9daa5e13ba",
+    "semantic_hash": ""
+  },
+  ".gemini/TEAM_ACTIVITY_ANALYSIS.md": {
+    "mtime": 1794907794.2167754,
+    "seen": 1794908700.9194467,
+    "ast_hash": "5094bcc99ebe6a14a8f4090f576c0962",
+    "semantic_hash": ""
+  },
+  ".gemini/UTILIZATION_AND_PLANNING_FIXES.md": {
+    "mtime": 1794907794.2167754,
+    "seen": 1794908700.9194481,
+    "ast_hash": "7f6d85e1ffb4f528cc76d30c6d8e11b9",
+    "semantic_hash": ""
+  },
+  ".windsurf/workflows/deployment.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.919449,
+    "ast_hash": "a3dbcbe8a9a057200f5414192d3694df",
+    "semantic_hash": ""
+  },
+  "AI_ASSISTANT_ARCHITECTURE.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194503,
+    "ast_hash": "1148aa8c61ffa89591a9cb83cb68cfab",
+    "semantic_hash": ""
+  },
+  "APIFY_INTEGRATION_PLAN.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194517,
+    "ast_hash": "8706eaf2adc6988a4bcd533240015094",
+    "semantic_hash": ""
+  },
+  "APOLLO_COMPLETE_SUMMARY.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194527,
+    "ast_hash": "c41de26a3e88c29af7b7f9dc5ec6449a",
+    "semantic_hash": ""
+  },
+  "APOLLO_INTEGRATION_REPORT.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194536,
+    "ast_hash": "bce7a87876056703ec9351eb899ba1e3",
+    "semantic_hash": ""
+  },
+  "APOLLO_QUICK_REF.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194553,
+    "ast_hash": "8cca7b6e771275a3f0a337ffc86f62a2",
+    "semantic_hash": ""
+  },
+  "APOLLO_REFACTORING_SUMMARY.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194565,
+    "ast_hash": "418878e5f481149b671131a34eb8ad28",
+    "semantic_hash": ""
+  },
+  "ASSISTANT_AGENT_REVIEW.html": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194577,
+    "ast_hash": "7e596c842f37c0bb620e297ab7344fe1",
+    "semantic_hash": ""
+  },
+  "ASSISTANT_V2_BLUEPRINT.md": {
+    "mtime": 1794907794.2170985,
+    "seen": 1794908700.9194589,
+    "ast_hash": "0ad7f10e57143c71c3392e1263acb939",
+    "semantic_hash": ""
+  },
+  "CRM_CONTENTS.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194598,
+    "ast_hash": "39c20727450d2bffad9fef3b3a5773de",
+    "semantic_hash": ""
+  },
+  "EMAIL_HUB_README.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.919461,
+    "ast_hash": "a3e6d81cf4a4b7709232853077141158",
+    "semantic_hash": ""
+  },
+  "LISTING_FEATURE_IMPLEMENTATION.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194624,
+    "ast_hash": "8366ba3c7d9fd85483ecbac8ff996aee",
+    "semantic_hash": ""
+  },
+  "MESSAGING_INTEGRATION_PLAN.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194636,
+    "ast_hash": "f13b23dfd747d12fd88586bb95713891",
+    "semantic_hash": ""
+  },
+  "OFFRES_ET_DIFFERENCIATION_MARCHE.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.919465,
+    "ast_hash": "95259afabe630febbfcbfb6c4fab5748",
+    "semantic_hash": ""
+  },
+  "PERFORMANCE_AUDIT.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.919466,
+    "ast_hash": "d286f81195f9a5f75e009943e60c288f",
+    "semantic_hash": ""
+  },
+  "PROSPECT_ACTIVATION_ANALYSIS.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194674,
+    "ast_hash": "eee88d6bc7a374983c3352063a8fed61",
+    "semantic_hash": ""
+  },
+  "PROSPECT_API_DOCUMENTATION.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194689,
+    "ast_hash": "0a6ab560fe8d4d50fc9b61ec7de96350",
+    "semantic_hash": ""
+  },
+  "PROSPECT_ORCHESTRATION_SETUP.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194703,
+    "ast_hash": "f17a84478869fa1deee34e084654cda0",
+    "semantic_hash": ""
+  },
+  "PROSPECT_ORCHESTRATION_TESTING.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.919472,
+    "ast_hash": "121126b3bbec0fd4625be3ba26dfcadf",
+    "semantic_hash": ""
+  },
+  "PROSPECT_PAGES_AUDIT_AND_PLAN.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.919473,
+    "ast_hash": "811e9fab8456cb322862f35eafe38213",
+    "semantic_hash": ""
+  },
+  "SECURITY-AUDIT-login-and-apis.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194741,
+    "ast_hash": "e8dd1f4179731fc37dcc6dea8639861e",
+    "semantic_hash": ""
+  },
+  "SYNC_VERIFICATION.md": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9194756,
+    "ast_hash": "fcc3393a76b6fd488e5438777aaf52e5",
+    "semantic_hash": ""
+  },
+  "VERCEL_HIGH_COMPUTE_LIST.md": {
+    "mtime": 1794907794.222043,
+    "seen": 1794908700.9194767,
+    "ast_hash": "ec7a4a294a1d5cf0691399ea54d75e4a",
+    "semantic_hash": ""
+  },
+  "VIEWS_AUDIT_REPORT.md": {
+    "mtime": 1794907794.222043,
+    "seen": 1794908700.919478,
+    "ast_hash": "fd48ee527a0eccdbc6b8a8b715b5cbb2",
+    "semantic_hash": ""
+  },
+  "annexe-ia-otee.html": {
+    "mtime": 1794907794.222043,
+    "seen": 1794908700.919479,
+    "ast_hash": "dbfe43f4bf36662788e7e6fadcea7cea",
+    "semantic_hash": ""
+  },
+  "billing/billing-system---design-spec-1771489553667.md": {
+    "mtime": 1794907794.2922907,
+    "seen": 1794908700.91948,
+    "ast_hash": "7abcda36149d71aec87fb53c40ca825e",
+    "semantic_hash": ""
+  },
+  "brand/README.md": {
+    "mtime": 1794907794.2925677,
+    "seen": 1794908700.919481,
+    "ast_hash": "6bb634d908087f2f2f6fab40fae33724",
+    "semantic_hash": ""
+  },
+  "company-phone-enricher (1).html": {
+    "mtime": 1794907794.2928488,
+    "seen": 1794908700.9194822,
+    "ast_hash": "28d01988f02e748f3b2d57e7dc7b2573",
+    "semantic_hash": ""
+  },
+  "designsystemfinal/CaptainProspect Design System.html": {
+    "mtime": 1794907794.3397338,
+    "seen": 1794908700.9194832,
+    "ast_hash": "7c544b4746b6951d7446896afc83c922",
+    "semantic_hash": ""
+  },
+  "designsystemfinal/_template_extracted.html": {
+    "mtime": 1794907794.3419235,
+    "seen": 1794908700.9194844,
+    "ast_hash": "e5efe5eaba557afa2269274c7a8ca983",
+    "semantic_hash": ""
+  },
+  "docs/AGENCY_PROVISIONING_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194853,
+    "ast_hash": "a8f490273cc4c0757806dae05d9ca89b",
+    "semantic_hash": ""
+  },
+  "docs/API_MANAGEMENT.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194868,
+    "ast_hash": "38254e765b6974d6a7037d0ab25db465",
+    "semantic_hash": ""
+  },
+  "docs/API_V1.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194877,
+    "ast_hash": "305ccbf9130ff309535a45e4802827b3",
+    "semantic_hash": ""
+  },
+  "docs/CAPTAIN_AI_20_MONTHLY_SCENARIOS.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194887,
+    "ast_hash": "9347b6411d29164b1fb26ec8b9fe6522",
+    "semantic_hash": ""
+  },
+  "docs/CAPTAIN_AI_ENHANCEMENT_REVIEW_2026-11-03.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194899,
+    "ast_hash": "b67bd954f2a9a10652954d21a53636df",
+    "semantic_hash": ""
+  },
+  "docs/CAPTAIN_AI_PRODUCT_ARCHITECTURE.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194908,
+    "ast_hash": "10dcbd3ac7ddc31b0331e96f43e5ff15",
+    "semantic_hash": ""
+  },
+  "docs/CLIENT_MEETINGS_PAGE_UX_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919492,
+    "ast_hash": "3304e24a3694250cfe9855adaece0a77",
+    "semantic_hash": ""
+  },
+  "docs/CONSOLE_CHANGELOG.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194932,
+    "ast_hash": "d13dddfa5a0a842af66ac99d1bd21e7a",
+    "semantic_hash": ""
+  },
+  "docs/CONSOLE_SUPPORT.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194944,
+    "ast_hash": "bc4ab1754c6299c15e61c5764ac8f9ca",
+    "semantic_hash": ""
+  },
+  "docs/CRM-OVERVIEW.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194953,
+    "ast_hash": "e83d599c26ec9f1730ffd4c1d7d8ccd1",
+    "semantic_hash": ""
+  },
+  "docs/CUSTOM_EMAIL_SETUP.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194965,
+    "ast_hash": "6d27d625dcb167b7bbb835baf5dabe5d",
+    "semantic_hash": ""
+  },
+  "docs/EMAIL_HUB_STUDY.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194975,
+    "ast_hash": "ee64138418804a5d6f13b4ca8384a285",
+    "semantic_hash": ""
+  },
+  "docs/EMAIL_TEMPLATES_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194984,
+    "ast_hash": "0adb51cdfced06ca1f88b7138f6fbd36",
+    "semantic_hash": ""
+  },
+  "docs/GOOGLE_PLACES_PHONE_ENRICHMENT.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9194996,
+    "ast_hash": "37c907c98f1a1acd0d6d99f5378ce033",
+    "semantic_hash": ""
+  },
+  "docs/INTEGRATIONS_HUB_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195008,
+    "ast_hash": "7d9b7e8dbd079f546a11f7300df7cd44",
+    "semantic_hash": ""
+  },
+  "docs/INTEGRATION_SECRETS_PROPOSAL.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919502,
+    "ast_hash": "126653583be4e2d8e05d3e7acc8ef2f1",
+    "semantic_hash": ""
+  },
+  "docs/MANAGER-VIEW-AND-ROLES.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195032,
+    "ast_hash": "4820da9bfeace75137a03d7572c7a5a6",
+    "semantic_hash": ""
+  },
+  "docs/MANUAL_MIGRATION_MISSION_TO_GLOBAL_STATUSES.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195042,
+    "ast_hash": "dbca52bb7d6b56d8f8ad24053b33bdf7",
+    "semantic_hash": ""
+  },
+  "docs/MANUAL_SETUP.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195051,
+    "ast_hash": "951ea0602ff937ea04973f9d9b2b0396",
+    "semantic_hash": ""
+  },
+  "docs/MCP.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919506,
+    "ast_hash": "610093a628a5e641b2e839bbb3b568a9",
+    "semantic_hash": ""
+  },
+  "docs/MISSION_EMAILS_SENT_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195075,
+    "ast_hash": "c57787b712b8bf2eca35abefd54953ad",
+    "semantic_hash": ""
+  },
+  "docs/OPENREPLAY_SETUP.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195087,
+    "ast_hash": "f9b281c8fadad4edc012301f1b75e191",
+    "semantic_hash": ""
+  },
+  "docs/PROSPECTION_HEALTH_PLAN_AND_MIGRATION.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195101,
+    "ast_hash": "88969f20f957b9811600a0830805be8b",
+    "semantic_hash": ""
+  },
+  "docs/PROVISION_AGENCY.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195113,
+    "ast_hash": "39ac433712b0df2585bd2fd2cbaed06c",
+    "semantic_hash": ""
+  },
+  "docs/SALES_EXECUTION_ENGINE.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195123,
+    "ast_hash": "6c0364d2f9c25dc545e24a0e149ec07b",
+    "semantic_hash": ""
+  },
+  "docs/SOCKET_SETUP_CHECKLIST.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195137,
+    "ast_hash": "ba7be8e8d2ff6dadf207a21a21104ffc",
+    "semantic_hash": ""
+  },
+  "docs/SUPPORT_ROLLOUT.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195147,
+    "ast_hash": "c1c8f4b2138b007007bb6e2bfbee3b64",
+    "semantic_hash": ""
+  },
+  "docs/TESTING_CONFIG_STATUS_WORKFLOW.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195158,
+    "ast_hash": "a2d83606bb7d10537016ca7dac43c5de",
+    "semantic_hash": ""
+  },
+  "docs/TWILIO.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919517,
+    "ast_hash": "ef6de115602f7dd75590a3b792ea757f",
+    "semantic_hash": ""
+  },
+  "docs/TWILIO_MULTI_AGENCY_ASSESSMENT.html": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919518,
+    "ast_hash": "4a809cd1097b1356be7646f34668986d",
+    "semantic_hash": ""
+  },
+  "docs/VOIP_SOFTPHONE_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919519,
+    "ast_hash": "7730228b7e57fbe2540286266830ec90",
+    "semantic_hash": ""
+  },
+  "docs/VOIP_UI_PROMPTS.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.91952,
+    "ast_hash": "0f590b4128c04b08221013e7e99ee789",
+    "semantic_hash": ""
+  },
+  "docs/VOIP_UI_PROMPT_KIT.html": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.919521,
+    "ast_hash": "d1418f7f5e215b1c3f4575010065a076",
+    "semantic_hash": ""
+  },
+  "docs/WHITE_LABEL.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195223,
+    "ast_hash": "e35de503aec33bf7acec858f6a27a535",
+    "semantic_hash": ""
+  },
+  "docs/WHITE_LABEL_PLAN.md": {
+    "mtime": 1794907794.3420432,
+    "seen": 1794908700.9195235,
+    "ast_hash": "092aad70b561ca3d73a44f42c02cba51",
+    "semantic_hash": ""
+  },
+  "docs/assistant/AGENT_UPGRADE_PLAN.md": {
+    "mtime": 1794907794.346043,
+    "seen": 1794908700.9195247,
+    "ast_hash": "58336c7b8356c29c970ce7267f5108f9",
+    "semantic_hash": ""
+  },
+  "docs/bug-fixes/invalide-meeting-cancelled-fix.md": {
+    "mtime": 1794907794.3490536,
+    "seen": 1794908700.9195256,
+    "ast_hash": "1ddbe22d3bde3ebb12101fa62097f1b2",
+    "semantic_hash": ""
+  },
+  "docs/plans/2026-11-03-captain-workspace-implementation.md": {
+    "mtime": 1794907794.3490536,
+    "seen": 1794908700.9195268,
+    "ast_hash": "d22abc0405bd37e2641b9f4cf4818731",
+    "semantic_hash": ""
+  },
+  "docs/plans/2026-11-13-clients-missions-workspace-upgrade.md": {
+    "mtime": 1794908650.3610964,
+    "seen": 1794908700.919528,
+    "ast_hash": "63fe17485991dbb36fe79dc091e067ca",
+    "semantic_hash": ""
+  },
+  "docs/polymet-design-prompt.md": {
+    "mtime": 1794907794.3497734,
+    "seen": 1794908700.9195292,
+    "ast_hash": "9fefa3df497b04fa73d7856585974e61",
+    "semantic_hash": ""
+  },
+  "docs/system-overview.md": {
+    "mtime": 1794907794.3497734,
+    "seen": 1794908700.9195302,
+    "ast_hash": "a446d4b102c33c8e6d360c2a20498268",
+    "semantic_hash": ""
+  },
+  "docs/ui/SHADCN.md": {
+    "mtime": 1794907794.3497734,
+    "seen": 1794908700.9195313,
+    "ast_hash": "b693a599f295d1d2e0c5ecded2274e70",
+    "semantic_hash": ""
+  },
+  "email-code-dump.txt": {
+    "mtime": 1794907794.350043,
+    "seen": 1794908700.9195323,
+    "ast_hash": "1e1018a2f72dd8e0510b59a3f72c8dbf",
+    "semantic_hash": ""
+  },
+  "graphify-out/converted/RENDEZ-VOUS (3)_8a7225e7.md": {
+    "mtime": 1794907812.9462621,
+    "seen": 1794908700.9195333,
+    "ast_hash": "233df7735c3e726bfe702516c02803f6",
+    "semantic_hash": ""
+  },
+  "graphify-out/converted/e4ea7f5e-87b5-473e-aaf7-7ddf975dc342_4bc196b3.md": {
+    "mtime": 1794907811.6290188,
+    "seen": 1794908700.9195347,
+    "ast_hash": "2104622acf2976d11e55a1b251b8d9c3",
+    "semantic_hash": ""
+  },
+  "graphify-out/converted/n2f-daf-base_512fbe20.md": {
+    "mtime": 1794907811.0721414,
+    "seen": 1794908700.9195356,
+    "ast_hash": "ff5e789036cee53dd02c47ded49304d1",
+    "semantic_hash": ""
+  },
+  "inspo/analytics-dashboard (1).html": {
+    "mtime": 1794907794.3553376,
+    "seen": 1794908700.9195368,
+    "ast_hash": "14c4dee91417b0467696e33424d94850",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/analytics-reports.md": {
+    "mtime": 1794907794.36895,
+    "seen": 1794908700.9195383,
+    "ast_hash": "d55c392ce1d88c50cba3729448a08220",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/billing.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.919539,
+    "ast_hash": "2ad22c8f2a1e36cb15035222bcf0ed33",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/client-portal.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195402,
+    "ast_hash": "548446adfea1bdc9d4f11bce2780df14",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/email-hub.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195414,
+    "ast_hash": "21ec02d9cae0456d5c595dd59449603b",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/integrations-settings.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195423,
+    "ast_hash": "9ad0e67b75b6c093bd73e210e498c547",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/missions-campaigns.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195433,
+    "ast_hash": "ca99eb827aa776d89af9a441983f6284",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/navigation-guide.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195445,
+    "ast_hash": "95ce64536f38ba5cf59f7d0970e2840e",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/planning-system.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195457,
+    "ast_hash": "2a3d2548d8da00b9629af24ea16e8015",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/prospects-lists.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195468,
+    "ast_hash": "17e382f305203d539b07025eab598567",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/sdr-workflows.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195476,
+    "ast_hash": "fff12f58d54c4273bc171f9700fccd43",
+    "semantic_hash": ""
+  },
+  "lib/assistant/docs/team-users.md": {
+    "mtime": 1794907794.3692775,
+    "seen": 1794908700.9195487,
+    "ast_hash": "2addcbe6e1669d76cbc04302f9b058e4",
+    "semantic_hash": ""
+  },
+  "lib/listing/README.md": {
+    "mtime": 1794907794.388105,
+    "seen": 1794908700.9195497,
+    "ast_hash": "5d80d000a6d9c0027f52e0df01ecd377",
+    "semantic_hash": ""
+  },
+  "note-rencontre-otee.html": {
+    "mtime": 1794907794.4031138,
+    "seen": 1794908700.9195507,
+    "ast_hash": "31b37d1b78bb013d7913a4af4aa70a8a",
+    "semantic_hash": ""
+  },
+  "openclaw/skills/DailyStats/SKILL.md": {
+    "mtime": 1794907794.4045165,
+    "seen": 1794908700.9195518,
+    "ast_hash": "86bf1fd650a9e82960163587aa68f671",
+    "semantic_hash": ""
+  },
+  "otee-discovery-brief.html": {
+    "mtime": 1794907794.4045165,
+    "seen": 1794908700.9195528,
+    "ast_hash": "a3d1550eb5af3690ad379908379219a4",
+    "semantic_hash": ""
+  },
+  "prisma/README.md": {
+    "mtime": 1794907794.406043,
+    "seen": 1794908700.919554,
+    "ast_hash": "dcb364583bdeaa8eb1368f5a84576dc7",
+    "semantic_hash": ""
+  },
+  "prisma/RESET_README.md": {
+    "mtime": 1794907794.4115098,
+    "seen": 1794908700.9195552,
+    "ast_hash": "7dc257be5f2c9f8a37bf4972731e11a3",
+    "semantic_hash": ""
+  },
+  "public/mes-rdv.html": {
+    "mtime": 1794907794.422043,
+    "seen": 1794908700.9195561,
+    "ast_hash": "749fd392b2cfc382f43b79197cc6bc2e",
+    "semantic_hash": ""
+  },
+  "replit.md": {
+    "mtime": 1794907794.4660432,
+    "seen": 1794908700.919557,
+    "ast_hash": "3b983294672b58d29184c1c0c1f4c8c1",
+    "semantic_hash": ""
+  },
+  "scripts/missions-2026-11/data/denterlab-script.txt": {
+    "mtime": 1794907794.4945881,
+    "seen": 1794908700.9195583,
+    "ast_hash": "2c3ceb5f62996f8ff6b04c9ffba5f898",
+    "semantic_hash": ""
+  },
+  "sdr-ux-audit.html": {
+    "mtime": 1794907794.495758,
+    "seen": 1794908700.91956,
+    "ast_hash": "ed8d15b16765a16d1d4fe41afc6a4b6f",
+    "semantic_hash": ""
+  },
+  "sdr-workspace-prototype.html": {
+    "mtime": 1794907794.495758,
+    "seen": 1794908700.9195611,
+    "ast_hash": "e0a805dea855c7570f255c1fa988651a",
+    "semantic_hash": ""
+  },
+  "suzalink-site/.agents/skills/craftwork-assets/SKILL.md": {
+    "mtime": 1794907794.4978995,
+    "seen": 1794908700.9195623,
+    "ast_hash": "9385cd74e25ec1d4981e78c3a2010d16",
+    "semantic_hash": ""
+  },
+  "suzalink-site/CLAUDE.md": {
+    "mtime": 1794907794.498345,
+    "seen": 1794908700.9195633,
+    "ast_hash": "c499f7535d8d6dbf72f61e574007d98b",
+    "semantic_hash": ""
+  },
+  "suzalink-site/IMAGE_PROMPTS.md": {
+    "mtime": 1794907794.498345,
+    "seen": 1794908700.9195645,
+    "ast_hash": "eba9d8e8c3c9187a8a2f62b132f6b7c6",
+    "semantic_hash": ""
+  },
+  "suzalink-site/README.md": {
+    "mtime": 1794907794.498345,
+    "seen": 1794908700.9195657,
+    "ast_hash": "a9fcff7c2bcaf5b2d7b3f55427bd494d",
+    "semantic_hash": ""
+  },
+  "suzalink-site/app/opengraph-image.alt.txt": {
+    "mtime": 1794907794.4988985,
+    "seen": 1794908700.9195669,
+    "ast_hash": "ed186e4b4944e39221bc0687ff9fd10b",
+    "semantic_hash": ""
+  },
+  "suzalink-site/app/twitter-image.alt.txt": {
+    "mtime": 1794907794.5006938,
+    "seen": 1794908700.9195678,
+    "ast_hash": "ed186e4b4944e39221bc0687ff9fd10b",
+    "semantic_hash": ""
+  },
+  "suzalink-site/design/CREATIVE_PROMPTS.md": {
+    "mtime": 1794907794.5039225,
+    "seen": 1794908700.9195693,
+    "ast_hash": "40eb33fd07216880231418f3ef86e32d",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/gallery.html": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9195702,
+    "ast_hash": "2b3b4dab9da6243372c972cc16f0c006",
+    "semantic_hash": ""
+  },
+  "ts_errors.txt": {
+    "mtime": 1794907794.5100431,
+    "seen": 1794908700.9195714,
+    "ast_hash": "e0b5694eef246c7651f16a1957333d8d",
+    "semantic_hash": ""
+  },
+  "ts_errors_utf8.txt": {
+    "mtime": 1794907794.5100431,
+    "seen": 1794908700.9195728,
+    "ast_hash": "9c6e63f4386c608f5a7c7869a62b51b9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/SKILL.md": {
+    "mtime": 1794907794.5132146,
+    "seen": 1794908700.9195738,
+    "ast_hash": "b91759920fda7858242e5e90b8873974",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-captions/REFERENCE.md": {
+    "mtime": 1794907794.5132868,
+    "seen": 1794908700.919575,
+    "ast_hash": "586958b575455cb1e3ed11109c199032",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-captions/display-captions.md": {
+    "mtime": 1794907794.5134041,
+    "seen": 1794908700.9195762,
+    "ast_hash": "440ec9be73b173d27ee16ae9c4e8d312",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-captions/import-srt-captions.md": {
+    "mtime": 1794907794.5134041,
+    "seen": 1794908700.9195774,
+    "ast_hash": "c8cee458326c67488bf58c7664e76ecd",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-captions/transcribe-captions.md": {
+    "mtime": 1794907794.5134041,
+    "seen": 1794908700.9195788,
+    "ast_hash": "c3f3e50a950a304d4fece6541325324d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-create/REFERENCE.md": {
+    "mtime": 1794907794.5134041,
+    "seen": 1794908700.91958,
+    "ast_hash": "48b16c42e31bc9d0c3193b83cb48f00a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-create/tailwind.md": {
+    "mtime": 1794907794.5136223,
+    "seen": 1794908700.9195812,
+    "ast_hash": "3ff8ccdd1bc70c1a4fdef4f1d5604c57",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-create/video-layout.md": {
+    "mtime": 1794907794.5136223,
+    "seen": 1794908700.9195824,
+    "ast_hash": "bfdbaca86d6bd4ee8164aa4415fd9c44",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-docs/REFERENCE.md": {
+    "mtime": 1794907794.5136223,
+    "seen": 1794908700.9195836,
+    "ast_hash": "1b5dbb05993e42d44cdcee89b05f1ae3",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-interactivity/REFERENCE.md": {
+    "mtime": 1794907794.513788,
+    "seen": 1794908700.9195848,
+    "ast_hash": "d0dd5218c576b596734971094c3325db",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-interactivity/inline-effects.md": {
+    "mtime": 1794907794.5139732,
+    "seen": 1794908700.9196136,
+    "ast_hash": "5b6fc21663052e5139122df3b21a7640",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-interactivity/timeline-structure.md": {
+    "mtime": 1794907794.5139732,
+    "seen": 1794908700.919615,
+    "ast_hash": "7cce209e91db22b4f46d06eb5e4e889e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-license/REFERENCE.md": {
+    "mtime": 1794907794.5139732,
+    "seen": 1794908700.919616,
+    "ast_hash": "ccb69036fa78baf4e482d3c774e82801",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/REFERENCE.md": {
+    "mtime": 1794907794.5141318,
+    "seen": 1794908700.9196172,
+    "ast_hash": "53159fc4b544fd943e337d7bcb6c1b52",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/cesium/TECHNIQUE.md": {
+    "mtime": 1794907794.5142746,
+    "seen": 1794908700.9196188,
+    "ast_hash": "f5e74c39712537639591128b4b472e3a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/cesium/references/3d-data-sources.md": {
+    "mtime": 1794907794.5144322,
+    "seen": 1794908700.9196203,
+    "ast_hash": "65cb9de3db2c37a22a8bb1bcafac84d9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/cesium/references/3d-flyover-architecture.md": {
+    "mtime": 1794907794.5146756,
+    "seen": 1794908700.9196215,
+    "ast_hash": "e78bae5c4c9c17511e05d15d39ff8840",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/cesium/references/3d-troubleshooting.md": {
+    "mtime": 1794907794.5146756,
+    "seen": 1794908700.9196224,
+    "ast_hash": "d652e3755653b3246512ded9d6bcd99c",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/mapbox/TECHNIQUE.md": {
+    "mtime": 1794907794.5146756,
+    "seen": 1794908700.9196234,
+    "ast_hash": "a2845d48e728f317e5811925af8cc1f9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/mapbox/references/render-stability.md": {
+    "mtime": 1794907794.514981,
+    "seen": 1794908700.9196248,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maplibre/TECHNIQUE.md": {
+    "mtime": 1794907794.514981,
+    "seen": 1794908700.919626,
+    "ast_hash": "f327e9c9ad26ac6bc86211445a14025e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maplibre/references/render-stability.md": {
+    "mtime": 1794907794.5151522,
+    "seen": 1794908700.919627,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/TECHNIQUE.md": {
+    "mtime": 1794907794.5151522,
+    "seen": 1794908700.9196284,
+    "ast_hash": "8d3353b0bc847003babb1f2733c9e40d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/references/map-data-sources.md": {
+    "mtime": 1794907794.5171459,
+    "seen": 1794908700.9196293,
+    "ast_hash": "58104a0170cf2d86887dd9079b53f204",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/references/map-explainer-architecture.md": {
+    "mtime": 1794907794.5173194,
+    "seen": 1794908700.9196303,
+    "ast_hash": "6eb05dd66abff48d8a5454201349ba28",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/references/map-geo-prep.md": {
+    "mtime": 1794907794.5173194,
+    "seen": 1794908700.9196312,
+    "ast_hash": "5423e126d17f858a11e96199db3e0e71",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/maptiler/references/render-stability.md": {
+    "mtime": 1794907794.5173194,
+    "seen": 1794908700.9196322,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/techniques/static-map/TECHNIQUE.md": {
+    "mtime": 1794907794.5173194,
+    "seen": 1794908700.9196332,
+    "ast_hash": "b125c4c94fe7e0ab35bcd8358271812f",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/3d.md": {
+    "mtime": 1794907794.5173194,
+    "seen": 1794908700.919634,
+    "ast_hash": "40d292c8f9268f4dfe72d0019b28d53e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/REFERENCE.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196353,
+    "ast_hash": "b15282fd8c819f2187838050f9e2bbb9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/arabic-text.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196362,
+    "ast_hash": "ff42cf6468ed251fe7c95e51b55af991",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/audio-visualization.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196372,
+    "ast_hash": "687ec85f51a09bb359c0805ee65b1f60",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/audio.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196386,
+    "ast_hash": "0455721f03e95a3dc4ad759400067402",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/calculate-metadata.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196396,
+    "ast_hash": "78b9973387b0e8b23b28200c8040beaa",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/color-correction.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196405,
+    "ast_hash": "ee0c341aefb43a8b0015f9c04363128a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/compositions.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196415,
+    "ast_hash": "2f7f208c966552d0dc14bb41cf2b865a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/connected-compositions.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196427,
+    "ast_hash": "8c6a425ff1e69706241ae64a6842af7f",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/cropping.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196436,
+    "ast_hash": "3dc551d53ced1781be20e439b9394997",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/effects.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196444,
+    "ast_hash": "e6e7941ec651791838c497ef6137ae0e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/embedding-videos.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196455,
+    "ast_hash": "384ad529d631cc5ab0facdf659d7f623",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/ffmpeg.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196465,
+    "ast_hash": "cc0864b3a11f5dce10a87435021bc6b3",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/gifs.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196475,
+    "ast_hash": "0b182aee7126714c5f451559eb4eb261",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/google-fonts.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196482,
+    "ast_hash": "24c72175f91e15965a24ab5fbc6bd019",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/html-in-canvas.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196494,
+    "ast_hash": "1c1d3e20c71088234a42b6e234ce856b",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/images.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196503,
+    "ast_hash": "b143e1e93481cf6beffab36c2416fa81",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/light-leaks.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196513,
+    "ast_hash": "795f64c3b181edfb68a2d64c56302984",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/local-fonts.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196525,
+    "ast_hash": "893210b07418fe8c70c772ada1dbd8f0",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/lottie.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196537,
+    "ast_hash": "a2f9603f307eca6fb3c932bdcc6ce733",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/measuring-dom-nodes.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196546,
+    "ast_hash": "890ab376167285b81becf77736a8f002",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/measuring-text.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9196556,
+    "ast_hash": "b07574d935dc33b7b850589695bbc06c",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/motion-blur.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.919657,
+    "ast_hash": "31e09711b41c8d39a4ac36aa18a5b65d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/multi-scene-video.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.919658,
+    "ast_hash": "380750d1e5d425ece816810488ea759a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/parameters.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.919659,
+    "ast_hash": "5d61a8de24c88eeb71dd87dbd5b8ab15",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/REFERENCE.md": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.91966,
+    "ast_hash": "53159fc4b544fd943e337d7bcb6c1b52",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md": {
+    "mtime": 1794907794.518674,
+    "seen": 1794908700.9196608,
+    "ast_hash": "f5e74c39712537639591128b4b472e3a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/references/3d-data-sources.md": {
+    "mtime": 1794907794.5188017,
+    "seen": 1794908700.9196618,
+    "ast_hash": "65cb9de3db2c37a22a8bb1bcafac84d9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/references/3d-flyover-architecture.md": {
+    "mtime": 1794907794.5190248,
+    "seen": 1794908700.919663,
+    "ast_hash": "e78bae5c4c9c17511e05d15d39ff8840",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/cesium/references/3d-troubleshooting.md": {
+    "mtime": 1794907794.5190248,
+    "seen": 1794908700.919664,
+    "ast_hash": "d652e3755653b3246512ded9d6bcd99c",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/mapbox/TECHNIQUE.md": {
+    "mtime": 1794907794.5190248,
+    "seen": 1794908700.9196646,
+    "ast_hash": "a2845d48e728f317e5811925af8cc1f9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/mapbox/references/render-stability.md": {
+    "mtime": 1794907794.519241,
+    "seen": 1794908700.9196658,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maplibre/TECHNIQUE.md": {
+    "mtime": 1794907794.519241,
+    "seen": 1794908700.919667,
+    "ast_hash": "f327e9c9ad26ac6bc86211445a14025e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maplibre/references/render-stability.md": {
+    "mtime": 1794907794.519358,
+    "seen": 1794908700.9196677,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maptiler/TECHNIQUE.md": {
+    "mtime": 1794907794.519358,
+    "seen": 1794908700.919669,
+    "ast_hash": "8d3353b0bc847003babb1f2733c9e40d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maptiler/references/map-data-sources.md": {
+    "mtime": 1794907794.52134,
+    "seen": 1794908700.91967,
+    "ast_hash": "58104a0170cf2d86887dd9079b53f204",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maptiler/references/map-explainer-architecture.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919671,
+    "ast_hash": "6eb05dd66abff48d8a5454201349ba28",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maptiler/references/map-geo-prep.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919672,
+    "ast_hash": "5423e126d17f858a11e96199db3e0e71",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/maptiler/references/render-stability.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.9196727,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/techniques/static-map/TECHNIQUE.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919674,
+    "ast_hash": "d4a08ae7ad4a5b70ebe23dbf0426b6b0",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/sequencing.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.9196749,
+    "ast_hash": "c0f01bf862394dac13be60a117513e37",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/sfx.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.9196758,
+    "ast_hash": "a68d4ec44fc1a61c2c89ec29b19f43d8",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/silence-detection.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919677,
+    "ast_hash": "4b2b7c0750624a3c77d8ed0ef411895a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/text-highlights.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919678,
+    "ast_hash": "4deb75104e42a4c72461b624f5b60c2d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/timing-props.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919679,
+    "ast_hash": "6e394b9b10652949bb57b9863ed7f5d9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/timing.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.91968,
+    "ast_hash": "60f636bfbd639434e26b1c053e347b4d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/transitions.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919681,
+    "ast_hash": "79cb7be198c2d61c9f34bd2936a154b4",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/video-editing.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919682,
+    "ast_hash": "524ca37c26390d96032bc415b5839b4f",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/video-matting.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919683,
+    "ast_hash": "a72181ccaabf536b42ad260a986b3e0a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/voiceover.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.919684,
+    "ast_hash": "59169f4d5161edf9242ff9951cc46ecc",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-multimedia/REFERENCE.md": {
+    "mtime": 1794907794.521585,
+    "seen": 1794908700.9196851,
+    "ast_hash": "7ec6cb3a920299fbb1bf6a867b026043",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-multimedia/get-audio-duration.md": {
+    "mtime": 1794907794.5224621,
+    "seen": 1794908700.919686,
+    "ast_hash": "e63d07ca391bae5be6c0e10d7613a77a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-multimedia/get-video-dimensions.md": {
+    "mtime": 1794907794.5224621,
+    "seen": 1794908700.9196873,
+    "ast_hash": "fa72e8c5e771d83b15ee32ce0c26a3ce",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-multimedia/get-video-duration.md": {
+    "mtime": 1794907794.5224621,
+    "seen": 1794908700.9196882,
+    "ast_hash": "bbf74f796dc7ec1cb3c1d09ab3f1551e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-render/REFERENCE.md": {
+    "mtime": 1794907794.5224621,
+    "seen": 1794908700.9196892,
+    "ast_hash": "b1f6da0c4480ef87ab5aca2a16a4c01a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-render/transparent-videos.md": {
+    "mtime": 1794907794.5226223,
+    "seen": 1794908700.9196901,
+    "ast_hash": "9c4eb35d53624169b032d63739d2cf35",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-saas/REFERENCE.md": {
+    "mtime": 1794907794.5226223,
+    "seen": 1794908700.9196916,
+    "ast_hash": "f496de97385618165e9aad67b6071166",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-saas/framework.md": {
+    "mtime": 1794907794.522726,
+    "seen": 1794908700.9196925,
+    "ast_hash": "ec3c4f4b914fd59eb92318a14791aca0",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-saas/player.md": {
+    "mtime": 1794907794.522726,
+    "seen": 1794908700.9196932,
+    "ast_hash": "ce1c6b53eb24d9a196a3a7430b6c5a47",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-saas/rendering.md": {
+    "mtime": 1794907794.522726,
+    "seen": 1794908700.9196944,
+    "ast_hash": "e8d926688104ffde9d70f47d8b12ec9b",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-studio/REFERENCE.md": {
+    "mtime": 1794907794.522726,
+    "seen": 1794908700.9196956,
+    "ast_hash": "66a4d7d3da1f9a6d236a25d619a4b552",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-upgrade/REFERENCE.md": {
+    "mtime": 1794907794.5228894,
+    "seen": 1794908700.9196966,
+    "ast_hash": "e78a397f7130c3e97d26836a4f57dfe5",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-captions/SKILL.md": {
+    "mtime": 1794907794.5229807,
+    "seen": 1794908700.9196978,
+    "ast_hash": "89c03e7b93de3dab6707e9994b68c551",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-captions/display-captions.md": {
+    "mtime": 1794907794.5230556,
+    "seen": 1794908700.9196985,
+    "ast_hash": "440ec9be73b173d27ee16ae9c4e8d312",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-captions/import-srt-captions.md": {
+    "mtime": 1794907794.5230556,
+    "seen": 1794908700.9196994,
+    "ast_hash": "c8cee458326c67488bf58c7664e76ecd",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-captions/transcribe-captions.md": {
+    "mtime": 1794907794.5230556,
+    "seen": 1794908700.9197006,
+    "ast_hash": "c3f3e50a950a304d4fece6541325324d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/3d.md": {
+    "mtime": 1794907794.5230556,
+    "seen": 1794908700.9197016,
+    "ast_hash": "40d292c8f9268f4dfe72d0019b28d53e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/SKILL.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197028,
+    "ast_hash": "ae81149ff3d5e26216182364f2db01ad",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/arabic-text.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197037,
+    "ast_hash": "ff42cf6468ed251fe7c95e51b55af991",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/audio-visualization.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919705,
+    "ast_hash": "687ec85f51a09bb359c0805ee65b1f60",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/audio.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197059,
+    "ast_hash": "0455721f03e95a3dc4ad759400067402",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/calculate-metadata.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197068,
+    "ast_hash": "98e108ad1293049b787bd0f299045ddd",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/color-correction.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919708,
+    "ast_hash": "ee0c341aefb43a8b0015f9c04363128a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/compositions.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197092,
+    "ast_hash": "73566fd12b1eea4485f49bc59b44bca6",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/connected-compositions.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197104,
+    "ast_hash": "5e44acf5388cc9e2526cd82a08abf3b5",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/cropping.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197118,
+    "ast_hash": "ed7f0453443db365808d8079ed1c8bb7",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/effects.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197128,
+    "ast_hash": "e6e7941ec651791838c497ef6137ae0e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/embedding-videos.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197137,
+    "ast_hash": "384ad529d631cc5ab0facdf659d7f623",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/ffmpeg.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919715,
+    "ast_hash": "cc0864b3a11f5dce10a87435021bc6b3",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/gifs.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919716,
+    "ast_hash": "0b182aee7126714c5f451559eb4eb261",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/google-fonts.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197168,
+    "ast_hash": "24c72175f91e15965a24ab5fbc6bd019",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/html-in-canvas.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197178,
+    "ast_hash": "1c1d3e20c71088234a42b6e234ce856b",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/images.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919719,
+    "ast_hash": "b143e1e93481cf6beffab36c2416fa81",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/light-leaks.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.91972,
+    "ast_hash": "795f64c3b181edfb68a2d64c56302984",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/local-fonts.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919721,
+    "ast_hash": "893210b07418fe8c70c772ada1dbd8f0",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/lottie.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197218,
+    "ast_hash": "a2f9603f307eca6fb3c932bdcc6ce733",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/measuring-dom-nodes.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919723,
+    "ast_hash": "890ab376167285b81becf77736a8f002",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/measuring-text.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919724,
+    "ast_hash": "b07574d935dc33b7b850589695bbc06c",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/motion-blur.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.919725,
+    "ast_hash": "31e09711b41c8d39a4ac36aa18a5b65d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/multi-scene-video.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197261,
+    "ast_hash": "0dc20ff302ff7e857a6d5f14ffe75428",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/parameters.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197273,
+    "ast_hash": "5d61a8de24c88eeb71dd87dbd5b8ab15",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/REFERENCE.md": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9197288,
+    "ast_hash": "53159fc4b544fd943e337d7bcb6c1b52",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/cesium/TECHNIQUE.md": {
+    "mtime": 1794907794.5241423,
+    "seen": 1794908700.9197297,
+    "ast_hash": "f5e74c39712537639591128b4b472e3a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/cesium/references/3d-data-sources.md": {
+    "mtime": 1794907794.52429,
+    "seen": 1794908700.9197307,
+    "ast_hash": "65cb9de3db2c37a22a8bb1bcafac84d9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/cesium/references/3d-flyover-architecture.md": {
+    "mtime": 1794907794.5245388,
+    "seen": 1794908700.9197316,
+    "ast_hash": "e78bae5c4c9c17511e05d15d39ff8840",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/cesium/references/3d-troubleshooting.md": {
+    "mtime": 1794907794.5245388,
+    "seen": 1794908700.9197326,
+    "ast_hash": "d652e3755653b3246512ded9d6bcd99c",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/mapbox/TECHNIQUE.md": {
+    "mtime": 1794907794.5245388,
+    "seen": 1794908700.9197338,
+    "ast_hash": "a2845d48e728f317e5811925af8cc1f9",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/mapbox/references/render-stability.md": {
+    "mtime": 1794907794.5247405,
+    "seen": 1794908700.9197345,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maplibre/TECHNIQUE.md": {
+    "mtime": 1794907794.5247405,
+    "seen": 1794908700.919736,
+    "ast_hash": "f327e9c9ad26ac6bc86211445a14025e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maplibre/references/render-stability.md": {
+    "mtime": 1794907794.524842,
+    "seen": 1794908700.9197369,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maptiler/TECHNIQUE.md": {
+    "mtime": 1794907794.524842,
+    "seen": 1794908700.919738,
+    "ast_hash": "8d3353b0bc847003babb1f2733c9e40d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maptiler/references/map-data-sources.md": {
+    "mtime": 1794907794.5266619,
+    "seen": 1794908700.9197392,
+    "ast_hash": "58104a0170cf2d86887dd9079b53f204",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maptiler/references/map-explainer-architecture.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197404,
+    "ast_hash": "6eb05dd66abff48d8a5454201349ba28",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maptiler/references/map-geo-prep.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197416,
+    "ast_hash": "5423e126d17f858a11e96199db3e0e71",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/maptiler/references/render-stability.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.919743,
+    "ast_hash": "96a9f7df09b2127e7aabf734b84b8a70",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/techniques/static-map/TECHNIQUE.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.919744,
+    "ast_hash": "7a217fa281b29edf54f42508e701305d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/sequencing.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197447,
+    "ast_hash": "735283e518c5cfcae147dfc8fa468ea8",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/sfx.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197457,
+    "ast_hash": "a68d4ec44fc1a61c2c89ec29b19f43d8",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/silence-detection.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197466,
+    "ast_hash": "4b2b7c0750624a3c77d8ed0ef411895a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/text-highlights.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197476,
+    "ast_hash": "f19be87d34230a975ca3c8f2471c4909",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/timing-props.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197485,
+    "ast_hash": "c5dd85174d8113eef6c150668e843208",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/timing.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197497,
+    "ast_hash": "60f636bfbd639434e26b1c053e347b4d",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/transitions.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197505,
+    "ast_hash": "c04845d383a15467b475e0bc5e051fcb",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/video-editing.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197516,
+    "ast_hash": "0e9d4cf257bd03aeb1768dc1d255cac8",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/video-matting.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197526,
+    "ast_hash": "a72181ccaabf536b42ad260a986b3e0a",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/voiceover.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197538,
+    "ast_hash": "67b23cc917a0957d805d74bda7efddc2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-render/SKILL.md": {
+    "mtime": 1794907794.5268342,
+    "seen": 1794908700.9197547,
+    "ast_hash": "894378b884abbdb5c51420a04442e57e",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-render/transparent-videos.md": {
+    "mtime": 1794907794.5273616,
+    "seen": 1794908700.9197557,
+    "ast_hash": "9c4eb35d53624169b032d63739d2cf35",
+    "semantic_hash": ""
+  },
+  "tutorials/README.md": {
+    "mtime": 1794907794.5273616,
+    "seen": 1794908700.919757,
+    "ast_hash": "941b605277fefd92138b52fafc5aeeae",
+    "semantic_hash": ""
+  },
+  "tutorials/video/README.md": {
+    "mtime": 1794907794.5281796,
+    "seen": 1794908700.919758,
+    "ast_hash": "fcdfe1e0c3220831519fdbf617e6d7ae",
+    "semantic_hash": ""
+  },
+  "work/SDR_CALLING_ENHANCEMENTS.md": {
+    "mtime": 1794907794.7660432,
+    "seen": 1794908700.919759,
+    "ast_hash": "6c40f54c7876e65add59cd246c83709c",
+    "semantic_hash": ""
+  },
+  "work/SESSION_RECAP_2026-10-26.md": {
+    "mtime": 1794907794.7660432,
+    "seen": 1794908700.9197602,
+    "ast_hash": "907c064c91efda830e77979ab22e5a49",
+    "semantic_hash": ""
+  },
+  "work/clients-workspace/README.md": {
+    "mtime": 1794908650.3650692,
+    "seen": 1794908700.9197612,
+    "ast_hash": "a50ef70bd999a2da9f7897652a576a81",
+    "semantic_hash": ""
+  },
+  "work/otee-body-fr.html": {
+    "mtime": 1794907794.7739918,
+    "seen": 1794908700.9197621,
+    "ast_hash": "855ac34f1a88196ba55f906c25e754b0",
+    "semantic_hash": ""
+  },
+  "work/otee-home.txt": {
+    "mtime": 1794907794.7739918,
+    "seen": 1794908700.919763,
+    "ast_hash": "4e697c318e2a7263cda9b297b0aee715",
+    "semantic_hash": ""
+  },
+  "work/pinglead-point-agences.html": {
+    "mtime": 1794907794.7739918,
+    "seen": 1794908700.9197645,
+    "ast_hash": "bbfea2039bc45e7c194bde2cb07ea651",
+    "semantic_hash": ""
+  },
+  "work/security-audit-vps-2026-10-27.md": {
+    "mtime": 1794907794.775594,
+    "seen": 1794908700.9197655,
+    "ast_hash": "ebfc9a3a611c42c35455dbfc5f33d40a",
+    "semantic_hash": ""
+  },
+  "CAPTAIN_PROSPECT_CRM_CSS_AUDIT.pdf": {
+    "mtime": 1794907794.218043,
+    "seen": 1794908700.9197664,
+    "ast_hash": "144457b7c4518840396ce3d335e1b395",
+    "semantic_hash": ""
+  },
+  "docs/WHITE_LABEL_PLAN.pdf": {
+    "mtime": 1794907794.346043,
+    "seen": 1794908700.9197676,
+    "ast_hash": "23e82246220033c207e2001d345df3c6",
+    "semantic_hash": ""
+  },
+  "docs/enrichissement-import-analyse.pdf": {
+    "mtime": 1794907794.3490536,
+    "seen": 1794908700.9197686,
+    "ast_hash": "68730e752aee5a4367bb5544256014ae",
+    "semantic_hash": ""
+  },
+  "docs/plugin-captain-prospect-chatgpt.pdf": {
+    "mtime": 1794907794.3497734,
+    "seen": 1794908700.9197695,
+    "ast_hash": "0bab177d8c0a65b8d989114f7f685774",
+    "semantic_hash": ""
+  },
+  "uploads/general/45d8f796-1e5f-4d9e-90e1-7e7347eb5a0f/1768389129124/6e18fa5e-4fb0-42a2-9f2d-e779a0db1d1f.pdf": {
+    "mtime": 1794907794.5420432,
+    "seen": 1794908700.9197705,
+    "ast_hash": "073c3b460e357b560db635cb985f77e8",
+    "semantic_hash": ""
+  },
+  "uploads/general/45d8f796-1e5f-4d9e-90e1-7e7347eb5a0f/1768389130022/1c8877f4-280e-4301-a5fa-a8547e0db3aa.pdf": {
+    "mtime": 1794907794.5460432,
+    "seen": 1794908700.9197714,
+    "ast_hash": "bf5b95c488de4208a47c7b98d0fdfb47",
+    "semantic_hash": ""
+  },
+  "uploads/general/cmklqnq0e0001usn892pekcd5/1768862984654/a123adb4-e401-4720-9afa-f49ef5df7e6f.pdf": {
+    "mtime": 1794907794.7340431,
+    "seen": 1794908700.9197724,
+    "ast_hash": "6bb323cc409beaff7a1437992f111a2d",
+    "semantic_hash": ""
+  },
+  "uploads/general/mgr-001/1768388799035/80d2f532-ab2e-4878-b47c-cd34830438ee.pdf": {
+    "mtime": 1794907794.7500432,
+    "seen": 1794908700.919773,
+    "ast_hash": "073c3b460e357b560db635cb985f77e8",
+    "semantic_hash": ""
+  },
+  "uploads/general/mgr-001/1768388799965/6175be89-2d3b-43bc-a71a-a8a94b59d4e3.pdf": {
+    "mtime": 1794907794.754043,
+    "seen": 1794908700.9197743,
+    "ast_hash": "bf5b95c488de4208a47c7b98d0fdfb47",
+    "semantic_hash": ""
+  },
+  "uploads/imported/cly5z3z9p0000x8q5z9p0000x8q5z9p0/1769677878171/13ffbdf3-9d3d-4a3f-a4fd-1cd497171fa1.pdf": {
+    "mtime": 1794907794.7585492,
+    "seen": 1794908700.9197752,
+    "ast_hash": "5fbb9409eb7502587112540507ef1b15",
+    "semantic_hash": ""
+  },
+  "uploads/imported/cly5z3z9p0000x8q5z9p0000x8q5z9p0/1769681147428/3d34c95d-2a17-4cfe-8fd9-9a5f73763e0d.pdf": {
+    "mtime": 1794907794.7585492,
+    "seen": 1794908700.9197762,
+    "ast_hash": "b5686f295b714366a7ce5c015f9ac1d9",
+    "semantic_hash": ""
+  },
+  "uploads/imported/cly5z3z9p0000x8q5z9p0000x8q5z9p0/1769681656434/4271a9bb-72e9-4472-b241-666b194df191.pdf": {
+    "mtime": 1794907794.7585492,
+    "seen": 1794908700.9197774,
+    "ast_hash": "5fbb9409eb7502587112540507ef1b15",
+    "semantic_hash": ""
+  },
+  "uploads/invoices/cly5z3z9p0000x8q5z9p0000x8q5z9p0/1770905259632/0c2ad713-a6bb-4e73-8e43-cb188eb74384.pdf": {
+    "mtime": 1794907794.7635446,
+    "seen": 1794908700.9197783,
+    "ast_hash": "9405c954191e26d876905b7e723c1650",
+    "semantic_hash": ""
+  },
+  "work/Guide-Email-Hub.pdf": {
+    "mtime": 1794907794.7660432,
+    "seen": 1794908700.9197793,
+    "ast_hash": "67650aa453c7140a66363f5a7de11797",
+    "semantic_hash": ""
+  },
+  "Screenshot 2026-10-23-12-30-21.png": {
+    "mtime": 1794907794.222043,
+    "seen": 1794908700.91978,
+    "ast_hash": "7171bfa032168e1798c8ab7e27b3612f",
+    "semantic_hash": ""
+  },
+  "cloudbackground.png": {
+    "mtime": 1794907794.2928488,
+    "seen": 1794908700.9197814,
+    "ast_hash": "4721895209bb9849970ea49f81eeb520",
+    "semantic_hash": ""
+  },
+  "logocaptainblue rose.png": {
+    "mtime": 1794907794.4031138,
+    "seen": 1794908700.9197824,
+    "ast_hash": "db9dca1cbe594552b74ddae6629cec67",
+    "semantic_hash": ""
+  },
+  "logocaptainroseblanc.png": {
+    "mtime": 1794907794.4031138,
+    "seen": 1794908700.9197834,
+    "ast_hash": "622b7f58ff28a7ed3e93f26212a56c0b",
+    "semantic_hash": ""
+  },
+  "public/63a4904c16e186b9c414f3ba_captain_prospect_logo.webp": {
+    "mtime": 1794907794.4176066,
+    "seen": 1794908700.9197843,
+    "ast_hash": "b256e0a794940ae4ddbb1ee5a5be58bb",
+    "semantic_hash": ""
+  },
+  "public/Group 503.png": {
+    "mtime": 1794907794.4176605,
+    "seen": 1794908700.9197853,
+    "ast_hash": "41b726dd2bacbe898e63abe43e005b77",
+    "semantic_hash": ""
+  },
+  "public/brand/apple-touch-icon.png": {
+    "mtime": 1794907794.4176605,
+    "seen": 1794908700.9197865,
+    "ast_hash": "d7e217c500c90c98c576b05e36ec2d69",
+    "semantic_hash": ""
+  },
+  "public/brand/favicon.png": {
+    "mtime": 1794907794.4179957,
+    "seen": 1794908700.9197874,
+    "ast_hash": "fb162091f116052c0c9dfab7ff397f01",
+    "semantic_hash": ""
+  },
+  "public/brand/logo-inverse.png": {
+    "mtime": 1794907794.4179957,
+    "seen": 1794908700.9197886,
+    "ast_hash": "6fcd7611380792cdcfff804b745ea287",
+    "semantic_hash": ""
+  },
+  "public/brand/logo-stacked-inverse.png": {
+    "mtime": 1794907794.4179957,
+    "seen": 1794908700.9197896,
+    "ast_hash": "4650257488b2259ba6e8368ae0ee9bbc",
+    "semantic_hash": ""
+  },
+  "public/brand/logo-stacked.png": {
+    "mtime": 1794907794.4179957,
+    "seen": 1794908700.9197905,
+    "ast_hash": "0dc0adc0235e217242e73943e8647613",
+    "semantic_hash": ""
+  },
+  "public/brand/logo.png": {
+    "mtime": 1794907794.4179957,
+    "seen": 1794908700.9197915,
+    "ast_hash": "f029a0f10c8ea7212f4fc2ef59c9cb77",
+    "semantic_hash": ""
+  },
+  "public/brand/mark-inverse.png": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.9197924,
+    "ast_hash": "8483419a8ebd6987223d24e2101be4b4",
+    "semantic_hash": ""
+  },
+  "public/brand/mark.png": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.9197931,
+    "ast_hash": "f4fa04d8493e4f7f18b994270d90a734",
+    "semantic_hash": ""
+  },
+  "public/cloudbackground.png": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.919794,
+    "ast_hash": "4721895209bb9849970ea49f81eeb520",
+    "semantic_hash": ""
+  },
+  "public/favicon.png": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.9197953,
+    "ast_hash": "ae9e54ab1a317f72d799e2815ab3cffb",
+    "semantic_hash": ""
+  },
+  "public/file.svg": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.9197962,
+    "ast_hash": "d09f95206c3fa0bb9bd9fefabfd0ea71",
+    "semantic_hash": ""
+  },
+  "public/globe.svg": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.9197972,
+    "ast_hash": "2aaafa6a49b6563925fe440891e32717",
+    "semantic_hash": ""
+  },
+  "public/icons/email.svg": {
+    "mtime": 1794907794.4180431,
+    "seen": 1794908700.9197984,
+    "ast_hash": "747b3a7f72b32760f45a7e5b3f02a4c9",
+    "semantic_hash": ""
+  },
+  "public/icons/gmail.svg": {
+    "mtime": 1794907794.4213808,
+    "seen": 1794908700.9197993,
+    "ast_hash": "e9a54763e56a7cdff2365bc78f45420c",
+    "semantic_hash": ""
+  },
+  "public/icons/outlook.svg": {
+    "mtime": 1794907794.4213808,
+    "seen": 1794908700.9198,
+    "ast_hash": "6f957b3a9496313783d497e89d20464f",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/claap.svg": {
+    "mtime": 1794907794.4214733,
+    "seen": 1794908700.919801,
+    "ast_hash": "507f1f75018315350478a372741c848c",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/fathom.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198022,
+    "ast_hash": "69d89e827844508b6a9d5a68259efd6b",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/fireflies.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198031,
+    "ast_hash": "f5d852b6df40d8dab060baee017147c1",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/grain.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.919804,
+    "ast_hash": "3632ccfb309ee11b55839329f60c2400",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/leexi.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198053,
+    "ast_hash": "7c3587f6a5b57805d38a1dcc5cfe21e5",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/modjo.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198062,
+    "ast_hash": "a174a350f5072ba6603b54114cd0abde",
+    "semantic_hash": ""
+  },
+  "public/integrations/notetakers/tldv.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198072,
+    "ast_hash": "cc15e76ddceae95876f491bcc25ea261",
+    "semantic_hash": ""
+  },
+  "public/landing/dashboard.webp": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198086,
+    "ast_hash": "6afe718d9eb41f72e19fdb4838dfd922",
+    "semantic_hash": ""
+  },
+  "public/login-bg.webp": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198093,
+    "ast_hash": "6ab15c5a4994865cb771cf175af56b22",
+    "semantic_hash": ""
+  },
+  "public/logocaptainblue-rose.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198103,
+    "ast_hash": "db9dca1cbe594552b74ddae6629cec67",
+    "semantic_hash": ""
+  },
+  "public/logowidthsidebar.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198112,
+    "ast_hash": "8df4cbcbc655cf9963f96ee1d0066fa0",
+    "semantic_hash": ""
+  },
+  "public/logowithsidebar.png": {
+    "mtime": 1794907794.4215217,
+    "seen": 1794908700.9198124,
+    "ast_hash": "095af16619c57e1f83a0b7e4aa49691b",
+    "semantic_hash": ""
+  },
+  "public/next.svg": {
+    "mtime": 1794907794.422043,
+    "seen": 1794908700.9198132,
+    "ast_hash": "8e061864f388b47f33a1c3780831193e",
+    "semantic_hash": ""
+  },
+  "public/suzalink_logo.png": {
+    "mtime": 1794907794.422043,
+    "seen": 1794908700.9198143,
+    "ast_hash": "bae562141ad4b56081a334fa8aaafb41",
+    "semantic_hash": ""
+  },
+  "public/tutorials/accueil.jpg": {
+    "mtime": 1794907794.422043,
+    "seen": 1794908700.9198155,
+    "ast_hash": "584de338d3ae4272b9c02ec2aee7073a",
+    "semantic_hash": ""
+  },
+  "public/tutorials/appels.jpg": {
+    "mtime": 1794907794.4267306,
+    "seen": 1794908700.9198165,
+    "ast_hash": "2d94055e1a3d0f5571333d87f0820b0c",
+    "semantic_hash": ""
+  },
+  "public/tutorials/clients.jpg": {
+    "mtime": 1794907794.4340432,
+    "seen": 1794908700.9198174,
+    "ast_hash": "6416c6ef0ec04fc03ef1d999a505f946",
+    "semantic_hash": ""
+  },
+  "public/tutorials/espace-mission.jpg": {
+    "mtime": 1794907794.438043,
+    "seen": 1794908700.9198184,
+    "ast_hash": "f285b68cceb83b684ae582b1b2b531aa",
+    "semantic_hash": ""
+  },
+  "public/tutorials/fiche-liste.jpg": {
+    "mtime": 1794907794.442043,
+    "seen": 1794908700.9198196,
+    "ast_hash": "ea11d8b1b6a2694bb77da3d0a69d4b00",
+    "semantic_hash": ""
+  },
+  "public/tutorials/listes.jpg": {
+    "mtime": 1794907794.4500432,
+    "seen": 1794908700.9198205,
+    "ast_hash": "c16054c9a4733e4abf8b23e758569903",
+    "semantic_hash": ""
+  },
+  "public/tutorials/sas-rdv.jpg": {
+    "mtime": 1794907794.4540431,
+    "seen": 1794908700.9198213,
+    "ast_hash": "129987976b621589ef6f649ff57dcdae",
+    "semantic_hash": ""
+  },
+  "public/tutorials/taches.jpg": {
+    "mtime": 1794907794.458043,
+    "seen": 1794908700.9198225,
+    "ast_hash": "a4c3cbc454bd2db00f970ee7f1c93a92",
+    "semantic_hash": ""
+  },
+  "public/vercel.svg": {
+    "mtime": 1794907794.4660432,
+    "seen": 1794908700.9198234,
+    "ast_hash": "c0af2f507b369b085b35ef4bbe3bcf1e",
+    "semantic_hash": ""
+  },
+  "public/window.svg": {
+    "mtime": 1794907794.4660432,
+    "seen": 1794908700.9198244,
+    "ast_hash": "a2760511c65806022ad20adf74370ff3",
+    "semantic_hash": ""
+  },
+  "suzalink-site/app/apple-icon.png": {
+    "mtime": 1794907794.4986217,
+    "seen": 1794908700.9198253,
+    "ast_hash": "5c8feb3e57754f44b15457d0efa0e2b5",
+    "semantic_hash": ""
+  },
+  "suzalink-site/app/icon.png": {
+    "mtime": 1794907794.4988985,
+    "seen": 1794908700.9198263,
+    "ast_hash": "231cc681c867619ae611674e9124c405",
+    "semantic_hash": ""
+  },
+  "suzalink-site/app/opengraph-image.png": {
+    "mtime": 1794907794.4988985,
+    "seen": 1794908700.9198272,
+    "ast_hash": "8fd9115e7f8dfb5210ef0dffe5474c49",
+    "semantic_hash": ""
+  },
+  "suzalink-site/app/twitter-image.png": {
+    "mtime": 1794907794.5006938,
+    "seen": 1794908700.9198282,
+    "ast_hash": "8fd9115e7f8dfb5210ef0dffe5474c49",
+    "semantic_hash": ""
+  },
+  "suzalink-site/design/creative-contact-sheet.png": {
+    "mtime": 1794907794.5045874,
+    "seen": 1794908700.919829,
+    "ast_hash": "43eea51cb1785f63e4f58a131a878ecd",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/brand/app-icon.png": {
+    "mtime": 1794907794.5060403,
+    "seen": 1794908700.91983,
+    "ast_hash": "25b146b3ec74bef5da9c0d9734d7c4f2",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/brand/logo-inverse.png": {
+    "mtime": 1794907794.506261,
+    "seen": 1794908700.919831,
+    "ast_hash": "a4cbbe547a3e797d88a01531314440b4",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/brand/logo.png": {
+    "mtime": 1794907794.506261,
+    "seen": 1794908700.9198318,
+    "ast_hash": "4d2750bcd297f2e1171ef1d52980ea9d",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/brand/mark-inverse.png": {
+    "mtime": 1794907794.506261,
+    "seen": 1794908700.919833,
+    "ast_hash": "e0e2fd3ea3058980916555a2dcef603d",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/brand/mark.png": {
+    "mtime": 1794907794.506261,
+    "seen": 1794908700.9198341,
+    "ast_hash": "75c52b6299884560e5c9bae9f022eafd",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/bd.svg": {
+    "mtime": 1794907794.506261,
+    "seen": 1794908700.9198353,
+    "ast_hash": "3822012705b1a7a05778070c05e0acb6",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/client.svg": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198365,
+    "ast_hash": "28be172946e34295c30b15fd76a1692c",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/connection.webp": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198375,
+    "ast_hash": "c53a9eb11a0e82983199ae6e90598449",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/execution.svg": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198387,
+    "ast_hash": "a5e713596b70cbc1f34488896fd04153",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/horizon.webp": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.91984,
+    "ast_hash": "8e30f068bf2fbf85f052de0674488d9d",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/ia.svg": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.919841,
+    "ast_hash": "228cdd4ecd41757b263fec7118c73eb4",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/instance.svg": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198425,
+    "ast_hash": "dccb7b1768684c4776463bd246ee4b28",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/manager.svg": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198437,
+    "ast_hash": "49a11ee7fdb2812bbde915a0a825c2ba",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/sdr.svg": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198446,
+    "ast_hash": "7bf26cf2886e19b878cc11eee080e21d",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/creative/vault.webp": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198456,
+    "ast_hash": "e36b4c13f7f5eeda2eb184b888f13672",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/aircall.io.png": {
+    "mtime": 1794907794.507985,
+    "seen": 1794908700.9198468,
+    "ast_hash": "9674a9463eef82045636fe01f53fa38a",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/captainprospect.fr.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198477,
+    "ast_hash": "e6aa87eccd65fea302ccb8fb0ae72142",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/hubspot.com.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198484,
+    "ast_hash": "c680e0d885f44ab30f5b87a3608d8cce",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/lemlist.com.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198494,
+    "ast_hash": "b9849ce10de15e76cd8666c5fdaefc38",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/make.com.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198506,
+    "ast_hash": "56a790a1776fd489d7e6c828ee5226bb",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/modjo.ai.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198515,
+    "ast_hash": "811d089d1605b9a1abd4533d65238a82",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/onoff.app.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198525,
+    "ast_hash": "8190ffe2a0cba6952155c865d6d6afae",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/ping-leadagency.fr.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198534,
+    "ast_hash": "32118a376a4214394d88488db405edec",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/suzaliconseil.com.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198546,
+    "ast_hash": "e4a212eaca75f1ef3b6b73e4a59e94af",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/withallo.com.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198556,
+    "ast_hash": "46616fd75c36164a1557c4a61d4f46f3",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/logos/zapier.com.png": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198565,
+    "ast_hash": "93b9a8f95310389e94db9fb1f148312a",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/visuals/appel-objection.webp": {
+    "mtime": 1794907794.5083756,
+    "seen": 1794908700.9198575,
+    "ast_hash": "21dd7c2aaa9851ae5cda2ba819d48460",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/visuals/bilan-sprint.webp": {
+    "mtime": 1794907794.509128,
+    "seen": 1794908700.9198585,
+    "ast_hash": "c8bb0e6bc5700a1a2b7c933405c05429",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/visuals/fiche-rdv-ia.webp": {
+    "mtime": 1794907794.509128,
+    "seen": 1794908700.9198594,
+    "ast_hash": "60853d9cbeff0fed8ce7a64836a2abb9",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/visuals/marque-blanche.webp": {
+    "mtime": 1794907794.509128,
+    "seen": 1794908700.9198604,
+    "ast_hash": "a431f64fa1fc01d9e0c6047298c0337b",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/visuals/mission-semaine.webp": {
+    "mtime": 1794907794.509128,
+    "seen": 1794908700.9198616,
+    "ast_hash": "b69468d230a2d5f2332b01a7190cc2b7",
+    "semantic_hash": ""
+  },
+  "suzalink-site/public/visuals/tournees-dentaires.webp": {
+    "mtime": 1794907794.509128,
+    "seen": 1794908700.9198625,
+    "ast_hash": "70886b2c4239c80c6b5b80ec233cf613",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5132868,
+    "seen": 1794908700.9198635,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-captions/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5134041,
+    "seen": 1794908700.9198647,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-create/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5136223,
+    "seen": 1794908700.9198656,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-docs/assets/remotion-icon.svg": {
+    "mtime": 1794907794.513788,
+    "seen": 1794908700.919867,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-interactivity/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5139732,
+    "seen": 1794908700.919868,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-license/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5141318,
+    "seen": 1794908700.9198692,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-maps/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5142145,
+    "seen": 1794908700.9198701,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5176363,
+    "seen": 1794908700.9198713,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-markup/remotion-maps/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5186105,
+    "seen": 1794908700.919873,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-multimedia/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5224621,
+    "seen": 1794908700.919874,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-render/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5226223,
+    "seen": 1794908700.9198751,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-saas/assets/remotion-icon.svg": {
+    "mtime": 1794907794.522726,
+    "seen": 1794908700.9198763,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-studio/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5228894,
+    "seen": 1794908700.9198773,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-best-practices/remotion-upgrade/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5229807,
+    "seen": 1794908700.9198787,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-captions/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5230556,
+    "seen": 1794908700.9198797,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/assets/remotion-icon.svg": {
+    "mtime": 1794907794.523232,
+    "seen": 1794908700.9198806,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-markup/remotion-maps/assets/remotion-icon.svg": {
+    "mtime": 1794907794.524072,
+    "seen": 1794908700.9198816,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "tutorials/.claude/skills/remotion-render/assets/remotion-icon.svg": {
+    "mtime": 1794907794.5273616,
+    "seen": 1794908700.9198825,
+    "ast_hash": "b5c64da470eb3e3705453858790fe6b2",
+    "semantic_hash": ""
+  },
+  "uploads/comms/cmkn627yz006lusukzwxxrjlo/1769463932810/620bce52-95ac-4276-912a-8a7689b6db7e.png": {
+    "mtime": 1794907794.5333579,
+    "seen": 1794908700.9198835,
+    "ast_hash": "14cfce5a7f86e20f7ea2a6ebbda20385",
+    "semantic_hash": ""
+  },
+  "uploads/comms/cmkn627yz006lusukzwxxrjlo/1769464160901/5df2658a-3cb2-44a4-83f1-428d65059f40.png": {
+    "mtime": 1794907794.5333579,
+    "seen": 1794908700.9198844,
+    "ast_hash": "14cfce5a7f86e20f7ea2a6ebbda20385",
+    "semantic_hash": ""
+  },
+  "uploads/general/cmklqnq0e0001usn892pekcd5/1768862956474/6e163f8f-a89b-4faf-83c4-5323b0ac6fdd.png": {
+    "mtime": 1794907794.5513477,
+    "seen": 1794908700.9198856,
+    "ast_hash": "068d2b266ec89d4c8250d3eb15bf0edf",
+    "semantic_hash": ""
+  },
+  "uploads/general/cmkn627yz006lusukzwxxrjlo/1768955589890/9b9e7489-e219-4ac4-9d6b-d3778b8dd61e.png": {
+    "mtime": 1794907794.7402034,
+    "seen": 1794908700.9198864,
+    "ast_hash": "47133c9e4c2e234242c52d0879d818a1",
+    "semantic_hash": ""
+  },
+  "uploads/general/cmkn627yz006lusukzwxxrjlo/1768955591293/84de506a-675d-4b81-848c-9c067fc8c36b.png": {
+    "mtime": 1794907794.7402034,
+    "seen": 1794908700.9198873,
+    "ast_hash": "65ab998700dbc5ecc9533d0f841a34cb",
+    "semantic_hash": ""
+  },
+  "uploads/general/cmkn627yz006lusukzwxxrjlo/1768955592298/d8f34ad5-ebdb-4142-b8df-cfea64c8aa90.png": {
+    "mtime": 1794907794.7402034,
+    "seen": 1794908700.9198887,
+    "ast_hash": "47133c9e4c2e234242c52d0879d818a1",
+    "semantic_hash": ""
+  },
+  "package-lock.json": {
+    "mtime": 1794907794.406043,
+    "seen": 1794908700.9199007,
+    "ast_hash": "fa6d7d2187f3e2697830a21d4e76948b",
+    "semantic_hash": ""
+  },
+  "suzalink-site/package-lock.json": {
+    "mtime": 1794907794.5054293,
+    "seen": 1794908700.9199016,
+    "ast_hash": "3d7b80ac36b5bbbfd3236c3462e1d530",
+    "semantic_hash": ""
+  },
+  "tutorials/video/package-lock.json": {
+    "mtime": 1794907794.5281796,
+    "seen": 1794908700.9199028,
+    "ast_hash": "967d82b24acc965ea488945259ddee48",
+    "semantic_hash": ""
+  },
+  "work/qa/package-lock.json": {
+    "mtime": 1794907794.7739918,
+    "seen": 1794908700.9199038,
+    "ast_hash": "ed94cea9269b5f383969eb9f8991cf61",
+    "semantic_hash": ""
   }
 }
