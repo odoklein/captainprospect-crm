@@ -12,7 +12,7 @@ graphify hook install             # git hooks rebuild the graph after commit/che
 - `graphify-out/` is gitignored (graph.json is ~20 MB); each clone builds its own.
 - What gets indexed is controlled by `.graphifyignore`; query defaults live in `.graphifyrc`.
 - `/graphify .` in Claude Code does a full build that also reads the Markdown docs (uses subagents, costs tokens).
-- The hooks in `.claude/settings.json` call `graphify`; if it is not installed they fail harmlessly.
+- The hooks in `.claude/settings.json` call `graphify`; without it installed they never block anything, but Claude Code shows a hook error notice, so install it.
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
 
