@@ -17,6 +17,8 @@ type Ctx = { params: Promise<{ id: string }> };
 const settingsSchema = z.object({
     targetLaunchDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
     welcomeMessage: z.string().trim().max(1000).optional(),
+    // The project manager's booking page (Calendly, Cal.com…), shown after approval.
+    kickoffUrl: z.union([z.literal(""), z.string().trim().url().max(400).regex(/^https:\/\//i, "Lien https:// attendu")]).optional(),
 });
 
 async function respond<T>(fn: () => Promise<T>, status = 200) {

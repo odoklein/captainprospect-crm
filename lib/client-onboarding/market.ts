@@ -59,7 +59,9 @@ export function registryQuery(f: MarketFilters): URLSearchParams {
         per_page: String(SAMPLE_SIZE),
         page: "1",
         minimal: "true",
-        include: "siege",
+        // The establishment inside the chosen area, not only the head office
+        // (often Paris): a « Rhône-Alpes » target must show Rhône-Alpes sites.
+        include: "siege,matching_etablissements",
         etat_administratif: "A",
     });
     if (f.sectors.length) qs.set("section_activite_principale", f.sectors.join(","));
@@ -78,16 +80,18 @@ interface RegistryItem {
     section_activite_principale?: string | null;
     tranche_effectif_salarie?: string | null;
     siege?: { libelle_commune?: string | null; liste_enseignes?: string[] | null } | null;
+    matching_etablissements?: { libelle_commune?: string | null; liste_enseignes?: string[] | null }[] | null;
 }
 
 const visible = (s?: string | null) => (s && !s.includes("NON-DIFFUSIBLE") ? s : undefined);
 
 export function toSample(r: RegistryItem): MarketSample {
-    const name = visible(r.siege?.liste_enseignes?.[0]) ?? visible(r.nom_raison_sociale) ?? visible(r.nom_complet) ?? `SIREN ${r.siren}`;
+    const etab = r.matching_etablissements?.[0] ?? r.siege ?? null;
+    const name = visible(etab?.liste_enseignes?.[0]) ?? visible(r.nom_raison_sociale) ?? visible(r.nom_complet) ?? `SIREN ${r.siren}`;
     return {
         siren: r.siren,
         name: titleCase(name),
-        city: r.siege?.libelle_commune ? titleCase(r.siege.libelle_commune) : null,
+        city: etab?.libelle_commune ? titleCase(etab.libelle_commune) : null,
         headcount: r.tranche_effectif_salarie ? HEADCOUNT_TEXT[r.tranche_effectif_salarie] ?? null : null,
         sector: r.section_activite_principale ? SECTOR_LABEL[r.section_activite_principale] ?? null : null,
     };

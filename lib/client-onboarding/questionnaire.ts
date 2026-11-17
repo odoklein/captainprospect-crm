@@ -2,6 +2,11 @@
 // CLIENT ONBOARDING QUESTIONNAIRE — pure (no database, no network), shared by
 // the public portal (/onboarding/[token]), its API and the agency's card.
 //
+// Two phases:
+//   1. the questionnaire (SCREENS), approved by the client on the review screen;
+//   2. « Prochaines étapes » after approval: kick-off meeting with the project
+//      manager, blacklist, calendar, documents (AFTER fields, still editable).
+//
 // The client's answers live in ClientOnboarding.onboardingData.clientQuestionnaire
 // next to the keys the CRM already uses (icp, pitch, defaultMailboxId…), which
 // this module never overwrites except to fill an empty icp / pitch on approval.
@@ -13,24 +18,32 @@ import { z } from "zod";
 
 // ── Options ─────────────────────────────────────────────────────────────────
 
+export const MISSION_TYPES = [
+    { key: "RDV", label: "Prise de rendez-vous", hint: "Nous décrochons des rendez-vous qualifiés avec vos prospects." },
+    { key: "DETECTION", label: "Détection de projets", hint: "Nous repérons les entreprises qui ont un projet à court terme." },
+    { key: "QUALIFICATION", label: "Qualification de fichier", hint: "Nous vérifions et enrichissons votre base : bons interlocuteurs, besoins, coordonnées." },
+    { key: "SURVEY", label: "Sondage & enquête téléphonique", hint: "Nous interrogeons un panel : satisfaction, intention d'achat, notoriété." },
+] as const;
+export type MissionTypeKey = (typeof MISSION_TYPES)[number]["key"];
+export const MISSION_TYPE_LABEL: Record<string, string> = Object.fromEntries(MISSION_TYPES.map((m) => [m.key, m.label]));
+
 export const CHANNELS = [
-    { key: "CALL", label: "Téléphone", hint: "Nos équipes appellent vos prospects pour qualifier leur besoin et décrocher le rendez-vous." },
-    { key: "EMAIL", label: "Email", hint: "Des séquences d'emails personnalisées, envoyées depuis une adresse à votre nom." },
-    { key: "LINKEDIN", label: "LinkedIn", hint: "Invitations et messages pour engager les décideurs là où ils lisent." },
+    { key: "CALL", label: "Téléphone", hint: "Nos équipes appellent vos prospects pour qualifier leur besoin." },
+    { key: "EMAIL", label: "Email", hint: "Des séquences d'emails personnalisées, envoyées à votre nom." },
+    { key: "LINKEDIN", label: "LinkedIn", hint: "Invitations et messages pour engager les décideurs." },
 ] as const;
 export type ChannelKey = (typeof CHANNELS)[number]["key"];
+export const CHANNEL_LABEL: Record<string, string> = Object.fromEntries(CHANNELS.map((c) => [c.key, c.label]));
 
-export const SALES_CYCLES = [
-    { key: "lt1m", label: "Moins d'1 mois" },
-    { key: "1-3m", label: "1 à 3 mois" },
-    { key: "3-6m", label: "3 à 6 mois" },
-    { key: "6-12m", label: "6 à 12 mois" },
-    { key: "gt12m", label: "Plus de 12 mois" },
+export const DATABASE_SOURCES = [
+    { key: "client", label: "Je fournis la base de données", hint: "Vous nous transmettez votre fichier de prospects après l'onboarding." },
+    { key: "agency", label: "À constituer par vos soins", hint: "Nous construisons la base à partir des cibles ci-dessous." },
 ] as const;
-export const SALES_CYCLE_LABEL: Record<string, string> = Object.fromEntries(SALES_CYCLES.map((c) => [c.key, c.label]));
+export const DATABASE_LABEL: Record<string, string> = Object.fromEntries(DATABASE_SOURCES.map((d) => [d.key, d.label]));
 
 /** A client can describe up to this many target segments. */
 export const MAX_SEGMENTS = 6;
+export const MAX_COLLABORATORS = 5;
 
 /** NAF rév. 2 sections, the filter the French company registry understands. */
 export const SECTORS = [
@@ -64,16 +77,29 @@ export const SIZES = [
 ] as const;
 export const SIZE_LABEL: Record<string, string> = Object.fromEntries(SIZES.map((s) => [s.key, s.label]));
 
-export const JOB_TITLE_SUGGESTIONS = [
-    "Dirigeant / CEO", "Directeur commercial", "Directeur des achats", "DAF", "DRH",
-    "DSI / CTO", "Directeur marketing", "Directeur des opérations", "Directeur supply chain",
-    "Responsable QHSE", "Office manager",
-];
-
-export const OBJECTION_SUGGESTIONS = [
-    "Je n'ai pas le temps", "Nous avons déjà un prestataire", "C'est trop cher",
-    "Envoyez-moi un email", "Ce n'est pas le bon moment", "Je ne suis pas la bonne personne",
-];
+/** One-click job titles, by family (« plus d'exemples, avec des responsables aussi »). */
+export const JOB_TITLE_GROUPS = [
+    {
+        label: "Direction",
+        titles: ["Dirigeant / CEO", "Gérant", "Directeur général", "Directeur d'agence", "Directeur de site / usine", "Directeur des opérations"],
+    },
+    {
+        label: "Directeurs",
+        titles: ["Directeur commercial", "Directeur des achats", "DAF", "DRH", "DSI / CTO", "Directeur marketing", "Directeur supply chain", "Directeur technique"],
+    },
+    {
+        label: "Responsables",
+        titles: [
+            "Responsable commercial", "Responsable des achats", "Responsable RH", "Responsable administratif et financier",
+            "Responsable informatique", "Responsable marketing", "Responsable logistique", "Responsable maintenance",
+            "Responsable qualité / QHSE", "Responsable RSE", "Responsable des services généraux", "Responsable de production",
+        ],
+    },
+    {
+        label: "Autres",
+        titles: ["Office manager", "Acheteur", "Chef de projet", "Comptable", "Assistant(e) de direction"],
+    },
+] as const;
 
 export const MEETING_CRITERIA = [
     "Décideur présent", "Besoin identifié", "Budget évoqué", "Projet dans les 6 mois",
@@ -98,10 +124,12 @@ const segmentSchema = z.object({
     sectors: list(z.string().max(4), 30),
     sizes: list(z.string().max(12), 10),
     regions: list(z.string().max(60), 20),
-    jobTitles: list(shortItem, 20),
+    jobTitles: list(shortItem, 30),
     notes: text(1500),
 });
 export type Segment = z.infer<typeof segmentSchema>;
+
+const personSchema = z.object({ name: text(120), email: text(200), role: text(120) });
 
 export const answersSchema = z.object({
     company: z.object({
@@ -109,7 +137,9 @@ export const answersSchema = z.object({
         pitch: text(600),
         offer: text(1500),
         dealValue: text(120),
-        salesCycle: text(20),
+    }).prefault({}),
+    mission: z.object({
+        type: z.enum(["RDV", "DETECTION", "QUALIFICATION", "SURVEY"]).or(z.literal("")).optional().default(""),
     }).prefault({}),
     channels: list(z.enum(["CALL", "EMAIL", "LINKEDIN"]), 3),
     referent: z.object({
@@ -118,33 +148,33 @@ export const answersSchema = z.object({
         email: text(200),
         phone: text(40),
     }).prefault({}),
+    collaborators: list(personSchema, MAX_COLLABORATORS),
+    database: z.enum(["client", "agency"]).or(z.literal("")).optional().default(""),
     segments: list(segmentSchema, MAX_SEGMENTS),
     samples: list(z.object({
         siren: z.string().max(20),
         name: z.string().max(200),
         verdict: z.enum(["yes", "no"]),
     }), 40),
-    exclusions: z.object({ text: text(20_000) }).prefault({}),
     message: z.object({
         valueProposition: text(600),
         benefits: list(z.string().trim().max(300), 3),
         proof: text(1500),
-        competitors: text(600),
-        objections: list(z.object({ objection: shortItem, answer: z.string().trim().max(600).optional().default("") }), 12),
+        competitors: list(z.object({ name: text(120), website: text(200) }), 3),
     }).prefault({}),
     meetings: z.object({
         criteria: list(shortItem, 12),
         attendee: text(200),
         bookingUrl: text(400),
         days: list(z.enum(["mon", "tue", "wed", "thu", "fri"]), 5),
-        notes: text(1000),
     }).prefault({}),
     goals: z.object({
         monthlyMeetings: z.string().trim().regex(/^\d{0,4}$/).optional().default(""),
         launchDate: day,
-        missionEndDate: day,
-        expectedOutcome: text(1000),
     }).prefault({}),
+    // After approval (« Prochaines étapes »).
+    exclusions: z.object({ text: text(20_000) }).prefault({}),
+    documents: z.object({ links: text(3000) }).prefault({}),
 });
 
 export type Answers = z.infer<typeof answersSchema>;
@@ -168,28 +198,37 @@ export function normalizeAnswers(raw: unknown): Answers {
     return parsed.success ? parsed.data : emptyAnswers();
 }
 
+/**
+ * Once approved, only the « Prochaines étapes » fields can change: the
+ * questionnaire itself stays as validated (the agency can reopen it).
+ */
+export function mergeAfterApproval(approved: Answers, incoming: Answers): Answers {
+    return {
+        ...approved,
+        exclusions: incoming.exclusions,
+        documents: incoming.documents,
+        meetings: { ...approved.meetings, bookingUrl: incoming.meetings.bookingUrl, days: incoming.meetings.days, attendee: incoming.meetings.attendee },
+    };
+}
+
 // ── Screens and steps ───────────────────────────────────────────────────────
 
 export const STEPS = [
     { key: "entreprise", label: "Votre entreprise" },
     { key: "cibles", label: "Vos cibles" },
     { key: "discours", label: "Votre discours" },
-    { key: "objectifs", label: "Vos objectifs" },
     { key: "validation", label: "Validation" },
 ] as const;
 export type StepKey = (typeof STEPS)[number]["key"];
 
 export const SCREENS = [
     { key: "pitch", step: "entreprise" },
+    { key: "mission", step: "entreprise" },
     { key: "offer", step: "entreprise" },
-    { key: "channels", step: "entreprise" },
     { key: "referent", step: "entreprise" },
     { key: "targets", step: "cibles" },
-    { key: "exclusions", step: "cibles" },
     { key: "value", step: "discours" },
-    { key: "objections", step: "discours" },
     { key: "meetings", step: "discours" },
-    { key: "goals", step: "objectifs" },
     { key: "review", step: "validation" },
 ] as const satisfies readonly { key: string; step: StepKey }[];
 export type ScreenKey = (typeof SCREENS)[number]["key"];
@@ -198,8 +237,7 @@ export const SCREEN_KEYS = SCREENS.map((s) => s.key) as ScreenKey[];
 
 /** Rough minutes per screen, for « environ N min restantes ». */
 const SCREEN_MINUTES: Record<ScreenKey, number> = {
-    pitch: 1, offer: 2, channels: 0.5, referent: 1, targets: 4, exclusions: 1,
-    value: 3, objections: 2, meetings: 2, goals: 2, review: 1,
+    pitch: 1, mission: 1, offer: 2, referent: 1.5, targets: 4, value: 3, meetings: 1.5, review: 1,
 };
 
 export function minutesLeft(fromIndex: number): number {
@@ -216,12 +254,19 @@ export function screenIssues(screen: ScreenKey, a: Answers): string[] {
     switch (screen) {
         case "pitch":
             return a.company.pitch.length < 10 ? ["Décrivez ce que vous vendez en une phrase."] : [];
-        case "channels":
-            return a.channels.length === 0 ? ["Choisissez au moins un canal."] : [];
+        case "mission": {
+            const out: string[] = [];
+            if (!a.mission.type) out.push("Choisissez le type de mission.");
+            if (a.channels.length === 0) out.push("Choisissez au moins un canal.");
+            return out;
+        }
         case "referent": {
             const out: string[] = [];
-            if (!a.referent.name) out.push("Indiquez le nom de votre interlocuteur.");
+            if (!a.referent.name) out.push("Indiquez votre nom.");
+            if (!a.referent.role) out.push("Indiquez votre rôle dans l'entreprise.");
             if (!EMAIL_RE.test(a.referent.email)) out.push("Indiquez une adresse email valide.");
+            const badMate = a.collaborators.find((c) => c.email && !EMAIL_RE.test(c.email));
+            if (badMate) out.push(`L'email de ${badMate.name || "votre collaborateur"} n'est pas valide.`);
             return out;
         }
         case "targets":
@@ -232,10 +277,10 @@ export function screenIssues(screen: ScreenKey, a: Answers): string[] {
             return a.message.valueProposition.length < 10 && a.message.benefits.every((b) => !b.trim())
                 ? ["Décrivez votre proposition de valeur ou au moins un avantage."]
                 : [];
-        case "goals":
-            return a.goals.launchDate ? [] : ["Indiquez la date de lancement souhaitée."];
         case "meetings":
-            return a.meetings.criteria.length === 0 ? ["Choisissez au moins un critère de RDV qualifié."] : [];
+            return a.mission.type === "RDV" && a.meetings.criteria.length === 0
+                ? ["Choisissez au moins un critère de RDV qualifié."]
+                : [];
         default:
             return [];
     }
@@ -261,14 +306,13 @@ export function completion(a: Answers): number {
 /** Optional screens count as filled only when the client wrote something. */
 function isScreenTouched(screen: ScreenKey, a: Answers): boolean {
     switch (screen) {
-        case "offer": return !!(a.company.offer || a.company.dealValue || a.company.salesCycle);
-        case "exclusions": return !!a.exclusions.text.trim();
-        case "objections": return a.message.objections.length > 0 || !!a.message.competitors;
+        case "offer": return !!(a.company.offer || a.company.dealValue);
+        case "meetings": return a.meetings.criteria.length > 0 || !!a.goals.monthlyMeetings || !!a.goals.launchDate;
         default: return true;
     }
 }
 
-// ── Exclusions ──────────────────────────────────────────────────────────────
+// ── After approval ──────────────────────────────────────────────────────────
 
 /** One company per line (or comma / semicolon separated), de-duplicated case-insensitively. */
 export function parseExclusions(raw: string): string[] {
@@ -283,6 +327,18 @@ export function parseExclusions(raw: string): string[] {
         out.push(name);
     }
     return out;
+}
+
+export const NEXT_STEPS = ["kickoff", "blacklist", "calendar", "documents"] as const;
+export type NextStepKey = (typeof NEXT_STEPS)[number];
+
+export function nextStepDone(step: NextStepKey, a: Answers): boolean {
+    switch (step) {
+        case "blacklist": return parseExclusions(a.exclusions.text).length > 0;
+        case "calendar": return /^https?:\/\/\S+\.\S+/i.test(a.meetings.bookingUrl);
+        case "documents": return a.documents.links.trim().length > 0;
+        default: return false;
+    }
 }
 
 // ── Summaries for the CRM ───────────────────────────────────────────────────
@@ -303,6 +359,7 @@ export function icpSummary(a: Answers): string {
         if (t.notes) lines.push(`- Précisions : ${t.notes}`);
         return lines.join("\n");
     });
+    if (a.database) blocks.push(`Base de données : ${DATABASE_LABEL[a.database]}`);
     const yes = a.samples.filter((s) => s.verdict === "yes").map((s) => s.name);
     const no = a.samples.filter((s) => s.verdict === "no").map((s) => s.name);
     if (yes.length) blocks.push(`Exemples pertinents : ${yes.join(", ")}`);
@@ -310,32 +367,32 @@ export function icpSummary(a: Answers): string {
     return blocks.join("\n\n");
 }
 
-/** Plain-text goals, shown to the agency next to the pitch. */
-export function goalsSummary(a: Answers): string {
-    const g = a.goals;
-    const fmt = (d: string) => (d ? new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "");
-    const lines: string[] = [];
-    if (g.monthlyMeetings) lines.push(`Objectif : ${g.monthlyMeetings} RDV par mois`);
-    if (g.launchDate) lines.push(`Lancement souhaité : ${fmt(g.launchDate)}`);
-    if (g.missionEndDate) lines.push(`Fin prévisionnelle : ${fmt(g.missionEndDate)}`);
-    if (g.expectedOutcome) lines.push(`Résultat attendu à 3 mois : ${g.expectedOutcome}`);
-    return lines.join("\n");
-}
-
 /** Plain-text pitch brief, written to onboardingData.pitch when it is empty. */
 export function pitchSummary(a: Answers): string {
     const lines: string[] = [];
     if (a.company.pitch) lines.push(a.company.pitch);
+    if (a.mission.type) lines.push(`Mission : ${MISSION_TYPE_LABEL[a.mission.type]}${a.channels.length ? ` (${a.channels.map((c) => CHANNEL_LABEL[c]).join(", ")})` : ""}`);
     if (a.message.valueProposition) lines.push(`Proposition de valeur : ${a.message.valueProposition}`);
     if (a.company.offer) lines.push(`Offre : ${a.company.offer}`);
     if (a.company.dealValue) lines.push(`Panier moyen : ${a.company.dealValue}`);
-    if (a.company.salesCycle) lines.push(`Cycle de vente : ${SALES_CYCLE_LABEL[a.company.salesCycle] ?? a.company.salesCycle}`);
     const benefits = a.message.benefits.filter((b) => b.trim());
     if (benefits.length) lines.push(`Avantages concurrentiels : ${joinFr(benefits)}`);
     if (a.message.proof) lines.push(`Preuves : ${a.message.proof}`);
-    if (a.message.competitors) lines.push(`Concurrents : ${a.message.competitors}`);
-    for (const o of a.message.objections) {
-        lines.push(o.answer ? `Objection « ${o.objection} » → ${o.answer}` : `Objection fréquente : « ${o.objection} »`);
+    const competitors = a.message.competitors.filter((c) => c.name).map((c) => (c.website ? `${c.name} (${c.website})` : c.name));
+    if (competitors.length) lines.push(`Concurrents : ${competitors.join(", ")}`);
+    return lines.join("\n");
+}
+
+/** Plain-text goals and team, shown to the agency next to the pitch. */
+export function goalsSummary(a: Answers): string {
+    const g = a.goals;
+    const lines: string[] = [];
+    if (g.monthlyMeetings) lines.push(`Objectif : ${g.monthlyMeetings} RDV par mois`);
+    if (g.launchDate) lines.push(`Lancement souhaité : ${new Date(`${g.launchDate}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`);
+    if (a.meetings.criteria.length) lines.push(`RDV qualifié : ${a.meetings.criteria.join(", ")}`);
+    if (a.referent.name) lines.push(`Interlocuteur : ${[a.referent.name, a.referent.role, a.referent.email, a.referent.phone].filter(Boolean).join(" · ")}`);
+    for (const c of a.collaborators.filter((x) => x.name || x.email)) {
+        lines.push(`Collaborateur à inviter : ${[c.name, c.role, c.email].filter(Boolean).join(" · ")}`);
     }
     return lines.join("\n");
 }
@@ -386,8 +443,6 @@ export function prefillAnswers(known: {
     icp?: string | null;
     bookingUrl?: string | null;
     email?: string | null;
-    /** YYYY-MM-DD */
-    launchDate?: string | null;
 }): { answers: Answers; prefilled: string[] } {
     const answers = emptyAnswers();
     const prefilled: string[] = [];
@@ -399,10 +454,6 @@ export function prefillAnswers(known: {
     if (known.icp?.trim()) {
         answers.segments[0].notes = known.icp.trim().slice(0, 1500);
         prefilled.push("segments");
-    }
-    if (known.launchDate && /^\d{4}-\d{2}-\d{2}$/.test(known.launchDate)) {
-        answers.goals.launchDate = known.launchDate;
-        prefilled.push("goals.launchDate");
     }
     if (known.bookingUrl?.trim()) {
         answers.meetings.bookingUrl = known.bookingUrl.trim().slice(0, 400);

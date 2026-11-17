@@ -1,27 +1,27 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-    completion, definedSegments, emptyAnswers, icpSummary, missingScreens, normalizeAnswers,
-    parseExclusions, pitchSummary, prefillAnswers, readState, scriptOpener, screenIssues, stillPrefilled,
+    completion, definedSegments, emptyAnswers, goalsSummary, icpSummary, mergeAfterApproval, missingScreens, nextStepDone,
+    normalizeAnswers, parseExclusions, pitchSummary, prefillAnswers, readState, scriptOpener, screenIssues, stillPrefilled,
 } from "./questionnaire";
 import { normalizeFilters, registryQuery, toSample } from "./market";
 
 function filled() {
     const a = emptyAnswers();
     a.company.pitch = "Nous installons des bornes de recharge pour flottes";
+    a.mission.type = "RDV";
     a.channels = ["CALL"];
     a.referent = { name: "Thomas Mercier", role: "DG", email: "thomas@acme.fr", phone: "" };
     a.segments = [{ id: "s1", name: "Industriels", sectors: ["C"], sizes: ["50-249"], regions: ["Bretagne"], jobTitles: ["DAF"], notes: "" }];
     a.message.valueProposition = "Nous divisons par deux le coût de recharge des flottes.";
     a.meetings.criteria = ["Décideur présent"];
-    a.goals.launchDate = "2026-12-01";
     return a;
 }
 
 test("empty answers have every section and block on the required screens", () => {
     const a = emptyAnswers();
     assert.deepEqual(a.segments, []);
-    assert.deepEqual(missingScreens(a), ["pitch", "channels", "referent", "targets", "value", "meetings", "goals"]);
+    assert.deepEqual(missingScreens(a), ["pitch", "mission", "referent", "targets", "value"]);
     assert.equal(completion(a), 0);
 });
 
@@ -30,16 +30,43 @@ test("a complete questionnaire has nothing missing; optional screens count only 
     assert.deepEqual(missingScreens(a), []);
     const before = completion(a);
     a.company.offer = "Abonnement maintenance";
-    a.exclusions.text = "Acme\nBeta";
-    a.message.objections = [{ objection: "C'est trop cher", answer: "" }];
     assert.ok(completion(a) > before);
     assert.equal(completion(a), 100);
 });
 
-test("referent email must look like an email", () => {
+test("the contact needs a role and valid emails, collaborators included", () => {
     const a = filled();
     a.referent.email = "thomas";
     assert.equal(screenIssues("referent", a).length, 1);
+    a.referent.email = "thomas@acme.fr";
+    a.referent.role = "";
+    assert.deepEqual(screenIssues("referent", a), ["Indiquez votre rôle dans l'entreprise."]);
+    a.referent.role = "DG";
+    a.collaborators = [{ name: "Léa", email: "lea@", role: "" }];
+    assert.match(screenIssues("referent", a)[0], /Léa/);
+});
+
+test("meeting criteria are required only for a meeting-booking mission", () => {
+    const a = filled();
+    a.meetings.criteria = [];
+    assert.equal(screenIssues("meetings", a).length, 1);
+    a.mission.type = "SURVEY";
+    assert.equal(screenIssues("meetings", a).length, 0);
+});
+
+test("after approval only the next-step fields change", () => {
+    const approved = filled();
+    const incoming = structuredClone(approved);
+    incoming.company.pitch = "Changed after approval";
+    incoming.exclusions.text = "Acme";
+    incoming.documents.links = "https://drive.example/plaquette";
+    incoming.meetings.bookingUrl = "https://cal.com/thomas";
+    const merged = mergeAfterApproval(approved, incoming);
+    assert.equal(merged.company.pitch, approved.company.pitch);
+    assert.equal(merged.exclusions.text, "Acme");
+    assert.equal(merged.documents.links, "https://drive.example/plaquette");
+    assert.ok(nextStepDone("calendar", merged) && nextStepDone("blacklist", merged) && nextStepDone("documents", merged));
+    assert.ok(!nextStepDone("calendar", approved));
 });
 
 test("a segment counts once it has a sector or a real description", () => {
@@ -54,6 +81,7 @@ test("normalizeAnswers never throws and drops invalid shapes", () => {
     assert.deepEqual(normalizeAnswers("nope"), emptyAnswers());
     assert.deepEqual(normalizeAnswers({ channels: ["FAX"] }), emptyAnswers());
     assert.equal(normalizeAnswers({ goals: { monthlyMeetings: "15" } }).goals.monthlyMeetings, "15");
+    assert.equal(normalizeAnswers({ database: "client" }).database, "client");
 });
 
 test("exclusions are split on lines, commas and semicolons and de-duplicated", () => {
@@ -64,23 +92,30 @@ test("summaries for the CRM cover every segment, the pitch and the opener", () =
     const a = filled();
     a.segments.push({ id: "s2", name: "Logisticiens", sectors: ["H"], sizes: [], regions: [], jobTitles: [], notes: "" });
     a.samples = [{ siren: "1", name: "Rhonalog", verdict: "yes" }];
+    a.database = "client";
+    a.message.competitors = [{ name: "ChargeCo", website: "chargeco.fr" }, { name: "", website: "" }];
+    a.collaborators = [{ name: "Léa Dubois", email: "lea@acme.fr", role: "Commerciale" }];
     const icp = icpSummary(a);
     assert.match(icp, /Industriels\n- Secteurs : Industrie/);
     assert.match(icp, /Logisticiens\n- Secteurs : Transport & logistique\n- Zones : France entière/);
     assert.match(icp, /Exemples pertinents : Rhonalog/);
+    assert.match(icp, /Base de données : Je fournis la base de données/);
     assert.match(pitchSummary(a), /Proposition de valeur : Nous divisons/);
+    assert.match(pitchSummary(a), /Mission : Prise de rendez-vous \(Téléphone\)/);
+    assert.match(pitchSummary(a), /Concurrents : ChargeCo \(chargeco\.fr\)$/m);
+    assert.match(goalsSummary(a), /Collaborateur à inviter : Léa Dubois · Commerciale · lea@acme\.fr/);
     assert.match(scriptOpener(a, "Acme"), /^Bonjour, je vous appelle de la part de Acme\. Nous installons/);
 });
 
 test("prefill uses what the agency knows and stops flagging edited answers", () => {
-    const { answers, prefilled } = prefillAnswers({ pitch: "Bornes de recharge", icp: "Flottes de plus de 20 véhicules", email: "bad", launchDate: "2026-12-01" });
+    const { answers, prefilled } = prefillAnswers({ pitch: "Bornes de recharge", icp: "Flottes de plus de 20 véhicules", email: "bad" });
     assert.equal(answers.company.pitch, "Bornes de recharge");
     assert.equal(answers.segments[0].notes, "Flottes de plus de 20 véhicules");
-    assert.equal(answers.goals.launchDate, "2026-12-01");
-    assert.deepEqual(prefilled, ["company.pitch", "segments", "goals.launchDate"]);
+    assert.equal(answers.goals.launchDate, "", "no date is ever proposed to the client");
+    assert.deepEqual(prefilled, ["company.pitch", "segments"]);
     const edited = structuredClone(answers);
     edited.company.pitch = "Autre chose";
-    assert.deepEqual(stillPrefilled(prefilled, answers, edited), ["segments", "goals.launchDate"]);
+    assert.deepEqual(stillPrefilled(prefilled, answers, edited), ["segments"]);
 });
 
 test("readState repairs unknown screens", () => {
@@ -98,6 +133,12 @@ test("registry query maps sectors, size groups and regions to registry codes", (
     assert.equal(qs.get("etat_administratif"), "A");
     // No size picked: companies with employees only, never the one-person shells.
     assert.ok(!registryQuery(normalizeFilters({ sectors: [], sizes: [], regions: [] })).get("tranche_effectif_salarie")!.includes("NN"));
+});
+
+test("samples show the establishment inside the chosen area, not the head office", () => {
+    const row = { siren: "2", nom_complet: "TOTALENERGIES CHARGING SERVICES", siege: { libelle_commune: "PUTEAUX" }, matching_etablissements: [{ libelle_commune: "LYON 7EME" }] };
+    assert.equal(toSample(row).city, "Lyon 7eme");
+    assert.equal(registryQuery(normalizeFilters({ sectors: [], sizes: [], regions: [] })).get("include"), "siege,matching_etablissements");
 });
 
 test("registry rows become readable samples", () => {

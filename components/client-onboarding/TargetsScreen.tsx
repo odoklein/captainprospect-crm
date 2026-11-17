@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Briefcase, Building2, Crosshair, Layers, Loader2, MapPin, Plus, Sparkles, ThumbsDown, ThumbsUp, Trash2, Users,
+    Briefcase, Building2, Check, Crosshair, Database, Layers, Loader2, MapPin, Plus, Sparkles, ThumbsDown, ThumbsUp, Trash2, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-    JOB_TITLE_SUGGESTIONS, MAX_SEGMENTS, SECTORS, SIZES, newSegment,
+    DATABASE_SOURCES, JOB_TITLE_GROUPS, MAX_SEGMENTS, SECTORS, SIZES, newSegment,
     type Answers, type Segment,
 } from "@/lib/client-onboarding/questionnaire";
 import type { MarketResult } from "@/lib/client-onboarding/market";
@@ -213,18 +213,18 @@ function SamplesPanel({ data, loading, answers, onVerdict }: {
                 {samples.map((s, i) => {
                     const v = verdictOf(s.siren);
                     return (
-                        <li key={s.siren} className={cn("flex flex-wrap items-center gap-3 py-3 transition-opacity", v === "no" && "opacity-55")}>
+                        <li key={s.siren} className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 py-3 transition-opacity", v === "no" && "opacity-55")}>
                             <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl font-display text-lg font-extrabold", TILE_TONES[i % TILE_TONES.length])} aria-hidden>
                                 {s.name.charAt(0)}
                             </span>
                             <div className="min-w-0 flex-1">
-                                <p className="truncate font-bold text-ink">{s.name}</p>
+                                <p className="truncate font-bold text-ink" title={s.name}>{s.name}</p>
                                 <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-3">
                                     {s.city && <span className="inline-flex items-center gap-1"><MapPin className="size-3" aria-hidden />{s.city}</span>}
                                     {s.headcount && <span className="inline-flex items-center gap-1"><Users className="size-3" aria-hidden />{s.headcount}</span>}
                                 </p>
                             </div>
-                            <div className="flex gap-1.5" role="group" aria-label={`Votre avis sur ${s.name}`}>
+                            <div className="flex basis-full gap-1.5 pl-14" role="group" aria-label={`Votre avis sur ${s.name}`}>
                                 <button
                                     type="button"
                                     aria-pressed={v === "yes"}
@@ -303,7 +303,7 @@ export function TargetsScreen({ token, answers, update }: {
 
     const addTitle = (t: string) => {
         const v = t.trim();
-        if (!v || seg.jobTitles.some((x) => x.toLowerCase() === v.toLowerCase()) || seg.jobTitles.length >= 20) return;
+        if (!v || seg.jobTitles.some((x) => x.toLowerCase() === v.toLowerCase()) || seg.jobTitles.length >= 30) return;
         edit((s) => { s.jobTitles.push(v.slice(0, 120)); });
     };
 
@@ -327,6 +327,35 @@ export function TargetsScreen({ token, answers, update }: {
                     </p>
                 </div>
             </header>
+
+            {/* Who provides the prospect database */}
+            <div className="mb-6 grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Base de données de prospects">
+                {DATABASE_SOURCES.map((d) => {
+                    const on = answers.database === d.key;
+                    return (
+                        <button
+                            key={d.key}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            onClick={() => update((a) => { a.database = on ? "" : d.key; })}
+                            className={cn(
+                                "flex items-start gap-3.5 rounded-2xl border-2 p-4 text-left transition-all",
+                                on ? "border-primary bg-primary-50/60" : "border-line bg-surface hover:border-line-strong",
+                                FOCUS,
+                            )}
+                        >
+                            <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", on ? "bg-primary text-primary-fg" : "bg-surface-2 text-ink-3")} aria-hidden>
+                                {on ? <Check className="size-5" strokeWidth={3} /> : <Database className="size-5" />}
+                            </span>
+                            <span>
+                                <span className="block font-bold text-ink">{d.label}</span>
+                                <span className="mt-0.5 block text-sm text-ink-3">{d.hint}</span>
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
 
             {/* Segment tabs */}
             <div className="mb-4 flex flex-wrap items-center gap-2" role="tablist" aria-label="Vos cibles">
@@ -441,7 +470,7 @@ export function TargetsScreen({ token, answers, update }: {
                             >
                                 <TextInput
                                     aria-label="Ajouter une fonction"
-                                    placeholder="Ex. Directeur des achats, puis Entrée"
+                                    placeholder="Une autre fonction ? Tapez-la puis Entrée"
                                     value={titleDraft}
                                     onChange={(e) => setTitleDraft(e.target.value)}
                                     icon={Building2}
@@ -450,11 +479,26 @@ export function TargetsScreen({ token, answers, update }: {
                                     Ajouter
                                 </button>
                             </form>
-                            <div className="mt-2.5 flex flex-wrap gap-1.5">
-                                {JOB_TITLE_SUGGESTIONS.filter((t) => !seg.jobTitles.includes(t)).slice(0, 8).map((t) => (
-                                    <button key={t} type="button" onClick={() => addTitle(t)} className={cn("rounded-lg px-2 py-1 text-xs font-semibold text-ink-3 hover:bg-primary-50 hover:text-primary-700", FOCUS)}>
-                                        + {t}
-                                    </button>
+                            <div className="mt-4 space-y-3">
+                                {JOB_TITLE_GROUPS.map((g) => (
+                                    <div key={g.label} className="sm:flex sm:gap-3">
+                                        <p className="mb-1.5 w-24 shrink-0 pt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-4">{g.label}</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {g.titles.map((t) => {
+                                                const on = seg.jobTitles.includes(t);
+                                                return (
+                                                    <Chip
+                                                        key={t}
+                                                        size="sm"
+                                                        selected={on}
+                                                        onClick={() => (on ? edit((x) => { x.jobTitles = x.jobTitles.filter((j) => j !== t); }) : addTitle(t))}
+                                                    >
+                                                        {t}
+                                                    </Chip>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>

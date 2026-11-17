@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, CalendarDays, Check, CloudOff, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CloudOff, Info, ListChecks, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/components/brand/BrandLogo";
 import { useBrand } from "@/lib/brand/client";
@@ -11,24 +11,28 @@ import {
 import type { PortalView } from "@/lib/client-onboarding/service";
 import { TargetsScreen } from "./TargetsScreen";
 import { ReviewScreen } from "./ReviewScreen";
-import {
-    ChannelsScreen, ExclusionsScreen, GoalsScreen, MeetingsScreen, ObjectionsScreen, OfferScreen, PitchScreen,
-    ReferentScreen, ValueScreen, type ScreenProps,
-} from "./screens";
-import { Avatar, FOCUS, Hint, formatDay } from "./ui";
+import { NextSteps } from "./NextSteps";
+import { MeetingsScreen, MissionScreen, OfferScreen, PitchScreen, ReferentScreen, ValueScreen, type ScreenProps } from "./screens";
+import { Avatar, FOCUS, Hint } from "./ui";
 
 const SIMPLE: Partial<Record<ScreenKey, (p: ScreenProps) => React.ReactElement>> = {
-    pitch: PitchScreen, offer: OfferScreen, channels: ChannelsScreen, referent: ReferentScreen,
-    exclusions: ExclusionsScreen, value: ValueScreen, objections: ObjectionsScreen, meetings: MeetingsScreen, goals: GoalsScreen,
+    pitch: PitchScreen, mission: MissionScreen, offer: OfferScreen, referent: ReferentScreen,
+    value: ValueScreen, meetings: MeetingsScreen,
 };
 
 type SaveState = { kind: "idle" | "saving" | "error"; at: number | null };
 
+/** 0 until mounted, so the server render and the first client render agree. */
 function useNow(ms: number) {
-    const [now, setNow] = useState(() => Date.now());
+    const [now, setNow] = useState(0);
     useEffect(() => {
-        const id = setInterval(() => setNow(Date.now()), ms);
-        return () => clearInterval(id);
+        const tick = () => setNow(Date.now());
+        const first = setTimeout(tick, 0);
+        const id = setInterval(tick, ms);
+        return () => {
+            clearTimeout(first);
+            clearInterval(id);
+        };
     }, [ms]);
     return now;
 }
@@ -54,7 +58,8 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
     const stepIndex = STEPS.findIndex((s) => s.key === step);
 
     const flush = useCallback(async (keepalive = false) => {
-        if (!dirty.current || submittedAt) return;
+        // After approval the server keeps only the « Prochaines étapes » fields.
+        if (!dirty.current) return;
         dirty.current = false;
         setSave((s) => ({ ...s, kind: "saving" }));
         try {
@@ -72,7 +77,7 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
             dirty.current = true;
             setSave((s) => ({ ...s, kind: "error" }));
         }
-    }, [token, submittedAt]);
+    }, [token]);
 
     // Debounced autosave; retries on the next change or every 10 s after an error.
     useEffect(() => {
@@ -136,15 +141,14 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
     };
 
     const manager = view.accountManager?.name ?? null;
-    const launch = view.targetLaunchDate ?? (answers.goals.launchDate || null);
-    const savedAgo = save.at ? Math.max(1, Math.round((now - save.at) / 1000)) : null;
+    const savedAgo = save.at && now ? Math.max(1, Math.round((now - save.at) / 1000)) : null;
     const savedLabel = save.kind === "saving" ? "Enregistrement…"
         : save.kind === "error" ? "Hors ligne, nouvel essai…"
         : savedAgo === null ? "Enregistrement automatique"
         : savedAgo < 60 ? `Enregistré il y a ${savedAgo} s` : `Enregistré il y a ${Math.round(savedAgo / 60)} min`;
     const hasPrefill = prefilled.some((p) =>
         (screen === "pitch" && p === "company.pitch") || (screen === "targets" && p === "segments")
-        || (screen === "goals" && p === "goals.launchDate") || (screen === "referent" && p === "referent.email"));
+        || (screen === "referent" && p === "referent.email"));
 
     // ── Welcome ──
     if (!started) {
@@ -167,7 +171,7 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
                             </div>
                         </figure>
                     )}
-                    <ol className="mt-8 grid gap-3 sm:grid-cols-5">
+                    <ol className="mt-8 grid gap-3 sm:grid-cols-4">
                         {STEPS.map((s, i) => (
                             <li key={s.key} className="flex items-center gap-2.5 text-sm font-semibold text-ink-2 sm:flex-col sm:items-start">
                                 <span className="flex size-7 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">{i + 1}</span>
@@ -188,7 +192,7 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
     }
 
     const Simple = SIMPLE[screen];
-    const isReview = screen === "review" || !!submittedAt;
+    const isReview = screen === "review" && !submittedAt;
 
     return (
         <div className="min-h-dvh bg-canvas">
@@ -209,7 +213,7 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
                     >
                         {save.kind === "saving" ? <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden />
                             : save.kind === "error" ? <CloudOff className="size-3.5" aria-hidden /> : <Check className="size-3.5" aria-hidden />}
-                        {submittedAt ? "Validé" : savedLabel}
+                        {submittedAt && save.at === null ? "Validé" : savedLabel}
                     </span>
                     {manager && (
                         <span className="hidden items-center gap-2.5 border-l border-line pl-4 text-sm lg:flex">
@@ -253,24 +257,28 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
                                 </li>
                             );
                         })}
+                        {submittedAt && (
+                            <li className="relative">
+                                <span aria-hidden className="absolute -top-2 left-[29px] h-3 w-0.5 bg-primary" />
+                                <span aria-current="step" className="flex w-full items-center gap-3 rounded-2xl bg-primary-50 px-3 py-3 text-[15px] font-semibold text-primary-900">
+                                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-fg"><ListChecks className="size-4" aria-hidden /></span>
+                                    Prochaines étapes
+                                </span>
+                            </li>
+                        )}
                     </ol>
                 </nav>
 
                 <main className="min-w-0 px-4 pb-36 pt-8 sm:px-8 lg:pt-12">
                     {/* Mobile step indicator */}
-                    <p className="mb-6 text-xs font-bold uppercase tracking-[0.12em] text-ink-3 lg:hidden">
+                    <p className={cn("mb-6 text-xs font-bold uppercase tracking-[0.12em] text-ink-3 lg:hidden", submittedAt && "hidden")}>
                         Étape {stepIndex + 1} sur {STEPS.length} · {STEPS[stepIndex].label}
                     </p>
 
-                    {launch && !isReview && screen !== "targets" && (
-                        <div className="mb-6 ml-auto hidden w-fit items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-sm xl:flex">
-                            <CalendarDays className="size-6 text-primary" aria-hidden />
-                            <span className="text-sm text-ink-3">Lancement {view.targetLaunchDate ? "prévu" : "souhaité"} :<br /><span className="text-base font-bold text-ink">{formatDay(launch)}</span></span>
-                        </div>
-                    )}
-
                     <div key={screen} className="motion-safe:animate-[ds-enter_.25s_ease-out]">
-                        {isReview ? (
+                        {submittedAt ? (
+                            <NextSteps view={view} answers={answers} update={update} />
+                        ) : isReview ? (
                             <ReviewScreen
                                 token={token}
                                 view={view}
@@ -278,7 +286,6 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
                                 onEdit={go}
                                 onSubmit={submit}
                                 submitting={submitting}
-                                submittedAt={submittedAt}
                                 error={submitError}
                             />
                         ) : screen === "targets" ? (
@@ -288,7 +295,7 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
                         ) : null}
                     </div>
 
-                    {hasPrefill && !isReview && (
+                    {hasPrefill && !isReview && !submittedAt && (
                         <div className="mx-auto mt-6 max-w-3xl">
                             <Hint icon={Info}>Pré-rempli par {brand.name} : vérifiez et corrigez si besoin.</Hint>
                         </div>
@@ -302,7 +309,7 @@ export function OnboardingPortal({ token, view }: { token: string; view: PortalV
             </div>
 
             {/* Bottom bar */}
-            {!isReview && (
+            {!isReview && !submittedAt && (
                 <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/90 backdrop-blur-md lg:left-[280px]">
                     <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-4 sm:px-8">
                         <div className="hidden min-w-0 flex-1 sm:block">

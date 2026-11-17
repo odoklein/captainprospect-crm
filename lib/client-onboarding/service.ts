@@ -15,6 +15,7 @@ import {
     completion,
     goalsSummary,
     icpSummary,
+    mergeAfterApproval,
     missingScreens,
     normalizeAnswers,
     pitchSummary,
@@ -59,9 +60,12 @@ function dataOf(row: { onboardingData: unknown }): Record<string, unknown> {
     return d && typeof d === "object" && !Array.isArray(d) ? (d as Record<string, unknown>) : {};
 }
 
-function welcomeMessageOf(row: { onboardingData: unknown }): string {
-    const link = dataOf(row).clientLink as { welcomeMessage?: unknown } | undefined;
-    return typeof link?.welcomeMessage === "string" ? link.welcomeMessage : "";
+function linkSettingsOf(row: { onboardingData: unknown }): { welcomeMessage: string; kickoffUrl: string } {
+    const link = dataOf(row).clientLink as { welcomeMessage?: unknown; kickoffUrl?: unknown } | undefined;
+    return {
+        welcomeMessage: typeof link?.welcomeMessage === "string" ? link.welcomeMessage : "",
+        kickoffUrl: typeof link?.kickoffUrl === "string" && /^https:\/\//i.test(link.kickoffUrl) ? link.kickoffUrl : "",
+    };
 }
 
 /** Sets top-level keys of onboardingData atomically; `fillIfEmpty` keys only when blank. */
@@ -138,6 +142,8 @@ export interface PortalView {
     accountManager: { name: string } | null;
     targetLaunchDate: string | null;
     welcomeMessage: string;
+    /** The project manager's booking page for the kick-off meeting (« Prochaines étapes »). */
+    kickoffUrl: string;
     state: QuestionnaireState;
     contract: { title: string; done: boolean }[];
 }
@@ -173,7 +179,6 @@ export async function openPortal(token: string): Promise<PortalLookup> {
             icp: typeof data.icp === "string" ? data.icp : null,
             bookingUrl: row.client.bookingUrl,
             email: row.client.email,
-            launchDate: row.targetLaunchDate?.toISOString().slice(0, 10) ?? null,
         });
         state = { version: 1, answers, screen: "pitch", prefilled, updatedAt: null, submittedAt: null };
         await patchOnboardingData(row.id, { clientQuestionnaire: state });
@@ -198,26 +203,33 @@ export async function openPortal(token: string): Promise<PortalLookup> {
             clientName: row.client.name,
             accountManager: manager ? { name: manager.name } : null,
             targetLaunchDate: row.targetLaunchDate?.toISOString() ?? null,
-            welcomeMessage: welcomeMessageOf(row),
+            ...linkSettingsOf(row),
             state,
             contract,
         },
     };
 }
 
-/** Autosave from the portal. Refused once the client has approved. */
+/** Autosave from the portal. After approval only the « Prochaines étapes » fields change. */
 export async function saveFromPortal(
     token: string,
     input: { answers: unknown; screen: ScreenKey },
 ): Promise<{ updatedAt: string; prefilled: string[] }> {
     const row = await requireLiveLink(token);
     const prev = readState(dataOf(row).clientQuestionnaire);
-    if (prev?.submittedAt) throw new OnboardingLinkError("Le questionnaire a déjà été validé", 409);
-
-    const answers: Answers = normalizeAnswers(input.answers);
-    const prefilled = prev ? stillPrefilled(prev.prefilled, prev.answers, answers) : [];
+    const incoming: Answers = normalizeAnswers(input.answers);
     const updatedAt = new Date().toISOString();
-    const state: QuestionnaireState = { version: 1, answers, screen: input.screen, prefilled, updatedAt, submittedAt: null };
+    const submittedAt = prev?.submittedAt ?? null;
+    const answers = prev && submittedAt ? mergeAfterApproval(prev.answers, incoming) : incoming;
+    const prefilled = prev ? stillPrefilled(prev.prefilled, prev.answers, answers) : [];
+    const state: QuestionnaireState = {
+        version: 1,
+        answers,
+        screen: submittedAt ? "review" : input.screen,
+        prefilled,
+        updatedAt,
+        submittedAt,
+    };
 
     await patchOnboardingData(row.id, { clientQuestionnaire: state });
     await prisma.clientOnboarding.update({
@@ -288,6 +300,7 @@ export interface LinkInfo {
     submittedAt: string | null;
     targetLaunchDate: string | null;
     welcomeMessage: string;
+    kickoffUrl: string;
     completion: number;
     missing: ScreenKey[];
     state: QuestionnaireState | null;
@@ -309,7 +322,7 @@ function toInfo(row: OnboardingRow | null): LinkInfo {
         lastSeenAt: row?.clientLastSeenAt?.toISOString() ?? null,
         submittedAt: state?.submittedAt ?? row?.clientSubmittedAt?.toISOString() ?? null,
         targetLaunchDate: row?.targetLaunchDate?.toISOString() ?? null,
-        welcomeMessage: row ? welcomeMessageOf(row) : "",
+        ...(row ? linkSettingsOf(row) : { welcomeMessage: "", kickoffUrl: "" }),
         completion: state ? completion(state.answers) : 0,
         missing: state ? missingScreens(state.answers) : [],
         state,
@@ -325,6 +338,18 @@ export async function getLinkInfo(clientId: string): Promise<LinkInfo> {
 export interface LinkSettings {
     targetLaunchDate?: string | null;
     welcomeMessage?: string;
+    kickoffUrl?: string;
+}
+
+async function saveLinkSettings(row: { id: string; onboardingData: unknown }, settings: LinkSettings): Promise<void> {
+    if (settings.welcomeMessage === undefined && settings.kickoffUrl === undefined) return;
+    const current = linkSettingsOf(row);
+    await patchOnboardingData(row.id, {
+        clientLink: {
+            welcomeMessage: settings.welcomeMessage ?? current.welcomeMessage,
+            kickoffUrl: settings.kickoffUrl ?? current.kickoffUrl,
+        },
+    });
 }
 
 function launchDate(day: string | null | undefined): Date | null | undefined {
@@ -351,11 +376,9 @@ export async function createLink(clientId: string, userId: string, settings: Lin
         where: { clientId },
         create: { clientId, createdById: userId, ...link },
         update: link,
-        select: { id: true },
+        select: { id: true, onboardingData: true },
     });
-    if (settings.welcomeMessage !== undefined) {
-        await patchOnboardingData(row.id, { clientLink: { welcomeMessage: settings.welcomeMessage } });
-    }
+    await saveLinkSettings(row, settings);
     await tickChecklistStep(clientId, "questionnaire-envoye");
     return getLinkInfo(clientId);
 }
@@ -367,9 +390,7 @@ export async function updateLink(clientId: string, settings: LinkSettings): Prom
     if (date !== undefined) {
         await prisma.clientOnboarding.update({ where: { id: row.id }, data: { targetLaunchDate: date }, select: { id: true } });
     }
-    if (settings.welcomeMessage !== undefined) {
-        await patchOnboardingData(row.id, { clientLink: { welcomeMessage: settings.welcomeMessage } });
-    }
+    await saveLinkSettings(row, settings);
     return getLinkInfo(clientId);
 }
 
