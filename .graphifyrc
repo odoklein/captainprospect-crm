@@ -1,0 +1,6 @@
+# graphify project settings (see .claude/skills/graphify/SKILL.md)
+# Default budget/depth for `graphify query`; explicit --budget/--depth override.
+query_budget=3000
+query_depth=2
+# Larger graphs are rendered as a community-level view in graph.html.
+viz_node_limit=5000

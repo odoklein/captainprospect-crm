@@ -82,3 +82,6 @@ build/
 .env
 .env.local
 .env.*.local
+
+# graphify knowledge graph (rebuilt locally: `graphify update .`, git hooks keep it fresh)
+graphify-out/

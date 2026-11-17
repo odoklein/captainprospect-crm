@@ -1,0 +1,47 @@
+# graphify: paths excluded from the knowledge graph (gitignore syntax).
+# .gitignore is applied too; this file can only exclude more.
+
+# Generated / vendored
+graphify-out/
+lib/generated/
+public/
+*.min.js
+package-lock.json
+
+# Agent tooling, worktrees and editor config (not product code)
+.claude/
+.cursor/
+.gemini/
+.windsurf/
+.fallow/
+tutorials/.claude/
+
+# Data dumps, uploads, logs and scratch output
+uploads/
+extracted_leads/
+sqsq/
+*.log
+*.csv
+ts_errors*
+DATE_AUDIT_RAW.json
+email-code-dump.txt
+console.log*
+{if*
+
+# One-off SQL dumps and seed files at the repo root (schema lives in prisma/)
+/*.sql
+
+# Binary media and inspiration material
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.svg
+*.mp4
+*.mov
+*.vtt
+*.pdf
+inspo/
+communication-inspo/
+designsystemfinal/
