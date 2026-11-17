@@ -186,7 +186,6 @@ function InnerLayout({
         pathname === "/manager/planning" || pathname === "/sdr/planning";
     // The assistant is a chat app: history rail + thread + pinned composer.
     const isAssistantChat = pathname === "/manager/assistant";
-    const isClientWorkspace = pathname === "/manager/clients";
     // Calling workspaces: panes edge to edge, each scrolling on its own.
     const isCallWorkspace =
         pathname === "/sdr/focus" || pathname === "/sdr/appels" || pathname === "/manager/appels" ||
@@ -215,7 +214,7 @@ function InnerLayout({
     const seesChangelog = !!userRole && userRole !== UserRole.CLIENT && userRole !== UserRole.COMMERCIAL;
 
     const layout = (
-        <div className={cn("cp-layout", pathname.startsWith("/sdr") && "sdr-studio", isClientWorkspace && "manager-client-studio")}>
+        <div className={cn("cp-layout", pathname.startsWith("/sdr") && "sdr-studio")}>
             <GlobalSearchModal
                 open={searchOpen}
                 onClose={closeSearch}
@@ -291,8 +290,6 @@ function InnerLayout({
 
                         {children}
                     </div>
-                ) : isClientWorkspace ? (
-                    <div className="cw-app-canvas">{children}</div>
                 ) : (
                     <div className="cp-content">
                         <div className="max-w-[1680px] 2xl:max-w-[1800px] mx-auto w-full">

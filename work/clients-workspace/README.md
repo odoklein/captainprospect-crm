@@ -1,5 +1,7 @@
 # Clients & missions workspace — paused work
 
+**Abandoned (2026-11-17):** the clients page went back to cards + drawer; do not apply this patch.
+
 Plan: docs/plans/2026-11-13-clients-missions-workspace-upgrade.md
 
 Done and on the branch: Phase 0 url.ts (+tests) and ui/ kit, shared fetch

@@ -1,5 +1,14 @@
 # Clients & Missions workspace — analysis and upgrade plan
 
+> **Status (2026-11-17): abandoned — do not implement.** The product owner chose to go back to the
+> previous design: clients as cards on `/manager/clients`, a `ClientDrawer` with tabs, and the
+> mission workspace inside that drawer. The page, `ClientDrawer.tsx`, `MissionWorkspace.tsx` and
+> `ReadinessPanel.tsx` were restored to their `fed0b2c` versions. The APIs, the `ClientPage` model,
+> `lib/missions/{pulse,insights,readiness}` and `/api/missions/[id]/duplicate` stay on the server.
+> The document-style components (`components/manager/workspace/*`, `MissionPulse`, `MissionSetupPanel`,
+> `app/manager/clients/workspace.css`) are no longer used by that page.
+
+
 **Date:** 2026-11-13
 **Audience:** the implementing agent (Claude Opus 5.5) and the product owner.
 **Scope:** the manager "Espace clients" at `/manager/clients` — client directory, client workspace, mission workspace — plus the APIs and legacy routes they depend on.
