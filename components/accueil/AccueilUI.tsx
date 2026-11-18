@@ -539,17 +539,18 @@ export function StatTile({ label, children, className }: { label: ReactNode; chi
     );
 }
 
-export function ProgressBar({ percent, tone = "emerald", className, label, fillClassName }: {
+export function ProgressBar({ percent, tone = "emerald", className, label, fillClassName, ticks }: {
     percent: number;
     tone?: AccueilTone;
     className?: string;
     label?: string;
     fillClassName?: string;
+    ticks?: boolean;
 }) {
     const clamped = Math.min(100, Math.max(0, percent));
     return (
         <div
-            className={cn("h-2 w-full bg-surface-3 rounded-full overflow-hidden", className)}
+            className={cn("h-2 w-full bg-surface-3 rounded-full overflow-hidden", ticks && "workspace-progress-ticks", className)}
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}
@@ -557,10 +558,25 @@ export function ProgressBar({ percent, tone = "emerald", className, label, fillC
             aria-label={label}
         >
             <div
-                className={cn("h-full rounded-full motion-safe:transition-[width] motion-safe:duration-700 ease-out", fillClassName ?? BAR[tone])}
+                className={cn("h-full motion-safe:transition-[width] ease-out", ticks ? "motion-safe:duration-500" : "rounded-full motion-safe:duration-700", fillClassName ?? BAR[tone])}
                 style={{ width: `${clamped}%` }}
             />
         </div>
+    );
+}
+
+export function DashboardAction({ href, label, icon: Icon, primary }: {
+    href: string;
+    label: string;
+    icon: LucideIcon;
+    primary?: boolean;
+}) {
+    return (
+        <Link href={href} className="workspace-action" data-primary={primary || undefined}>
+            <Icon aria-hidden="true" />
+            {label}
+            {primary && <ArrowUpRight className="workspace-action-arrow" aria-hidden="true" />}
+        </Link>
     );
 }
 

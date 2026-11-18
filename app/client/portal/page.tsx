@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
+import Link from "next/link";
 import { useToast } from "@/components/ui";
 import { BreakdownCharts } from "@/components/client/BreakdownCharts";
 import { LaunchWarmupScreen, type PortalLaunchMission } from "@/components/portal/LaunchWarmupScreen";
@@ -172,6 +173,10 @@ export default function ClientPortal() {
 
     return (
         <>
+            {!missionName && <div className="mx-auto mb-5 flex max-w-6xl flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-surface p-5">
+                <div><h2 className="font-semibold text-ink">Préparons votre prochaine mission</h2><p className="mt-1 text-sm text-ink-3">Partagez vos objectifs et votre cible avec l’agence.</p></div>
+                <Link href="/client/missions" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg">Mes missions</Link>
+            </div>}
             <ClientHomeView
                 greeting={getGreeting()}
                 userName={userName}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FOCUS_RING, FOCUS_RING_INVERSE } from "./recipes";
@@ -26,6 +26,8 @@ interface SegmentedControlProps<T extends string> {
     /** `inverse` on the brand surface (hero, sidebar). */
     tone?: "default" | "inverse";
     fullWidth?: boolean;
+    /** A shared selection surface that slides between options. */
+    sliding?: boolean;
     className?: string;
 }
 
@@ -41,10 +43,39 @@ export function SegmentedControl<T extends string>({
     size = "md",
     tone = "default",
     fullWidth,
+    sliding = false,
     className,
 }: SegmentedControlProps<T>) {
     const refs = useRef<(HTMLButtonElement | null)[]>([]);
+    const trackRef = useRef<HTMLDivElement>(null);
+    const selectionRef = useRef<HTMLSpanElement>(null);
     const inverse = tone === "inverse";
+    const selectedIndex = options.findIndex((option) => option.value === value);
+
+    useLayoutEffect(() => {
+        const track = trackRef.current;
+        const selection = selectionRef.current;
+        const selected = refs.current[selectedIndex];
+        if (!sliding || !track || !selection || !selected) {
+            track?.removeAttribute("data-positioned");
+            return;
+        }
+
+        const positionSelection = () => {
+            selection.style.translate = `${selected.offsetLeft}px ${selected.offsetTop}px`;
+            selection.style.width = `${selected.offsetWidth}px`;
+            selection.style.height = `${selected.offsetHeight}px`;
+            track.dataset.positioned = "true";
+        };
+
+        positionSelection();
+        const observer = new ResizeObserver(positionSelection);
+        observer.observe(track);
+        for (const button of refs.current) {
+            if (button) observer.observe(button);
+        }
+        return () => observer.disconnect();
+    }, [sliding, selectedIndex, options.length, value]);
 
     const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
@@ -63,16 +94,21 @@ export function SegmentedControl<T extends string>({
 
     return (
         <div
+            ref={sliding ? trackRef : undefined}
             role="radiogroup"
             aria-label={ariaLabel}
             onKeyDown={onKeyDown}
+            data-selection-alert={sliding && !inverse && options[selectedIndex]?.alert ? "true" : undefined}
+            data-selection-inverse={sliding && inverse ? "true" : undefined}
             className={cn(
                 "inline-flex items-center gap-0.5 rounded-control p-1",
                 inverse ? "bg-inverse-raised border border-inverse-line" : "bg-surface-3 border border-line",
                 fullWidth && "flex w-full",
+                sliding && "workspace-segmented",
                 className,
             )}
         >
+            {sliding && <span ref={selectionRef} className="workspace-segment-selection" aria-hidden="true" />}
             {options.map((o, i) => {
                 const active = o.value === value;
                 const Icon = o.icon;

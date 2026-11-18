@@ -561,6 +561,12 @@ export const CLIENT_NAV: NavSection[] = [
         permission: "pages.dashboard",
       },
       {
+        href: "/client/missions",
+        icon: Target,
+        label: "Mes missions",
+        permission: "pages.dashboard",
+      },
+      {
         href: "/client/portal/meetings",
         icon: CalendarCheck,
         label: "Mes RDV",

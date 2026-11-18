@@ -13,7 +13,7 @@ export interface QueueFilters {
     search: string;
     type: QueueRowType;
     priority: string;
-    /** "" | ActionResult code | "NONE" (never contacted) */
+    /** "" | ActionResult code | "NONE" (this row) | "UNTOUCHED" (row and company). */
     result: string;
     channel: string;
     /** Digits typed in the advanced "Numéro" field. */
@@ -58,6 +58,7 @@ export interface QueueRowLike {
     channel: string;
     missionName?: string;
     lastAction?: { result: string; note?: string | null } | null;
+    companyLastAction?: { result: string; note?: string | null } | null;
 }
 
 /**
@@ -166,7 +167,11 @@ export function matchesQueueFilters(
     }
     if (skip !== "priority" && f.priority && row.priority !== f.priority) return false;
     if (f.result) {
-        if (f.result === "NONE") {
+        if (f.result === "UNTOUCHED") {
+            // Company history includes actions on every sibling contact and by
+            // every SDR. An uncalled contact in an already worked company is out.
+            if (row.lastAction || row.companyLastAction) return false;
+        } else if (f.result === "NONE") {
             if (row.lastAction) return false;
         } else if (row.lastAction?.result !== f.result) return false;
     }

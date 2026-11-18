@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { ClientMissionBrief } from "@/components/onboarding/ClientMissionBrief";
 import { AiMark } from "@/components/ui/AiMark";
 import { EditMissionDialog } from "./EditMissionDialog";
 import { ReadinessPanel } from "./ReadinessPanel";
@@ -65,6 +66,7 @@ import type { MissionStatusValue } from "@/lib/constants/missionStatus";
 // ============================================
 
 interface Mission {
+    playbook?: unknown;
     id: string;
     name: string;
     objective?: string;
@@ -2109,6 +2111,8 @@ export function MissionWorkspace({
                     )}
                 </div>
             </div>
+
+            <ClientMissionBrief playbook={mission.playbook} />
 
             {isPortalLaunching && mission.portalVisibleAt && (
                 <div className="flex flex-col gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">

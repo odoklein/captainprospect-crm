@@ -333,14 +333,12 @@ export async function loadActionQueue(params: ActionQueueParams) {
         );
     })();
 
-    const config = await configPromise;
-
-    const callbackResultCodes = buildCallbackResultCodes(config);
-
-    const [{ contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds] = await Promise.all([
+    const [config, { contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds] = await Promise.all([
+        configPromise,
         findAbsentRdvRecalls(rawResult),
         getCooldownDisabledListIds(rawResult.map((r) => r.list_id)),
     ]);
+    const callbackResultCodes = buildCallbackResultCodes(config);
 
     const withPriority = rawResult.map((row) => {
         const isAbsentRdv = row.contact_id
@@ -379,16 +377,15 @@ export async function loadActionQueue(params: ActionQueueParams) {
     );
     // Explained qualification (lib/qualification). In "shadow" (default) it is only attached to each
     // row; SMART_QUEUE=on also orders by it. A failure here falls back to the legacy order above.
-    const qualifications = await qualifyQueueRows(sorted, { config, maxAttempts: params.maxAttempts ?? null });
-    const result = smartQueueMode() === "on" ? applySmartOrder(sorted, qualifications) : sorted;
-
-    const sharedPhoneCalls = await findSharedPhoneCalls(
-        result.map((row) => ({
+    const [qualifications, sharedPhoneCalls] = await Promise.all([
+        qualifyQueueRows(sorted, { config, maxAttempts: params.maxAttempts ?? null }),
+        findSharedPhoneCalls(sorted.map((row) => ({
             contactId: row.contact_id,
             companyId: row.company_id,
             phone: row.contact_phone || row.company_phone,
-        }))
-    );
+        }))),
+    ]);
+    const result = smartQueueMode() === "on" ? applySmartOrder(sorted, qualifications) : sorted;
 
     const items = result.map((row) => ({
         contactId: row.contact_id,

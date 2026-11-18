@@ -1269,17 +1269,113 @@
 }
 
 /* ─── Bulk Action Bar ─── */
+.rdv-workspace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 16px;
+}
+
+.rdv-workspace-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+.rdv-workspace-status { flex: 0 1 auto; }
+.rdv-workspace-search { flex: 1 1 160px; min-width: min(100%, 160px); }
+
+.rdv-workspace-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-inline-start: auto;
+}
+
+.rdv-workspace-tools .rdv-btn-primary { border-radius: 999px; }
+.rdv-workspace-tools .rdv-btn[aria-expanded="true"] {
+  background: var(--accentLight);
+  color: var(--accentInk);
+}
+
+@media (max-width: 767px) {
+  .rdv-filter-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 11;
+    max-width: 100%;
+    box-shadow: var(--rdv-shadow-lg);
+  }
+}
+
 .bulk-action-bar {
   position: fixed;
-  bottom: 24px;
+  bottom: max(20px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px;
   background: var(--ds-inverse);
   color: var(--ds-inverse-ink);
   border: 1px solid var(--ds-inverse-line);
   box-shadow: var(--rdv-shadow-lg);
-  border-radius: 14px;
-  z-index: 35;
+  border-radius: 18px;
+  z-index: 40;
+  animation: rdv-selection-in 200ms cubic-bezier(.2,.8,.22,1);
+}
+
+.rdv-selection-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-inline: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rdv-selection-count .rdv-count {
+  background: var(--ds-inverse-raised);
+  color: var(--ds-inverse-ink);
+}
+
+.bulk-action-bar .rdv-btn,
+.bulk-action-bar .rdv-icon-btn { border-radius: 999px; min-height: 34px; }
+
+.bulk-action-bar .rdv-selection-secondary {
+  border-color: var(--ds-inverse-line);
+  background: var(--ds-inverse-raised);
+  color: var(--ds-inverse-ink);
+}
+
+.bulk-action-bar .rdv-selection-secondary:hover {
+  background: color-mix(in srgb, var(--ds-inverse-raised), var(--ds-inverse-ink) 14%);
+}
+
+@keyframes rdv-selection-in {
+  from { opacity: 0; translate: 0 8px; scale: 0.97; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+@media (max-width: 640px) {
+  .rdv-workspace-toolbar { padding-inline: 12px; }
+  .rdv-workspace-status { order: 3; width: 100%; }
+  .rdv-workspace-tools { order: 4; margin-inline-start: 0; }
+  .rdv-workspace-search { min-width: min(100%, 124px); flex-basis: 124px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulk-action-bar { animation: none; }
 }
 
 /* ─── Responsive ─── */

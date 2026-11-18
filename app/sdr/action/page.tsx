@@ -2350,6 +2350,7 @@ export default function SDRActionPage() {
                             </button>
                             <SegmentedControl<"card" | "table">
                                 ariaLabel="Affichage"
+                                sliding
                                 value={viewMode}
                                 onChange={setViewMode}
                                 options={[
@@ -2679,7 +2680,7 @@ export default function SDRActionPage() {
     }
 
     // Loading (card view)
-    if (isLoading && !currentAction) {
+    if (todayBlocksLoading || (selectedMissionId !== null && isLoading && !currentAction)) {
         return (
             <div className="space-y-6 max-w-2xl mx-auto">
                 <CardSkeleton hasHeader hasImage={false} lines={4} />
@@ -2693,7 +2694,7 @@ export default function SDRActionPage() {
     }
 
     // Empty queue (card view)
-    if (!currentAction?.hasNext) {
+    if (!selectedMissionId || !currentAction?.hasNext) {
         return (
             <div className="space-y-4">
                 {/* Header — Empty Queue */}
@@ -2738,12 +2739,12 @@ export default function SDRActionPage() {
                                     ? "Sélectionnez une mission ci-dessus pour afficher le prochain contact à contacter."
                                     : (currentAction?.message || "Aucun contact disponible pour le moment (listes vides, contacts sans téléphone/email/LinkedIn, ou tous en cooldown 24h).")
                         }
-                        action={
+                        action={selectedMissionId ? (
                             <Button variant="secondary" onClick={loadNextAction} className="gap-2">
                                 <RefreshCw className="w-4 h-4" />
                                 Actualiser
                             </Button>
-                        }
+                        ) : undefined}
                     />
                 </div>
             </div>
@@ -3313,10 +3314,12 @@ export default function SDRActionPage() {
                             return (
                                 <button
                                     key={option.value}
+                                    type="button"
+                                    aria-pressed={isSelected}
                                     onClick={() => selectResultWithFocus(option.value)}
                                     title={STATUS_HOVER_HINTS[option.value]}
                                     className={cn(
-                                        "relative flex items-center gap-2.5 p-3.5 rounded-xl border-2 transition-all duration-150 text-left group",
+                                        "workspace-outcome relative flex items-center gap-2.5 p-3.5 pr-8 rounded-xl border text-left group",
                                         "border-l-[3px]",
                                         isSelected
                                             ? cn(sem.selectedCls, "shadow-md", sem.activeBorder)
@@ -3335,12 +3338,12 @@ export default function SDRActionPage() {
                                     )}>
                                         {option.label}
                                     </span>
-                                    <span className={cn(
+                                    <kbd className={cn(
                                         "absolute top-2 right-2 w-4.5 h-4.5 flex items-center justify-center text-[10px] font-medium font-mono rounded-md transition-colors",
-                                        isSelected ? "bg-white/70 text-slate-500" : "bg-neutral-100 text-slate-400"
+                                        isSelected ? "bg-white/70 text-slate-700" : "bg-neutral-100 text-slate-600"
                                     )}>
                                         {option.key}
-                                    </span>
+                                    </kbd>
                                 </button>
                             );
                         })}

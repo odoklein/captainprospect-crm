@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
+import { DashboardAction, ProgressBar } from "@/components/accueil/AccueilUI";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { formatHours } from "@/lib/sdr-pace/pace";
+import { usePermissions } from "@/lib/permissions/PermissionProvider";
 import {
     Phone,
     Calendar,
     Clock,
     Briefcase,
-    Target,
     ChevronRight,
     TrendingUp,
     Zap,
@@ -163,63 +165,6 @@ const BATTLECARDS = [
     }
 ];
 
-function getWeekDays() {
-    const today = new Date();
-    const currentDay = today.getDay();
-    const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
-    const monday = new Date(today);
-    monday.setDate(today.getDate() + mondayOffset);
-
-    const labels = ["Lun", "Mar", "Mer", "Jeu", "Ven"];
-    return labels.map((label, index) => {
-        const d = new Date(monday);
-        d.setDate(monday.getDate() + index);
-        const isToday = d.toDateString() === today.toDateString();
-        return {
-            label,
-            dayNumber: d.getDate(),
-            isToday,
-            dateStr: d.toISOString().slice(0, 10)
-        };
-    });
-}
-
-function CircularProgress({ percent, color = "#10B981", size = 48, strokeWidth = 4.5 }: { percent: number; color?: string; size?: number; strokeWidth?: number }) {
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-    const strokeDashoffset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
-
-    return (
-        <div className="relative inline-flex items-center justify-center flex-shrink-0" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="transform -rotate-90">
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke="#E2E8F0"
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                />
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    stroke={color}
-                    strokeWidth={strokeWidth}
-                    fill="transparent"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    className="transition-all duration-1000 ease-out"
-                />
-            </svg>
-            <span className="absolute text-[11px] font-black text-zinc-800">
-                {Math.round(percent)}%
-            </span>
-        </div>
-    );
-}
-
 // Mini Coming Soon Pop-up for Company Action Requests
 function CompanyComingSoonModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
     if (!isOpen) return null;
@@ -264,6 +209,7 @@ function CompanyComingSoonModal({ isOpen, onClose }: { isOpen: boolean; onClose:
 // ============================================
 
 export default function SDRDashboardPage() {
+    const { hasPermission } = usePermissions();
     const { data: session } = useSession();
     const { pace } = useSdrPace();
 
@@ -293,12 +239,7 @@ export default function SDRDashboardPage() {
     // Drawer state (for contacts only)
     const [drawerTarget, setDrawerTarget] = useState<DrawerTarget | null>(null);
 
-    // Hero counter animation
-    const heroTarget = pace?.callsDone ?? stats?.actionsToday ?? 0;
-    const [heroCount, setHeroCount] = useState(0);
-    const heroShown = useRef(0);
-
-    const weekDays = useMemo(() => getWeekDays(), []);
+    const callsToday = pace?.callsDone ?? stats?.actionsToday ?? 0;
 
     // ============================================
     // DATA FETCHING
@@ -376,25 +317,6 @@ export default function SDRDashboardPage() {
         fetchActions();
     }, [actionsPeriod]);
 
-    // Animate hero counter smoothly
-    useEffect(() => {
-        let current = heroShown.current;
-        if (current === heroTarget) {
-            setHeroCount(heroTarget);
-            return;
-        }
-        const step = Math.max(1, Math.ceil(Math.abs(heroTarget - current) / 12));
-        const interval = setInterval(() => {
-            current = current < heroTarget
-                ? Math.min(current + step, heroTarget)
-                : Math.max(current - step, heroTarget);
-            heroShown.current = current;
-            setHeroCount(current);
-            if (current === heroTarget) clearInterval(interval);
-        }, 30);
-        return () => clearInterval(interval);
-    }, [heroTarget]);
-
     // Contact / company fiche: the UnifiedActionDrawer, same everywhere in the app.
     const handleEntityClick = async (
         contactId?: string | null,
@@ -421,41 +343,21 @@ export default function SDRDashboardPage() {
     // Filtered Callbacks
     const now = new Date();
     const todayStr = now.toISOString().slice(0, 10);
-
-    const categorizedCallbacks = useMemo(() => {
-        const overdue: SDRCallbackItem[] = [];
-        const today: SDRCallbackItem[] = [];
-        const upcoming: SDRCallbackItem[] = [];
-
-        for (const cb of callbacks) {
-            if (!cb.callbackDate) {
-                today.push(cb);
-                continue;
-            }
-            const cbDate = new Date(cb.callbackDate);
-            const cbDayStr = cb.callbackDate.slice(0, 10);
-
-            if (cbDate.getTime() < now.getTime() && cbDayStr < todayStr) {
-                overdue.push(cb);
-            } else if (cbDayStr === todayStr) {
-                if (cbDate.getTime() < now.getTime()) {
-                    overdue.push(cb);
-                } else {
-                    today.push(cb);
-                }
-            } else {
-                upcoming.push(cb);
-            }
+    const overdueCallbacks: SDRCallbackItem[] = [];
+    const todayCallbacks: SDRCallbackItem[] = [];
+    for (const callback of callbacks) {
+        const callbackDate = callback.callbackDate;
+        const callbackDay = callbackDate?.slice(0, 10) ?? "";
+        if (callbackDate && callbackDay <= todayStr && new Date(callbackDate).getTime() < now.getTime()) {
+            overdueCallbacks.push(callback);
+        } else if (!callbackDate || callbackDay === todayStr) {
+            todayCallbacks.push(callback);
         }
+    }
 
-        return { overdue, today, upcoming };
-    }, [callbacks, now, todayStr]);
-
-    const displayedCallbacks = useMemo(() => {
-        if (callbackTab === "overdue") return categorizedCallbacks.overdue;
-        if (callbackTab === "today") return [...categorizedCallbacks.overdue, ...categorizedCallbacks.today];
-        return callbacks;
-    }, [callbackTab, categorizedCallbacks, callbacks]);
+    const displayedCallbacks = callbackTab === "overdue"
+        ? overdueCallbacks
+        : callbackTab === "today" ? [...overdueCallbacks, ...todayCallbacks] : callbacks;
 
     const activeMission = missions.find(m => m.id === selectedMissionId) || missions[0];
     const ChannelIcon = activeMission ? CHANNEL_ICONS[activeMission.channel] || Phone : Phone;
@@ -476,165 +378,57 @@ export default function SDRDashboardPage() {
     return (
         <div className="w-full space-y-6 pb-12 antialiased">
 
-            {/* ============================================ */}
-            {/* 1. SEAMLESS TOP BAR: OPEN GREETING & CALENDAR*/}
-            {/* ============================================ */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 shadow-2xs">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            Session Active
-                        </span>
-                        {pace && (
-                            <span className={cn(
-                                "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-2xs",
-                                pace.status === "ON_TRACK" && "bg-emerald-50 text-emerald-700 border-emerald-200/80",
-                                pace.status === "BEHIND" && "bg-amber-50 text-amber-700 border-amber-200/80",
-                                pace.status === "LATE" && "bg-rose-50 text-rose-700 border-rose-200/80"
-                            )}>
-                                <Activity className="w-3.5 h-3.5" />
-                                {isAhead && `Rythme : +${pace.aheadBy} appels d'avance`}
-                                {isBehind && `Rythme : -${pace.delta} appels de retard`}
-                                {!isAhead && !isBehind && "Dans le rythme"}
-                            </span>
+            <header className="workspace-dashboard-header">
+                <div className="min-w-0 space-y-1">
+                    <h1 className="workspace-dashboard-title">Bonjour, {sdrFirstName}</h1>
+                    <p className="text-sm font-medium text-ink-3">Votre activité de prospection</p>
+                </div>
+                <nav className="workspace-actions" aria-label="Actions SDR">
+                    <DashboardAction href="/sdr/action" label="Démarrer les appels" icon={Phone} primary />
+                    {hasPermission("pages.action") && <DashboardAction href="/sdr/callbacks" label="Rappels" icon={Clock} />}
+                    {hasPermission("pages.opportunities") && <DashboardAction href="/sdr/meetings" label="Mes RDV" icon={Calendar} />}
+                </nav>
+            </header>
+
+            <dl className="workspace-metric-grid" aria-label="Indicateurs de prospection" aria-busy={isLoading || callbacksLoading}>
+                <div className="workspace-metric">
+                    <dt className="flex items-center gap-2 text-xs font-semibold text-ink-2">
+                        <Phone className="size-4 text-primary" aria-hidden /> Appels du jour
+                    </dt>
+                    <dd className="workspace-metric-value">
+                        {isLoading && !pace ? "—" : callsToday}
+                        {pace && <span className="ml-1.5 text-xs font-semibold tracking-normal text-ink-3">/ {pace.dayQuota}</span>}
+                    </dd>
+                    <dd className="workspace-metric-note">{roundedRate} appels/h prévus</dd>
+                    {pace && <dd className="mt-auto w-full pt-1"><ProgressBar percent={dailyProgressPct} label="Objectif d’appels du jour" ticks /></dd>}
+                </div>
+                <div className="workspace-metric">
+                    <dt className="flex items-center gap-2 text-xs font-semibold text-ink-2">
+                        <Calendar className="size-4 text-success-ink" aria-hidden /> RDV décrochés
+                    </dt>
+                    <dd className="workspace-metric-value">{isLoading ? "—" : stats?.meetingsBooked ?? 0}</dd>
+                    <dd className="workspace-metric-note">Cette semaine · annulés exclus</dd>
+                </div>
+                <div className="workspace-metric">
+                    <dt className="flex items-center gap-2 text-xs font-semibold text-ink-2">
+                        <Clock className="size-4 text-warning-ink" aria-hidden /> Rappels à traiter
+                    </dt>
+                    <dd className="workspace-metric-value">{callbacksLoading ? "—" : callbacks.length}</dd>
+                    <dd className="workspace-metric-note">
+                        {callbacksLoading ? "Chargement…" : `${todayCallbacks.length} aujourd’hui`}
+                        {overdueCallbacks.length > 0 && (
+                            <span className="font-semibold text-danger-ink"> · {overdueCallbacks.length} en retard</span>
                         )}
-                    </div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
-                        Bonjour, {sdrFirstName}
-                    </h1>
-                    <p className="text-xs sm:text-sm text-zinc-500 font-medium">
-                        Votre espace de phoning : avancez sur vos rappels, qualifiez vos prospects et suivez votre cadence.
-                    </p>
+                    </dd>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Weekly day pills (Fluento inspired) */}
-                    <div className="hidden sm:flex items-center p-1 bg-white rounded-2xl border border-slate-200 shadow-2xs gap-1">
-                        {weekDays.map((wd) => (
-                            <div
-                                key={wd.label}
-                                className={cn(
-                                    "flex flex-col items-center justify-center w-10 h-11 rounded-xl transition-all",
-                                    wd.isToday
-                                        ? "bg-zinc-950 text-white font-bold shadow-xs"
-                                        : "text-zinc-600 hover:bg-slate-50 font-medium"
-                                )}
-                            >
-                                <span className="text-[9px] uppercase tracking-wider opacity-80">{wd.label}</span>
-                                <span className="text-xs font-bold mt-0.5">{wd.dayNumber}</span>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Launch action CTA button */}
-                    <Link href="/sdr/action">
-                        <button className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-black tracking-tight shadow-md hover:shadow-lg transition-all active:scale-[0.98]">
-                            <Play className="w-3.5 h-3.5 fill-current text-emerald-400" />
-                            <span>Démarrer les appels</span>
-                        </button>
-                    </Link>
+                <div className="workspace-metric">
+                    <dt className="flex items-center gap-2 text-xs font-semibold text-ink-2">
+                        <Briefcase className="size-4 text-primary" aria-hidden /> Contacts chauds
+                    </dt>
+                    <dd className="workspace-metric-value">{isLoading ? "—" : stats?.opportunitiesGenerated ?? 0}</dd>
+                    <dd className="workspace-metric-note">Intérêt et projet confirmés</dd>
                 </div>
-            </div>
-
-            {/* ============================================ */}
-            {/* 2. VIBRANT TACTILE KPI CARDS (Noviq/Fluento) */}
-            {/* ============================================ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Calls Today */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between hover:border-slate-300 transition-all">
-                    <div className="space-y-1">
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
-                            Appels du jour
-                        </span>
-                        <div className="flex items-baseline gap-1.5">
-                            <span className="text-3xl font-black text-zinc-900 tracking-tight">
-                                {heroCount}
-                            </span>
-                            {pace && (
-                                <span className="text-xs font-bold text-zinc-400">
-                                    / {pace.dayQuota}
-                                </span>
-                            )}
-                        </div>
-                        <span className="text-[11px] font-bold text-emerald-600 block">
-                            {roundedRate} appels/h prévus
-                        </span>
-                    </div>
-                    <CircularProgress percent={dailyProgressPct} color="#10B981" size={52} strokeWidth={4.5} />
-                </div>
-
-                {/* Meetings Booked */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between hover:border-slate-300 transition-all">
-                    <div className="space-y-1">
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
-                            RDV Décrochés
-                        </span>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-zinc-900 tracking-tight">
-                                {stats?.meetingsBooked ?? 0}
-                            </span>
-                            <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                                Hors annulés
-                            </span>
-                        </div>
-                        <span className="text-[11px] font-semibold text-zinc-500 block">
-                            Cette semaine · annulés exclus
-                        </span>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-[0_4px_14px_rgba(16,185,129,0.35)]">
-                        <Calendar className="w-6 h-6 stroke-[2.2]" />
-                    </div>
-                </div>
-
-                {/* Callbacks Due */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between hover:border-slate-300 transition-all">
-                    <div className="space-y-1">
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
-                            Rappels à Traiter
-                        </span>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-zinc-900 tracking-tight">
-                                {callbacks.length}
-                            </span>
-                            {categorizedCallbacks.overdue.length > 0 && (
-                                <span className="text-[10px] font-extrabold text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">
-                                    {categorizedCallbacks.overdue.length} urgent(s)
-                                </span>
-                            )}
-                        </div>
-                        <span className="text-[11px] font-bold text-amber-700 block">
-                            {categorizedCallbacks.today.length} prévu(s) aujourd'hui
-                        </span>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-[0_4px_14px_rgba(245,158,11,0.35)]">
-                        <Clock className="w-6 h-6 stroke-[2.2]" />
-                    </div>
-                </div>
-
-                {/* Qualified Leads */}
-                <div className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex items-center justify-between hover:border-slate-300 transition-all">
-                    <div className="space-y-1">
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block">
-                            Contacts Chauds
-                        </span>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-zinc-900 tracking-tight">
-                                {stats?.opportunitiesGenerated ?? 0}
-                            </span>
-                            <span className="text-[10px] font-extrabold text-primary-800 bg-primary-100 px-2 py-0.5 rounded-full">
-                                Qualifiés
-                            </span>
-                        </div>
-                        <span className="text-[11px] font-semibold text-zinc-500 block">
-                            Intérêt & projet confirmés
-                        </span>
-                    </div>
-                    <div className="w-12 h-12 rounded-2xl bg-primary-600 text-white flex items-center justify-center shadow-[0_4px_14px_rgba(79,70,229,0.35)]">
-                        <Briefcase className="w-6 h-6 stroke-[2.2]" />
-                    </div>
-                </div>
-            </div>
+            </dl>
 
             {/* ============================================ */}
             {/* 3. DUAL WORKSPACE: 8 COLS / 4 COLS (BREATHING ROOM) */}
@@ -753,41 +547,18 @@ export default function SDRDashboardPage() {
                                 </p>
                             </div>
 
-                            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold">
-                                <button
-                                    onClick={() => setCallbackTab("today")}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg transition-all",
-                                        callbackTab === "today"
-                                            ? "bg-white text-zinc-900 shadow-sm"
-                                            : "text-zinc-600 hover:text-zinc-900"
-                                    )}
-                                >
-                                    Aujourd'hui ({categorizedCallbacks.today.length + categorizedCallbacks.overdue.length})
-                                </button>
-                                <button
-                                    onClick={() => setCallbackTab("overdue")}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg transition-all",
-                                        callbackTab === "overdue"
-                                            ? "bg-rose-600 text-white shadow-sm"
-                                            : "text-rose-600 hover:text-rose-700"
-                                    )}
-                                >
-                                    En retard ({categorizedCallbacks.overdue.length})
-                                </button>
-                                <button
-                                    onClick={() => setCallbackTab("all")}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-lg transition-all",
-                                        callbackTab === "all"
-                                            ? "bg-white text-zinc-900 shadow-sm"
-                                            : "text-zinc-600 hover:text-zinc-900"
-                                    )}
-                                >
-                                    Tous ({callbacks.length})
-                                </button>
-                            </div>
+                            <SegmentedControl
+                                value={callbackTab}
+                                onChange={setCallbackTab}
+                                ariaLabel="Période des rappels"
+                                className="shrink-0"
+                                options={[
+                                    { value: "today", label: "Aujourd’hui", count: todayCallbacks.length + overdueCallbacks.length },
+                                    { value: "overdue", label: "En retard", count: overdueCallbacks.length, alert: overdueCallbacks.length > 0 },
+                                    { value: "all", label: "Tous", count: callbacks.length },
+                                ]}
+                                sliding
+                            />
                         </div>
 
                         {/* Callbacks List */}
@@ -1084,15 +855,12 @@ export default function SDRDashboardPage() {
                             </div>
 
                             <div className="space-y-1.5 pt-1">
-                                <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                    <div
-                                        className={cn(
-                                            "h-full rounded-full transition-all duration-700",
-                                            pace.status === "ON_TRACK" ? "bg-emerald-500" : pace.status === "BEHIND" ? "bg-amber-500" : "bg-rose-500"
-                                        )}
-                                        style={{ width: `${dailyProgressPct}%` }}
-                                    />
-                                </div>
+                                <ProgressBar
+                                    percent={dailyProgressPct}
+                                    tone={pace.status === "ON_TRACK" ? "emerald" : pace.status === "BEHIND" ? "amber" : "rose"}
+                                    label="Cadence d’appels du jour"
+                                    ticks
+                                />
                                 <p className="text-[11px] text-zinc-500 font-medium">
                                     {formatHours(pace.effectiveHoursElapsed)} d'appel effectif sur {formatHours(pace.effectiveHoursTarget)} prévues.
                                 </p>

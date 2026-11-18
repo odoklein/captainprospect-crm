@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import "./globals.css";
+import "./workspace-interactions.css";
 import Providers from "@/components/providers/Providers";
 import { Analytics } from "@vercel/analytics/next";
 import { getBrand } from "@/lib/brand/server";

@@ -127,7 +127,10 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
         const type = { contact: 0, company: 0 };
         const priority: Record<string, number> = {};
         let priorityAll = 0;
+        let untouched = 0;
+        const untouchedFilters = { ...deferred, type: "" as const, priority: "", result: "UNTOUCHED" };
         for (const row of items) {
+            if (!row.lastAction && !row.companyLastAction && matchesQueueFilters(row, untouchedFilters, search)) untouched++;
             if (matchesQueueFilters(row, deferred, search, "type")) {
                 if (row.contactId) type.contact++;
                 else type.company++;
@@ -137,7 +140,7 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
                 priorityAll++;
             }
         }
-        return { type, priority, priorityAll };
+        return { type, priority, priorityAll, untouched };
     }, [items, deferred]);
 
     // Company facets (#118): options and counts over the whole queue, so a
@@ -169,7 +172,7 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
     if (filters.result) {
         activeChips.push({
             key: "result",
-            label: `Statut : ${filters.result === "NONE" ? "Jamais contacté" : statusLabels[filters.result] ?? filters.result}`,
+            label: `Statut : ${filters.result === "UNTOUCHED" ? "Contact et société jamais contactés" : filters.result === "NONE" ? "Aucune action sur cette fiche" : statusLabels[filters.result] ?? filters.result}`,
             clear: { result: "" },
         });
     }
@@ -264,6 +267,17 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
 
                 <button
                     type="button"
+                    aria-pressed={filters.result === "UNTOUCHED"}
+                    title="Aucune action enregistrée sur le contact ni sur sa société, par aucun membre de l’équipe. Affiche les contacts et les sociétés."
+                    onClick={() => onChange(filters.result === "UNTOUCHED" ? { result: "" } : { result: "UNTOUCHED", type: "", priority: "" })}
+                    className={cn("inline-flex h-9 items-center gap-2 rounded-control border px-3 text-[13px] font-medium transition-colors", FOCUS_RING,
+                        filters.result === "UNTOUCHED" ? "border-primary-300 bg-primary-50 text-primary-700" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink")}
+                >
+                    Jamais contactés <span className="text-xs tabular-nums">{nf.format(facets.untouched)}</span>
+                </button>
+
+                <button
+                    type="button"
                     onClick={() => setAdvancedOpen((v) => !v)}
                     aria-expanded={advancedOpen}
                     aria-controls="queue-advanced-filters"
@@ -351,7 +365,8 @@ export function ActionQueueToolbar<T extends QueueRowLike>({
                             onChange={(result) => onChange({ result })}
                             options={[
                                 { value: "", label: "Tous" },
-                                { value: "NONE", label: "Jamais contacté" },
+                                { value: "NONE", label: "Aucune action sur cette fiche" },
+                                { value: "UNTOUCHED", label: "Contact et société jamais contactés" },
                                 ...Object.entries(statusLabels).map(([value, label]) => ({ value, label })),
                             ]}
                         />

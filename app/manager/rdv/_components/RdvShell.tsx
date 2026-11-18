@@ -48,7 +48,7 @@ function toggleInSet(prev: Set<string>, id: string): Set<string> {
 
 export function RdvShell() {
   const [view, setView] = useState<ViewMode>("list");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<RdvModalType>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [syncAudiosOpen, setSyncAudiosOpen] = useState(false);
@@ -142,6 +142,8 @@ export function RdvShell() {
         view={view}
         setView={setView}
         filters={filters}
+        filtersOpen={sidebarOpen}
+        onToggleFilters={() => setSidebarOpen((open) => !open)}
         meetings={meetings}
         aggregates={aggregates}
         onRefresh={() => fetchMeetings()}
@@ -176,7 +178,6 @@ export function RdvShell() {
           filters={filters}
           sidebarOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
-          onOpen={() => setSidebarOpen(true)}
         />
 
         <div className="rdv-main-column">

@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import Link from "next/link";
 import {
-    Activity, ArrowUpRight, Bell, Calendar, CalendarCheck, ChevronDown, Flame, Loader2,
+    Activity, ArrowUpRight, Bell, Building2, Calendar, CalendarCheck, ChevronDown, Flame, Loader2,
     Plus, RefreshCw, Star, Target, TrendingUp, Trophy, Users,
 } from "lucide-react";
 import {
@@ -15,13 +15,16 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { DateRangeFilter, type DateRangeValue } from "@/components/dashboard/DateRangeFilter";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/shadcn/popover";
+import { usePermissions } from "@/lib/permissions/PermissionProvider";
 import { ACTION_RESULT_LABELS } from "@/lib/types";
 import { groupOutcomes, outcomeOf, prettyResult } from "@/lib/manager-home/outcomes";
 import { relativeChange } from "@/lib/manager-home/rules";
 import type { ManagerHomePeriod } from "@/lib/manager-home/types";
 import {
-    BADGE, CARD, ChartTooltip, Delta, EmptyBlock, FOCUS, HeroCard, ICON_BUTTON, Initials,
-    PRIMARY_BUTTON, ProgressBar, ROW, SECONDARY_BUTTON, SectionHeader, SelectField, Shimmer, TextLink,
+    BADGE, CARD, ChartTooltip, DashboardAction, Delta, EmptyBlock, FOCUS, HeroCard, ICON_BUTTON, Initials,
+    ProgressBar, ROW, SECONDARY_BUTTON, SectionHeader, SelectField, Shimmer, TextLink,
     formatInt, relativeTime, type AccueilTone,
 } from "./AccueilUI";
 
@@ -124,12 +127,9 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
         periodLabel, rangeDays, dateRange, onDateRangeChange, missionFilter, onMissionFilterChange,
     } = props;
 
+    const { hasPermission } = usePermissions();
     const [dateFilterOpen, setDateFilterOpen] = useState(false);
-    const dateTrigger = useRef<HTMLButtonElement>(null);
-    const closeDateFilter = () => {
-        setDateFilterOpen(false);
-        dateTrigger.current?.focus();
-    };
+    const closeDateFilter = () => setDateFilterOpen(false);
 
     const meetings = stats?.meetingsBooked ?? 0;
     const actions = stats?.totalActions ?? 0;
@@ -172,74 +172,66 @@ export function ManagerDashboardView(props: ManagerDashboardViewProps) {
     return (
         <div className="w-full space-y-6 pb-12 antialiased text-zinc-900">
             {/* ═══ 1. Header ═══ */}
-            <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 pt-1">
+            <header className="workspace-dashboard-header">
                 <div className="space-y-1.5 min-w-0">
-                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-ink">Bonjour, {firstName}</h1>
+                    <h1 className="workspace-dashboard-title">Bonjour, {firstName}</h1>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium text-ink-3">
                         <span>Tableau de bord de l’équipe</span>
                         <span aria-live="polite" className="inline-flex items-center gap-1.5">
                             {isFetching
                                 ? <Loader2 className="size-3 motion-safe:animate-spin" aria-hidden />
-                                : <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />}
+                                : updatedLabel && <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />}
                             {isFetching ? "Actualisation…" : updatedLabel ? `Mis à jour à ${updatedLabel}` : "En attente de données"}
                         </span>
                     </div>
                 </div>
 
-                <div className="relative flex flex-wrap items-center gap-2">
-                    <div>
-                        <button
-                            type="button"
-                            ref={dateTrigger}
-                            onClick={() => setDateFilterOpen((o) => !o)}
-                            aria-expanded={dateFilterOpen}
-                            aria-haspopup="dialog"
-                            className={SECONDARY_BUTTON}
-                        >
-                            <Calendar className="w-3.5 h-3.5 text-emerald-600" aria-hidden />
-                            <span>{periodLabel}</span>
-                            <ChevronDown className={cn("w-3.5 h-3.5 text-zinc-400 transition-transform", dateFilterOpen && "rotate-180")} aria-hidden />
-                        </button>
-                        {dateFilterOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" aria-hidden onClick={closeDateFilter} />
-                                <div role="dialog" aria-label="Choisir une période"
-                                    onKeyDown={(e) => { if (e.key === "Escape") closeDateFilter(); }}
-                                    className="absolute left-0 xl:left-auto xl:right-0 top-full mt-2 z-50 w-[780px] max-w-full">
-                                    <DateRangeFilter
-                                        value={dateRange}
-                                        onChange={(value) => {
-                                            onDateRangeChange(value);
-                                            if (value.preset) closeDateFilter();
-                                        }}
-                                        onClose={closeDateFilter}
-                                        isOpen
-                                    />
-                                </div>
-                            </>
-                        )}
-                    </div>
-
-                    <SelectField
-                        ariaLabel="Filtrer par mission"
-                        value={missionFilter}
-                        onChange={onMissionFilterChange}
-                        className="w-[180px]"
-                    >
-                        <option value="">Toutes les missions</option>
-                        {missions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-                    </SelectField>
-
-                    <button type="button" onClick={onRefresh} disabled={isFetching} className={ICON_BUTTON} aria-label="Actualiser" title="Actualiser">
-                        <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "motion-safe:animate-spin")} aria-hidden />
-                    </button>
-
-                    <Link href="/manager/missions/new" className={PRIMARY_BUTTON}>
-                        <Plus className="w-4 h-4 text-emerald-400 stroke-[2.6]" aria-hidden />
-                        <span>Nouvelle mission</span>
-                    </Link>
-                </div>
+                <nav className="workspace-actions" aria-label="Actions Manager">
+                    {hasPermission("pages.analytics") && <DashboardAction href="/manager/rdv" label="Valider les RDV" icon={CalendarCheck} />}
+                    {hasPermission("pages.clients") && <DashboardAction href="/manager/clients" label="Clients" icon={Building2} />}
+                    {hasPermission("pages.missions") && <DashboardAction href="/manager/missions/new" label="Nouvelle mission" icon={Plus} primary />}
+                </nav>
             </header>
+
+            <div className="relative flex flex-wrap items-center gap-2" role="group" aria-label="Filtres du tableau de bord">
+                <Popover open={dateFilterOpen} onOpenChange={setDateFilterOpen}>
+                    <PopoverTrigger asChild>
+                        <button type="button" className={SECONDARY_BUTTON}>
+                            <Calendar className="size-3.5 text-emerald-600" aria-hidden />
+                            <span>{periodLabel}</span>
+                            <ChevronDown className={cn("size-3.5 text-ink-3 motion-safe:transition-transform", dateFilterOpen && "rotate-180")} aria-hidden />
+                        </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        align="start"
+                        collisionPadding={16}
+                        aria-label="Choisir une période"
+                        className="w-[min(780px,calc(100vw-2rem))] border-0 bg-transparent p-0 shadow-none motion-reduce:animate-none"
+                    >
+                        <DateRangeFilter
+                            value={dateRange}
+                            onChange={(value) => {
+                                onDateRangeChange(value);
+                                if (value.preset) closeDateFilter();
+                            }}
+                            onClose={closeDateFilter}
+                            isOpen
+                        />
+                    </PopoverContent>
+                </Popover>
+                <SelectField
+                    ariaLabel="Filtrer par mission"
+                    value={missionFilter}
+                    onChange={onMissionFilterChange}
+                    className="w-[180px]"
+                >
+                    <option value="">Toutes les missions</option>
+                    {missions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </SelectField>
+                <button type="button" onClick={onRefresh} disabled={isFetching} className={ICON_BUTTON} aria-label="Actualiser" title="Actualiser">
+                    <RefreshCw className={cn("size-3.5", isFetching && "motion-safe:animate-spin")} aria-hidden />
+                </button>
+            </div>
 
             {/* ═══ 2. Hero + KPIs ═══ */}
             <div className={cn("grid grid-cols-1 xl:grid-cols-12 gap-4 transition-opacity duration-200", isFetching && "opacity-80")}>
@@ -319,7 +311,8 @@ function RdvHero({ className, meetings, callsPerRdv, periodLabel, delta, previou
     rangeDays: number;
     period: ManagerHomePeriod | null;
 }) {
-    const [cumulative, setCumulative] = useState(false);
+    const [chartMode, setChartMode] = useState<"period" | "cumulative">("period");
+    const cumulative = chartMode === "cumulative";
     const unit = period?.range.granularity === "week" ? "semaine" : "jour";
     const data = useMemo(() => {
         const series = period?.series ?? [];
@@ -345,15 +338,17 @@ function RdvHero({ className, meetings, callsPerRdv, periodLabel, delta, previou
                     </h2>
                     <p className="mt-1 text-xs text-inverse-ink-2">{periodLabel}</p>
                 </div>
-                <div role="group" aria-label="Affichage des RDV" className="inline-flex rounded-lg border border-inverse-line bg-inverse-raised p-0.5">
-                    {[false, true].map((mode) => (
-                        <button key={String(mode)} type="button" aria-pressed={cumulative === mode} onClick={() => setCumulative(mode)}
-                            className={cn("rounded-md px-3 py-1.5 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-emerald-300",
-                                cumulative === mode ? "bg-white text-zinc-900" : "text-inverse-ink-2 hover:text-white")}>
-                            {mode ? "Cumul" : `Par ${unit}`}
-                        </button>
-                    ))}
-                </div>
+                <SegmentedControl
+                    ariaLabel="Affichage des RDV"
+                    value={chartMode}
+                    onChange={setChartMode}
+                    options={[
+                        { value: "period", label: `Par ${unit}` },
+                        { value: "cumulative", label: "Cumul" },
+                    ]}
+                    tone="inverse"
+                    sliding
+                />
             </div>
 
             <div className="grid flex-1 items-center gap-4 sm:grid-cols-[minmax(8rem,1fr)_minmax(0,2fr)]">
@@ -537,7 +532,7 @@ function MissionsCard({ missions, loading }: { missions: MissionSummaryItem[]; l
                                             <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full tabular-nums", BADGE[tone])}>{pct} %</span>
                                         </div>
                                     </div>
-                                    <ProgressBar percent={pct} tone={tone} label={`${m.name} : ${pct} % du meilleur résultat`} />
+                                    <ProgressBar percent={pct} tone={tone} label={`${m.name} : ${pct} % du meilleur résultat`} ticks />
                                 </Link>
                             </li>
                         );

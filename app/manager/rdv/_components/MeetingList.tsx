@@ -95,7 +95,13 @@ const MeetingRow = memo(function MeetingRow({
       onClick={() => onOpen(meeting)}
     >
       <div style={{ width: 28 }} onClick={(e) => e.stopPropagation()}>
-        <input type="checkbox" className="rdv-checkbox" checked={selected} onChange={() => onToggleSelect(meeting.id)} />
+        <input
+          type="checkbox"
+          className="rdv-checkbox"
+          aria-label={`Sélectionner le RDV · ${meeting.contact ? contactName(meeting.contact) : meeting.company?.name ?? meeting.mission.name}`}
+          checked={selected}
+          onChange={() => onToggleSelect(meeting.id)}
+        />
       </div>
 
       {/* Created date */}
@@ -425,6 +431,7 @@ export function MeetingList({
             <input
               type="checkbox"
               className="rdv-checkbox"
+              aria-label="Sélectionner tous les rendez-vous affichés"
               checked={selectedIds.size > 0 && selectedIds.size === meetings.length}
               onChange={onToggleSelectAll}
             />

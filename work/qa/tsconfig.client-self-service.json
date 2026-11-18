@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "./next-env-client-self-service.d.ts",
+    "../../app/api/onboarding/**/*.ts",
+    "../../app/api/manager/client-invite/**/*.ts",
+    "../../app/api/client/missions/**/*.ts",
+    "../../app/client/missions/**/*.tsx",
+    "../../app/client/portal/page.tsx",
+    "../../app/manager/clients/page.tsx",
+    "../../components/onboarding/**/*.tsx",
+    "../../components/missions/MissionWorkspace.tsx",
+    "../../lib/onboarding/*self-service*.ts",
+    "../../lib/onboarding/agency-invite.ts",
+    "../../lib/onboarding/client-missions.ts",
+    "../../lib/sdr-queue/last-action*.ts",
+    "../../lib/sdr-queue/load-action-queue.ts",
+    "../../middleware.ts"
+  ],
+  "exclude": ["../../node_modules"]
+}

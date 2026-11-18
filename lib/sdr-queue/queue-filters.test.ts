@@ -95,3 +95,16 @@ test("type, priority and never-contacted", () => {
     assert.ok(match(row({ lastAction: null }), { result: "NONE" }));
     assert.ok(!match(row(), { result: "NONE" }));
 });
+
+test("untouched requires no history on either the contact or the company, across all SDRs", () => {
+    const untouched = row({ lastAction: null, companyLastAction: null });
+    assert.ok(match(untouched, { type: "", result: "UNTOUCHED" }));
+    assert.ok(!match(row({ companyLastAction: null }), { type: "", result: "UNTOUCHED" }));
+    // A sibling or another SDR called this company; this contact itself is new.
+    const siblingCalled = row({ lastAction: null, companyLastAction: { result: "NO_RESPONSE" } });
+    assert.ok(!match(siblingCalled, { type: "", result: "UNTOUCHED" }));
+    assert.ok(match(siblingCalled, { type: "", result: "NONE" }), "the existing row-only filter keeps its meaning");
+    assert.ok(match(row({ contactId: null, contact: null, lastAction: null, companyLastAction: null }), { type: "", result: "UNTOUCHED" }));
+    assert.ok(!match(row({ contactId: null, contact: null, lastAction: { result: "NO_RESPONSE" }, companyLastAction: { result: "NO_RESPONSE" } }), { type: "", result: "UNTOUCHED" }));
+    assert.ok(!match(untouched, { type: "", result: "UNTOUCHED", search: "unrelated" }), "other filters still apply");
+});

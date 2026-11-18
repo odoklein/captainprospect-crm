@@ -24,7 +24,7 @@ import { Modal } from "@/components/ui";
 import { DailyReportModal } from "@/components/sdr/DailyReportModal";
 import { useSdrDailyReport } from "@/components/sdr/useSdrDailyReport";
 import { cn } from "@/lib/utils";
-import { RefreshCw, AlertTriangle, BellRing, CheckCircle2, PhoneCall } from "lucide-react";
+import { RefreshCw, AlertTriangle, BellRing, CheckCircle2, PhoneCall, Search } from "lucide-react";
 import { useBrand } from "@/lib/brand/client";
 
 interface AppLayoutShellProps {
@@ -58,7 +58,7 @@ function InnerLayout({
     const { data: session, status } = useSession();
     const router = useRouter();
     const pathname = usePathname();
-    const { isCollapsed, searchOpen, closeSearch } = useSidebar();
+    const { isCollapsed, searchOpen, openSearch, closeSearch } = useSidebar();
 
     const userRole = session?.user?.role as UserRole | undefined;
     const roleConfig = userRole ? ROLE_CONFIG[userRole] : null;
@@ -241,6 +241,19 @@ function InnerLayout({
                     </div>
 
                     <div className="flex items-center gap-2">
+                        {(pathname.startsWith("/sdr") || pathname.startsWith("/manager")) && (
+                            <button
+                                type="button"
+                                className="workspace-action workspace-search-trigger"
+                                aria-label="Recherche rapide"
+                                aria-haspopup="dialog"
+                                aria-expanded={searchOpen}
+                                onClick={openSearch}
+                            >
+                                <Search aria-hidden="true" />
+                                <span className="hidden min-[1440px]:inline">Rechercher</span>
+                            </button>
+                        )}
                         {isSdrArea && dailyReport.status && (
                             <button
                                 type="button"

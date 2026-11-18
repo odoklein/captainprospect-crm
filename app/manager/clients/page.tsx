@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ClientOnboardingModal } from "@/components/manager/ClientOnboardingModal";
+import { AgencyInviteButton } from "@/components/onboarding/AgencyInviteButton";
 import { ClientDrawer } from "@/components/drawers";
 import { CLIENTS_QUERY_KEY, LEEXI_RECAPS_QUERY_KEY } from "@/lib/query-keys";
 
@@ -398,6 +399,7 @@ function ClientsPageInner() {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <AgencyInviteButton />
                     <button
                         onClick={() => refetchClients()}
                         className="p-2.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"

@@ -3,10 +3,11 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Search, Command, Target, User, Calendar, FileText } from "lucide-react";
+import { Search, Target, User, Calendar, FileText, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/permissions/PermissionProvider";
 import type { NavSection } from "@/lib/navigation/config";
+import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/shadcn/dialog";
 
 interface GlobalSearchModalProps {
     open: boolean;
@@ -283,72 +284,66 @@ export function GlobalSearchModal({ open, onClose, navigation }: GlobalSearchMod
         [router, onClose]
     );
 
+    const returnFocus = useRef<HTMLElement | null>(null);
+
     useEffect(() => {
         if (!open) return;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                onClose();
-                return;
-            }
-            if (e.key === "ArrowDown") {
-                e.preventDefault();
-                setSelectedIndex((prev) => (prev + 1) % Math.max(1, totalItems));
-                return;
-            }
-            if (e.key === "ArrowUp") {
-                e.preventDefault();
-                setSelectedIndex((prev) => (prev - 1 + totalItems) % Math.max(1, totalItems));
-                return;
-            }
-            if (e.key === "Enter" && flatItems[selectedIndex]) {
-                e.preventDefault();
-                navigateToItem(flatItems[selectedIndex]);
-            }
-        };
-        document.addEventListener("keydown", handleKeyDown);
-        return () => document.removeEventListener("keydown", handleKeyDown);
-    }, [open, onClose, totalItems, flatItems, selectedIndex, navigateToItem]);
+        listRef.current?.querySelector('[data-search-active="true"]')?.scrollIntoView({ block: "nearest" });
+    }, [open, selectedIndex]);
 
-    useEffect(() => {
-        if (open) {
-            setQuery("");
-            setSelectedIndex(0);
-            setTimeout(() => inputRef.current?.focus(), 50);
+    const handleInputKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.nativeEvent.isComposing) return;
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            const direction = event.key === "ArrowDown" ? 1 : -1;
+            if (totalItems > 0) setSelectedIndex((prev) => (prev + direction + totalItems) % totalItems);
+        } else if (event.key === "Enter" && flatItems[selectedIndex]) {
+            event.preventDefault();
+            navigateToItem(flatItems[selectedIndex]);
         }
-    }, [open]);
-
-    if (!open) return null;
+    };
 
     return (
-        <>
-            <div
-                className="fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm"
-                aria-hidden
-                onClick={onClose}
-            />
-            <div
-                role="dialog"
-                aria-modal="true"
-                aria-label="Recherche rapide"
-                className="fixed left-1/2 top-[20%] -translate-x-1/2 z-[101] w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+        <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+            <DialogContent
+                aria-describedby={undefined}
+                showCloseButton={false}
+                className="top-[min(18vh,150px)] block translate-y-0 gap-0 overflow-hidden rounded-2xl p-0 motion-reduce:animate-none sm:max-w-xl"
+                onOpenAutoFocus={(event) => {
+                    event.preventDefault();
+                    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+                    setQuery("");
+                    setSelectedIndex(0);
+                    inputRef.current?.focus();
+                }}
+                onCloseAutoFocus={(event) => {
+                    event.preventDefault();
+                    if (returnFocus.current?.isConnected) returnFocus.current.focus();
+                }}
             >
-                <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
-                    <Search className="w-5 h-5 text-slate-400 shrink-0" />
+                <DialogTitle className="sr-only">Recherche rapide</DialogTitle>
+                <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
+                    <Search className="size-5 shrink-0 text-primary" aria-hidden />
                     <input
                         ref={inputRef}
                         type="text"
+                        aria-label="Rechercher dans le CRM"
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Rechercher pages, missions, contacts, RDV..."
-                        className="flex-1 min-w-0 bg-transparent border-0 text-[15px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+                        onChange={(event) => {
+                            setQuery(event.target.value);
+                            setSelectedIndex(0);
+                        }}
+                        onKeyDown={handleInputKey}
+                        placeholder="Pages, missions, contacts, RDV…"
+                        className="min-w-0 flex-1 border-0 bg-transparent text-[16px] font-medium text-ink placeholder:text-ink-3 focus:outline-none focus:ring-0"
                     />
-                    <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded-md bg-slate-100 text-slate-500 text-xs font-medium">
-                        <Command className="w-3 h-3" />K
-                    </kbd>
+                    <DialogClose className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-line text-ink-3 hover:bg-surface-3 hover:text-ink" aria-label="Fermer la recherche">
+                        <X className="size-4" aria-hidden />
+                    </DialogClose>
                 </div>
                 <div
                     ref={listRef}
-                    className="max-h-[min(60vh,400px)] overflow-y-auto py-2"
+                    className="max-h-[min(60dvh,450px)] overflow-y-auto overscroll-contain px-2 py-2"
                 >
                     {loading && debouncedQuery.length >= 2 ? (
                         <div className="px-4 py-6 text-center text-slate-500 text-sm">
@@ -381,11 +376,13 @@ export function GlobalSearchModal({ open, onClose, navigation }: GlobalSearchMod
                                                             navigateToItem(item);
                                                         }}
                                                         onMouseEnter={() => setSelectedIndex(idx)}
+                                                        onFocus={() => setSelectedIndex(idx)}
+                                                        data-search-active={isSelected}
                                                         className={cn(
-                                                            "flex flex-col gap-0.5 px-4 py-2.5 text-sm transition-colors",
+                                                            "flex flex-col gap-0.5 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus",
                                                             isSelected
-                                                                ? "bg-primary-50 text-primary-800"
-                                                                : "text-slate-700 hover:bg-slate-50"
+                                                                ? "bg-primary-soft text-primary-soft-ink"
+                                                                : "text-ink-2 hover:bg-surface-2"
                                                         )}
                                                     >
                                                         <span className="truncate font-medium">
@@ -418,7 +415,7 @@ export function GlobalSearchModal({ open, onClose, navigation }: GlobalSearchMod
                         </div>
                     )}
                 </div>
-            </div>
-        </>
+            </DialogContent>
+        </Dialog>
     );
 }

@@ -10,8 +10,8 @@
 // Keys work while focus is not in a text field.
 // ============================================
 
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ResultOption {
@@ -121,21 +121,22 @@ export function ResultPicker({
                 type="button"
                 role="radio"
                 aria-checked={selected}
+                data-dense={dense || undefined}
                 title={o.title ? `${o.label}\n${o.title}` : o.label}
                 onClick={() => onChange(o.value)}
                 className={cn(
-                    "group flex min-w-0 items-center gap-2 rounded-lg px-2.5 text-left leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    "workspace-outcome group flex min-w-0 items-center gap-2 rounded-xl px-2.5 text-left leading-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                     dense ? "min-h-8 py-1 text-[12.5px]" : "min-h-10 py-1.5 text-[13px]",
                     selected
-                        ? "cp-flash bg-primary-soft font-semibold text-primary-soft-ink ring-1 ring-inset ring-primary/35"
+                        ? "bg-primary-soft font-semibold text-primary-soft-ink ring-1 ring-inset ring-primary/35"
                         : "bg-surface text-ink-2 ring-1 ring-inset ring-line hover:bg-surface-2 hover:text-ink hover:ring-line-strong",
                 )}
             >
                 <span
-                    className={cn("h-2 w-2 shrink-0 rounded-full transition-transform", selected && "scale-125")}
-                    style={{ background: colorFor(o.value) ?? "var(--ds-line-strong)" }}
-                    aria-hidden
-                />
+                    className="workspace-outcome-marker"
+                    style={{ "--outcome-color": colorFor(o.value) ?? "var(--ds-ink-3)" } as CSSProperties}
+                    aria-hidden="true"
+                >{selected && <Check className="size-3" strokeWidth={2.75} />}</span>
                 <span className="min-w-0 flex-1 break-words">{shortLabel(o.label)}</span>
                 {k !== undefined && (
                     <kbd

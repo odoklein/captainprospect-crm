@@ -36,7 +36,6 @@ interface FilterSidebarProps {
   filters: MeetingFiltersState;
   sidebarOpen: boolean;
   onClose: () => void;
-  onOpen: () => void;
 }
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -95,7 +94,7 @@ function ToggleFilter({ label, icon: Icon, value, onChange }: {
   );
 }
 
-export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen, onClose, onOpen }: FilterSidebarProps) {
+export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen, onClose }: FilterSidebarProps) {
   const {
     datePreset, setDatePreset, dateFrom, setDateFrom, dateTo, setDateTo,
     noShowFilter, setNoShowFilter,
@@ -118,30 +117,12 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
 
   const [sortOpen, setSortOpen] = useState(false);
 
-  if (!sidebarOpen) {
-    return (
-      <button
-        onClick={onOpen}
-        style={{
-          position: "absolute", left: 0, top: 16, zIndex: 10,
-          background: "var(--surface)", border: "1px solid var(--border)", borderLeft: "none",
-          borderRadius: "0 10px 10px 0", padding: "10px 8px", color: "var(--ink3)", cursor: "pointer",
-          boxShadow: "var(--rdv-shadow-md)",
-        }}
-      >
-        <Filter size={14} />
-        {activeFilterCount > 0 && (
-          <span style={{ position: "absolute", top: -4, right: -4, background: "var(--accent)", color: "white", borderRadius: "50%", width: 16, height: 16, fontSize: 9, fontWeight: 700, display: "grid", placeContent: "center" }}>
-            {activeFilterCount}
-          </span>
-        )}
-      </button>
-    );
-  }
+  if (!sidebarOpen) return null;
 
   return (
-    <div
-      className="rdv-scrollbar"
+    <aside
+      className="rdv-filter-sidebar rdv-scrollbar"
+      aria-label="Filtres des rendez-vous"
       style={{
         width: 260, flexShrink: 0, borderRight: "1px solid var(--border)",
         background: "var(--surface)", overflowY: "auto", padding: "16px",
@@ -159,8 +140,8 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
             </span>
           )}
         </span>
-        <button style={{ background: "none", border: "none", color: "var(--ink3)", cursor: "pointer" }} onClick={onClose}>
-          <ChevronLeft size={16} />
+        <button type="button" className="rdv-icon-btn" aria-label="Fermer les filtres" onClick={onClose}>
+          <ChevronLeft size={16} aria-hidden />
         </button>
       </div>
 
@@ -517,6 +498,6 @@ export const FilterSidebar = memo(function FilterSidebar({ filters, sidebarOpen,
           </div>
         </div>
       )}
-    </div>
+    </aside>
   );
 });

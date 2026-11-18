@@ -26,55 +26,40 @@ export function RdvBulkActions({
   if (selectedMeetings.length === 0) return null;
 
   return (
-    <div
-      style={{
-        borderRadius: 16,
-        padding: "10px 12px 10px 20px",
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        zIndex: 40,
-        animation: "slideUp 0.3s cubic-bezier(0.16,1,0.3,1)",
-      }}
-      className="bulk-action-bar"
-    >
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 600 }}>
-        <span className="rdv-count" style={{ background: "var(--rose)", color: "var(--ds-accent-fg)", fontSize: 11, padding: "2px 8px" }}>
-          {selectedMeetings.length}
-        </span>
-        selectionne{selectedMeetings.length > 1 ? "s" : ""}
+    <div className="bulk-action-bar" role="group" aria-label="Actions sur la sélection">
+      <span className="rdv-selection-count" role="status">
+        <span className="rdv-count">{selectedMeetings.length}</span>
+        {selectedMeetings.length === 1 ? "RDV sélectionné" : "RDV sélectionnés"}
       </span>
-      <div style={{ width: 1, height: 24, background: "var(--ds-inverse-line)", margin: "0 4px" }} />
-      <button className="rdv-btn rdv-btn-confirm" onClick={onConfirm} disabled={confirming}>
-        <Check size={13} /> {confirming ? "Confirmation..." : "Confirmer"}
-      </button>
-      <button
-        className="rdv-btn"
-        style={{ background: "var(--ds-inverse-raised)", color: "var(--ds-inverse-ink)", borderColor: "var(--ds-inverse-line)" }}
-        onClick={onCancelMeetings}
-        disabled={cancelling}
-      >
-        <XCircle size={13} /> {cancelling ? "Annulation..." : "Annuler"}
-      </button>
-      <button
-        className="rdv-btn"
-        style={{ background: "var(--ds-inverse-raised)", color: "var(--ds-inverse-ink)", borderColor: "var(--ds-inverse-line)" }}
-        onClick={() => downloadCSV(selectedMeetings, "selection")}
-      >
-        <Download size={13} /> Exporter CSV
-      </button>
-      <button className="rdv-btn rdv-btn-danger" onClick={onDeleteRequest}>
-        <Trash2 size={13} /> Supprimer
+      <button type="button" className="rdv-btn rdv-btn-confirm" onClick={onConfirm} disabled={confirming}>
+        <Check size={13} aria-hidden /> {confirming ? "Confirmation…" : "Confirmer"}
       </button>
       <button
         type="button"
-        className="rdv-icon-btn"
-        style={{ width: 30, height: 30, background: "transparent", borderColor: "var(--ds-inverse-line)", color: "var(--ds-inverse-ink-2)" }}
+        className="rdv-btn rdv-selection-secondary"
+        onClick={onCancelMeetings}
+        disabled={cancelling}
+      >
+        <XCircle size={13} aria-hidden /> {cancelling ? "Annulation…" : "Annuler"}
+      </button>
+      <button
+        type="button"
+        className="rdv-btn rdv-selection-secondary"
+        onClick={() => downloadCSV(selectedMeetings, "selection")}
+      >
+        <Download size={13} aria-hidden /> Exporter CSV
+      </button>
+      <button type="button" className="rdv-btn rdv-btn-danger" onClick={onDeleteRequest}>
+        <Trash2 size={13} aria-hidden /> Supprimer
+      </button>
+      <button
+        type="button"
+        className="rdv-icon-btn rdv-selection-secondary"
         onClick={onClearSelection}
         title="Vider la sélection"
         aria-label="Vider la sélection"
       >
-        <X size={14} />
+        <X size={14} aria-hidden />
       </button>
     </div>
   );

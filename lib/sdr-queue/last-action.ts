@@ -35,21 +35,37 @@ export const LAST_ACTION_CTES = `
             WHERE a."contactId" IN (SELECT contact_id FROM all_targets WHERE contact_id IS NOT NULL)
             ORDER BY a."contactId", a."createdAt" DESC
         ),
+        target_companies AS (
+            SELECT DISTINCT company_id FROM all_targets
+        ),
+        company_action_candidates AS (
+            -- Keep both predicates on indexed columns. Resolving the company with
+            -- COALESCE in WHERE makes Postgres scan unrelated Action history.
+            SELECT a."companyId" AS company_id_resolved,
+                a.result, a.note, a."createdAt", a."callbackDate", a."sdrId"
+            FROM target_companies tc
+            INNER JOIN "Action" a ON a."companyId" = tc.company_id
+            UNION ALL
+            -- Older contact actions may not have a stamped companyId. Only those
+            -- rows use the contact's company; a stamped company always wins.
+            SELECT c."companyId" AS company_id_resolved,
+                a.result, a.note, a."createdAt", a."callbackDate", a."sdrId"
+            FROM target_companies tc
+            INNER JOIN "Contact" c ON c."companyId" = tc.company_id
+            INNER JOIN "Action" a ON a."contactId" = c.id AND a."companyId" IS NULL
+        ),
         last_actions_companies AS (
-            -- Last action per company across all its history (direct company actions and actions on its contacts)
-            SELECT DISTINCT ON (COALESCE(a."companyId", c_lookup."companyId"))
-                COALESCE(a."companyId", c_lookup."companyId") as company_id_resolved,
+            SELECT DISTINCT ON (a.company_id_resolved)
+                a.company_id_resolved,
                 a.result,
                 a.note,
                 a."createdAt",
                 a."callbackDate",
                 a."sdrId",
                 u.name as sdr_name
-            FROM "Action" a
-            LEFT JOIN "Contact" c_lookup ON a."contactId" = c_lookup.id
+            FROM company_action_candidates a
             INNER JOIN "User" u ON u.id = a."sdrId"
-            WHERE COALESCE(a."companyId", c_lookup."companyId") IN (SELECT company_id FROM all_targets)
-            ORDER BY COALESCE(a."companyId", c_lookup."companyId"), a."createdAt" DESC
+            ORDER BY a.company_id_resolved, a."createdAt" DESC
         ),
         targets_with_last_action AS (
             SELECT

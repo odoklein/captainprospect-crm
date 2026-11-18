@@ -105,6 +105,6 @@ export const config = {
         // and /api/license-state (suspension probe the middleware itself calls)
         // and /api/public/* (client-facing links: the token in the URL is the credential,
         //     each route checks it — e.g. the onboarding portal, lib/client-onboarding)
-        "/api/((?!auth/|webhooks/|v1/|mcp|brand/assets/|public-config|license-state|instance/|public/).*)",
+        "/api/((?!auth/|onboarding/|webhooks/|v1/|mcp|brand/assets/|public-config|license-state|instance/|public/).*)",
     ],
 };
