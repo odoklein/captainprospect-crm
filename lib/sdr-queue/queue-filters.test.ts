@@ -20,6 +20,7 @@ const row = (over: Partial<QueueRowLike> = {}): QueueRowLike => ({
     company: { name: "PRIME ENGINEERING", phone: "+33 2 51 05 85 85" },
     priority: "CALLBACK",
     channel: "CALL",
+    hasCompanyHistory: false,
     lastAction: { result: "RAPPEL", note: "Rappeler après réunion" },
     ...over,
 });
@@ -107,4 +108,6 @@ test("untouched requires no history on either the contact or the company, across
     assert.ok(match(row({ contactId: null, contact: null, lastAction: null, companyLastAction: null }), { type: "", result: "UNTOUCHED" }));
     assert.ok(!match(row({ contactId: null, contact: null, lastAction: { result: "NO_RESPONSE" }, companyLastAction: { result: "NO_RESPONSE" } }), { type: "", result: "UNTOUCHED" }));
     assert.ok(!match(untouched, { type: "", result: "UNTOUCHED", search: "unrelated" }), "other filters still apply");
+    assert.ok(!match(row({ lastAction: null, companyLastAction: null, hasCompanyHistory: true }), { type: "", result: "UNTOUCHED" }), "history on an imported copy excludes this row");
+    assert.ok(!match(row({ lastAction: null, hasCompanyHistory: undefined }), { type: "", result: "UNTOUCHED" }), "unknown history is never presented as verified untouched");
 });

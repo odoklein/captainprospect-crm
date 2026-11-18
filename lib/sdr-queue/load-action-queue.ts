@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LAST_ACTION_CTES } from "@/lib/sdr-queue/last-action";
+import { findWorkedCompanyIds } from "@/lib/sdr-queue/company-history";
 import { findAbsentRdvRecalls } from "@/lib/sdr-queue/absent-rdv";
 import { findSharedPhoneCalls, sharedPhoneRowKey } from "@/lib/sdr-queue/shared-phone";
 import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from "@/lib/sdr-queue/cooldown";
@@ -333,10 +334,11 @@ export async function loadActionQueue(params: ActionQueueParams) {
         );
     })();
 
-    const [config, { contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds] = await Promise.all([
+    const [config, { contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds, workedCompanyIds] = await Promise.all([
         configPromise,
         findAbsentRdvRecalls(rawResult),
         getCooldownDisabledListIds(rawResult.map((r) => r.list_id)),
+        findWorkedCompanyIds(rawResult.map((r) => r.company_id)),
     ]);
     const callbackResultCodes = buildCallbackResultCodes(config);
 
@@ -390,6 +392,7 @@ export async function loadActionQueue(params: ActionQueueParams) {
     const items = result.map((row) => ({
         contactId: row.contact_id,
         companyId: row.company_id,
+        hasCompanyHistory: workedCompanyIds.has(row.company_id),
         contact: row.contact_id
             ? {
                 id: row.contact_id,

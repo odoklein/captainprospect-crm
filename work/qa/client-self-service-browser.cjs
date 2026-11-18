@@ -26,6 +26,7 @@ fs.mkdirSync(proof, { recursive: true });
             company: { id: "co-" + id, name, phone: "0142345678" },
             campaignId: "qa-campaign", channel: "CALL", missionName: "Mission QA", priority: "NEW", hasContactInfo: true,
             lastAction: null, companyLastAction: null, preferredInterlocuteurIds: [], qualification: null,
+            hasCompanyHistory: false,
         });
         const queue = [queueRow("fresh", "FreshCo"), { ...queueRow("sibling", "WorkedCo"), companyLastAction: history },
             { ...queueRow("own", "OwnWorkedCo"), lastAction: history, companyLastAction: history }, queueRow("company", "Untouched Company", true)];

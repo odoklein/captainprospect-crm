@@ -208,6 +208,7 @@ interface QueueItem {
     lastAction: NextActionData["lastAction"] | null;
     lastActionBy?: { id: string; name: string | null } | null;
     companyLastAction?: NextActionData["companyLastAction"] | null;
+    hasCompanyHistory?: boolean;
     sharedPhoneCall?: NextActionData["sharedPhoneCall"];
     priority: string;
     hasContactInfo?: boolean;
@@ -2304,7 +2305,12 @@ export default function SDRActionPage() {
                     items={queueItems}
                     filteredCount={filteredQueueItems.length}
                     filters={tableFilters}
-                    onChange={patchTableFilters}
+                    onChange={(patch) => {
+                        patchTableFilters(patch);
+                        // Recheck team history when activating the strict filter,
+                        // including queues cached before this field was introduced.
+                        if (patch.result === "UNTOUCHED") refreshQueue();
+                    }}
                     onReset={resetTableFilters}
                     missions={selectableMissions}
                     missionId={selectedMissionId}

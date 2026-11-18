@@ -59,6 +59,8 @@ export interface QueueRowLike {
     missionName?: string;
     lastAction?: { result: string; note?: string | null } | null;
     companyLastAction?: { result: string; note?: string | null } | null;
+    /** Server-verified history across contacts and imported company copies. Missing means unknown. */
+    hasCompanyHistory?: boolean;
 }
 
 /**
@@ -170,7 +172,7 @@ export function matchesQueueFilters(
         if (f.result === "UNTOUCHED") {
             // Company history includes actions on every sibling contact and by
             // every SDR. An uncalled contact in an already worked company is out.
-            if (row.lastAction || row.companyLastAction) return false;
+            if (row.hasCompanyHistory !== false || row.lastAction || row.companyLastAction) return false;
         } else if (f.result === "NONE") {
             if (row.lastAction) return false;
         } else if (row.lastAction?.result !== f.result) return false;

@@ -55,7 +55,7 @@
     "test:billing-schedule": "tsx --test lib/billing/cycle-schedule.test.ts",
     "test:meeting-feedback-reminder": "tsx --test lib/meetings/feedbackReminder.test.ts",
     "test:prospect-submissions": "tsx --test lib/prospect-submissions/matching.test.ts",
-    "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts lib/sdr-queue/shared-phone.test.ts lib/sdr-queue/display.test.ts lib/sdr-queue/script-fill.test.ts lib/sdr-queue/queue-filters.test.ts",
+    "test:sdr-queue": "tsx --test lib/sdr-queue/last-action.test.ts lib/sdr-queue/shared-phone.test.ts lib/sdr-queue/display.test.ts lib/sdr-queue/script-fill.test.ts lib/sdr-queue/queue-filters.test.ts lib/sdr-queue/company-history.test.ts",
     "test:sdr-queue-performance": "tsx --test lib/sdr-queue/last-action.performance.test.ts",
     "test:client-self-service": "tsx --test lib/onboarding/self-service.test.mjs",
     "test:sdr-pace": "tsx --test lib/sdr-pace/pace.test.ts",
