@@ -76,7 +76,7 @@ export function AppelerGuide({
     return (
         <section aria-label="Bien démarrer" className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-line bg-surface px-4 py-2.5">
             <p className="text-[13px] font-semibold text-ink">Bien démarrer</p>
-            <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1.5">
+            <ol className="flex min-w-0 basis-full flex-wrap items-center gap-x-4 gap-y-1.5 sm:basis-0 sm:flex-1">
                 {STEPS.map((s, i) => {
                     const done = state[s.id];
                     const current = next?.id === s.id;

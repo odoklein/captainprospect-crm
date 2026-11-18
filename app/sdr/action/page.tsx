@@ -2481,6 +2481,7 @@ export default function SDRActionPage() {
                     ) : (
                         <DataTable
                             data={filteredQueueItems}
+                            className="min-w-0 max-w-full overflow-hidden [&_table]:min-w-[860px]"
                             columns={queueColumns}
                             keyField={(row) => queueRowKey(row)}
                             resetPageKey={tableFiltersKey}

@@ -68,12 +68,14 @@ fs.mkdirSync(proof, { recursive: true });
                 return success(mission);
             }
             if (url.pathname === "/api/manager/client-invite") {
-                if (request.method() === "POST") invitePath = "/onboarding/" + TOKEN;
+                if (request.method() === "POST") invitePath = "/onboarding/invite/" + TOKEN;
                 if (request.method() === "DELETE") invitePath = null;
                 return success({ path: invitePath });
             }
             if (url.pathname.endsWith("/permissions")) return success(["pages.dashboard", "pages.clients", "pages.settings"]);
             if (url.pathname === "/api/notifications") return success({ notifications: [], unreadCount: 0 });
+            if (url.pathname === "/api/changelog") return success({ items: [] });
+            if (url.pathname === "/api/incoming-calls") return success({ enabled: false, calls: [] });
             if (url.pathname === "/api/portal/meetings/feedback-pending") return success(null);
             if (url.pathname === "/api/manager/home/today") return success(null);
             if (url.pathname === "/api/sdr/missions") return success([{ id: "qa-sdr-mission", name: "Mission QA", channel: "CALL", channels: ["CALL"], client: { id: "qa-client", name: "Acme" } }]);
@@ -91,9 +93,14 @@ fs.mkdirSync(proof, { recursive: true });
         async function screenshot(name, width = 1440) {
             await page.setViewportSize({ width, height: width < 600 ? 844 : 1000 });
             await page.screenshot({ path: path.join(proof, name + ".png"), fullPage: true });
-            assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${name}: horizontal overflow`);
+            const overflow = await page.evaluate(() => ({
+                width: innerWidth, scroll: document.documentElement.scrollWidth,
+                elements: [...document.querySelectorAll('body *')].filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
+                    .slice(0, 12).map((element) => ({ tag: element.tagName, class: element.className, right: element.getBoundingClientRect().right })),
+            }));
+            assert.ok(overflow.scroll <= overflow.width, `${name}: horizontal overflow ${JSON.stringify(overflow)}`);
         }
-        await page.goto(ORIGIN + "/onboarding/" + TOKEN, { waitUntil: "networkidle", timeout: 120000 });
+        await page.goto(ORIGIN + "/onboarding/invite/" + TOKEN, { waitUntil: "networkidle", timeout: 120000 });
         await page.getByRole("heading", { name: "Créons votre espace" }).waitFor();
         await screenshot("signup-desktop"); await screenshot("signup-mobile", 390);
         await page.getByRole("button", { name: "Créer mon espace client" }).click();
@@ -125,7 +132,7 @@ fs.mkdirSync(proof, { recursive: true });
         await dialog.getByLabel("Qui souhaitez-vous toucher ?").fill("DRH des PME de 50 à 200 salariés");
         await dialog.getByLabel("Zone géographique (facultatif)").fill("France");
         await dialog.getByRole("button", { name: "Continuer" }).click();
-        await dialog.getByLabel("Quelle offre souhaitez-vous présenter ?").fill("Accompagnement et formation RH");
+        await dialog.getByLabel("Ce que vous vendez, en une phrase").fill("Accompagnement et formation RH");
         await screenshot("mission-step-three-mobile", 390);
         await dialog.getByRole("button", { name: "Enregistrer ma mission" }).click();
         await dialog.waitFor({ state: "hidden" });
@@ -156,7 +163,7 @@ fs.mkdirSync(proof, { recursive: true });
         results.push("Active missions show a read-only brief");
 
         await auth(null); invitation = false;
-        await page.goto(ORIGIN + "/onboarding/" + TOKEN, { waitUntil: "networkidle" });
+        await page.goto(ORIGIN + "/onboarding/invite/" + TOKEN, { waitUntil: "networkidle" });
         await page.getByRole("heading", { name: "Invitation indisponible" }).waitFor();
         assert.equal(await page.getByRole("button", { name: "Créer mon espace client" }).count(), 0);
         results.push("Revoked invitations cannot show a registration form");
@@ -166,7 +173,7 @@ fs.mkdirSync(proof, { recursive: true });
         await page.getByRole("button", { name: "Inviter un client" }).click();
         const invite = page.getByRole("dialog", { name: "Inviter vos clients" });
         await invite.getByRole("button", { name: "Créer le lien d’invitation" }).click();
-        assert.equal(await invite.getByLabel("Lien d’inscription de l’agence").inputValue(), ORIGIN + "/onboarding/" + TOKEN);
+        assert.equal(await invite.getByLabel("Lien d’inscription de l’agence").inputValue(), ORIGIN + "/onboarding/invite/" + TOKEN);
         await screenshot("manager-invite-desktop");
         await invite.getByRole("button", { name: "Désactiver ce lien" }).click();
         await invite.getByRole("button", { name: "Créer le lien d’invitation" }).waitFor();

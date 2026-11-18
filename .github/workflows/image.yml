@@ -49,6 +49,10 @@ jobs:
           npm run test:socket-handshake
           npm run test:provision-agency
           npm run test:migrate-plan
+          npm run test:client-questionnaire
+          npm run test:client-self-service
+          npm run test:sdr-queue
+          npm run test:sdr-queue-performance
 
   build:
     name: build and push

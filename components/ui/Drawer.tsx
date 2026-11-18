@@ -188,7 +188,7 @@ export function Drawer({
 
     useEffect(() => {
         const panel = drawerRef.current;
-        if (!isOpen || !panel || (!modal && !docked)) return;
+        if (!isOpen || !panel) return;
         return registerDialogLayer({
             panel,
             priority: docked ? 0 : 1,
