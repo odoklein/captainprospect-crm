@@ -11,7 +11,7 @@ import {
     Field, FormStatus, INPUT, SECONDARY_BUTTON, SettingsCard, SettingsShell, useSettingsSection, type SettingsSectionDef,
 } from "@/components/settings/SettingsUI";
 import {
-    AccountHeaderPills, ClientNotificationsSection, PersonalInfoCard, ProfileHero, SecuritySection,
+    ClientNotificationsSection, PersonalInfoCard, ProfileHero, SecuritySection,
 } from "@/components/settings/AccountPanels";
 
 // ============================================
@@ -131,7 +131,6 @@ function ClientSettings() {
         <SettingsShell
             title="Paramètres"
             subtitle="Gérez vos informations, vos alertes et la sécurité de votre compte."
-            pills={<AccountHeaderPills />}
             sections={SECTIONS}
             active={active}
             onSelect={select}

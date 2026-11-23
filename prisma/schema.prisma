@@ -1449,11 +1449,51 @@ model OnoffCall {
   voicemailUrl    String?   @db.Text
   notes           String?   @db.Text
   tags            Json?
+  // History import (lib/onoff/import.ts, Onoff public API, MAX plan) ─────────
+  source          String    @default("webhook") // webhook | api
+  apiCallId       String? // Onoff's call id in its API: fetches fresh recording links (they expire in 10 min)
+  memberId        String? // Onoff member (memberIdRef)
+  recordingId     String? // callRecordingId: a recording exists in Onoff
+  voicemailId     String?
+  summary         String?   @db.Text // Onoff AI: callTranscription.summarization
+  transcription   String?   @db.Text // Onoff AI: diarization, one « Speaker : text » line each
+  evaluationScore Float? // Onoff AI coaching score /10
+  evaluation      Json? // Onoff AI callEvaluation (per-criterion score + feedback)
+  detailsAt       DateTime? // when /calls/:id/logs was read (null: not fetched yet)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@index([externalKey, startedAt])
   @@index([sdrId, startedAt])
+  @@index([apiCallId])
+}
+
+// One run of « Récupérer l'historique Onoff » (Paramètres → Intégrations). Runs in the
+// server process; progress is written here so the page can follow it and a restart
+// shows as interrupted (heartbeatAt stops moving). Re-running is harmless: calls upsert.
+model OnoffImportRun {
+  id            String    @id @default(cuid())
+  status        String    @default("running") // running | done | failed
+  fromDate      String // YYYY-MM-DD (Paris)
+  toDate        String
+  phase         String    @default("members") // members | calls | details | linking | done
+  membersTotal  Int       @default(0)
+  membersDone   Int       @default(0)
+  callsFound    Int       @default(0)
+  callsNew      Int       @default(0)
+  detailsTotal  Int       @default(0)
+  detailsDone   Int       @default(0)
+  recordings    Int       @default(0)
+  summaries     Int       @default(0)
+  actionsLinked Int       @default(0)
+  unmatched     Json? // Onoff members with no CRM user: [{ name, email }]
+  error         String?   @db.Text
+  startedById   String?
+  startedAt     DateTime  @default(now())
+  heartbeatAt   DateTime  @default(now())
+  finishedAt    DateTime?
+
+  @@index([startedAt])
 }
 
 model TelephonyCall {

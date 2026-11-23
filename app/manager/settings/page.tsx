@@ -6,7 +6,7 @@ import { BellRing, Key, Phone, Link2, Mail, Palette, PhoneCall, Plug, ShieldChec
 import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
 import { LEEXI_SETTINGS_ANCHOR } from "@/lib/notetakers/guide";
 import {
-    AccountHeaderPills, DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
+    DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
 } from "@/components/settings/AccountPanels";
 import { BrandingPanel } from "./BrandingPanel";
 import { IntegrationKeysPanel } from "./IntegrationKeysPanel";
@@ -21,17 +21,29 @@ import { EmailsPanel, IntegrationsPanel, MasterPasswordPanel, TeamGoalsPanel } f
 // ============================================
 
 const SECTIONS: SettingsSectionDef[] = [
-    { id: "profil", label: "Profil", hint: "Photo et coordonnées", icon: User, tone: "indigo", group: "Mon compte" },
-    { id: "alertes", label: "Alertes", hint: "Notifications du bureau", icon: BellRing, tone: "amber", group: "Mon compte" },
-    { id: "telephone", label: "Mon téléphone", hint: "Appels entrants, messagerie", icon: Phone, tone: "teal", group: "Mon compte" },
-    { id: "securite", label: "Sécurité", hint: "Mot de passe et appareils", icon: ShieldCheck, tone: "violet", group: "Mon compte" },
-    { id: "identite", label: "Identité", hint: "Nom, couleurs, logos", icon: Palette, tone: "violet", group: "Plateforme" },
-    { id: "equipe", label: "Équipe & objectifs", hint: "Quota d'appels, statuts", icon: Target, tone: "emerald", group: "Plateforme" },
-    { id: "emails", label: "Emails & modèles", hint: "Expéditeur, email de RDV", icon: Mail, tone: "indigo", group: "Plateforme" },
-    { id: "telephonie", label: "Téléphonie", hint: "Numéros Twilio par personne", icon: PhoneCall, tone: "emerald", group: "Plateforme" },
-    { id: "integrations", label: "Intégrations", hint: "Clés OpenAI, Allo, enregistreurs…", icon: Link2, tone: "teal", group: "Plateforme" },
-    { id: "mcp", label: "Connexion IA (MCP)", hint: "Clé pour ChatGPT, Claude", icon: Plug, tone: "violet", group: "Plateforme" },
-    { id: "acces", label: "Accès maître", hint: "Mot de passe maître", icon: Key, tone: "amber", group: "Plateforme" },
+    { id: "profil", label: "Profil", hint: "Photo, nom, téléphone", icon: User, tone: "indigo", group: "Mon compte",
+      description: "Votre photo et vos coordonnées.", keywords: "nom email photo avatar fuseau" },
+    { id: "alertes", label: "Notifications", hint: "Alertes du bureau", icon: BellRing, tone: "amber", group: "Mon compte",
+      description: "Ce qui vous prévient pendant la journée.", keywords: "alertes notifications bureau" },
+    { id: "telephone", label: "Mon téléphone", hint: "Appels entrants, messagerie", icon: Phone, tone: "teal", group: "Mon compte",
+      description: "Comment vos appels entrants vous arrivent.", keywords: "appels entrants messagerie sonnerie" },
+    { id: "securite", label: "Sécurité", hint: "Mot de passe, appareils", icon: ShieldCheck, tone: "violet", group: "Mon compte",
+      description: "Mot de passe, appareils connectés et historique de connexion.", keywords: "mot de passe appareils connexion" },
+    { id: "identite", label: "Identité de l'agence", hint: "Nom, couleurs, logos", icon: Palette, tone: "violet", group: "Agence",
+      description: "Le nom, les couleurs et les logos que voit toute l'équipe.", keywords: "marque logo couleurs branding" },
+    { id: "equipe", label: "Équipe & objectifs", hint: "Quota d'appels, statuts", icon: Target, tone: "emerald", group: "Agence",
+      description: "Les objectifs de l'équipe et les statuts d'appel.", keywords: "objectifs quota statuts" },
+    { id: "emails", label: "Emails", hint: "Expéditeur, modèles", icon: Mail, tone: "indigo", group: "Agence",
+      description: "L'expéditeur et les modèles des emails envoyés par la plateforme.", keywords: "smtp expediteur modeles rdv" },
+    { id: "integrations", label: "Intégrations", hint: "Onoff, OpenAI, Allo…", icon: Link2, tone: "teal", group: "Connexions",
+      description: "Les outils branchés au CRM : téléphonie, IA, enregistreurs, données.",
+      keywords: "cle api onoff openai allo mistral leexi fireflies gong serper historique appels enregistrements" },
+    { id: "telephonie", label: "Téléphone intégré", hint: "Numéros Twilio par personne", icon: PhoneCall, tone: "emerald", group: "Connexions",
+      description: "Les numéros Twilio attribués à chaque personne pour appeler depuis le CRM.", keywords: "twilio numeros softphone" },
+    { id: "mcp", label: "Connexion IA (MCP)", hint: "ChatGPT, Claude", icon: Plug, tone: "violet", group: "Connexions",
+      description: "Une clé pour brancher ChatGPT ou Claude sur vos données.", keywords: "mcp chatgpt claude cle" },
+    { id: "acces", label: "Accès maître", hint: "Mot de passe maître", icon: Key, tone: "amber", group: "Avancé",
+      description: "Le mot de passe qui ouvre n'importe quel compte, pour le support.", keywords: "master mot de passe support" },
 ];
 
 function ManagerSettings() {
@@ -39,8 +51,7 @@ function ManagerSettings() {
     return (
         <SettingsShell
             title="Paramètres"
-            subtitle="Votre compte, et la configuration de la plateforme pour toute l'équipe."
-            pills={<AccountHeaderPills />}
+            subtitle="Votre compte et la configuration de l'agence."
             sections={SECTIONS}
             active={active}
             onSelect={select}

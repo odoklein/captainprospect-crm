@@ -94,6 +94,17 @@ export const INTEGRATION_KEYS = [
         placeholder: "24 caractères minimum, ex. généré par un gestionnaire de mots de passe",
         docsUrl: "https://docs.onoffbusiness.com/webhook/getting-started",
     },
+    // Onoff public API (lib/onoff/api.ts), MAX plan only: imports past calls with Onoff's
+    // AI summary and transcript, and signs fresh links to play their recordings.
+    {
+        name: "ONOFF_API_KEY",
+        label: "Onoff — clé API (plan MAX)",
+        group: "telephony",
+        usedFor:
+            "Récupérer l'historique des appels Onoff (enregistrements, résumés et transcriptions IA) et lire les enregistrements. Console Onoff → Intégrations → Clés API",
+        placeholder: "Clé API Onoff",
+        docsUrl: "https://docs.onoffbusiness.com/api/getting-started",
+    },
     // Twilio (lib/telephony): in-app softphone. All six are needed for the « Appeler » button
     // to dial from the browser; with any missing, phone links fall back to tel: (Allo).
     {

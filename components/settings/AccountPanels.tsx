@@ -19,7 +19,7 @@ import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { myProfileQueryKey } from "@/lib/query-keys";
 import {
-    BADGE, EmptyBlock, HeroCard, HeroPill, HeroTile, ProgressBar, Shimmer, StatusPill, relativeTime, type AccueilTone,
+    BADGE, EmptyBlock, FOCUS as FOCUS_RING_CLASS, ProgressBar, Shimmer, StatusPill, relativeTime, type AccueilTone,
 } from "@/components/accueil/AccueilUI";
 import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
 import { UserAvatar, useAvatarMutations, useAvatarPicker, useMyAvatar } from "./Avatar";
@@ -62,25 +62,9 @@ export function useProfile() {
     });
 }
 
-function monthYear(iso: string): string {
-    return new Date(iso).toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
-}
+// ── Identity ────────────────────────────────────────────────────────────────
 
-/** Header pills of every settings page. */
-export function AccountHeaderPills() {
-    const { data: session } = useSession();
-    const role = session?.user?.role;
-    return (
-        <>
-            <StatusPill tone="emerald" pulse>Compte actif</StatusPill>
-            {role && <StatusPill tone="slate" icon={ShieldCheck}>{ROLE_LABEL[role] ?? role}</StatusPill>}
-        </>
-    );
-}
-
-// ── Identity hero ───────────────────────────────────────────────────────────
-
-/** Forest hero with the profile picture — click or drop an image on it to change it. */
+/** Light profile card: the photo (click or drop to change it), name and role. The e-mail lives in the form below. */
 export function ProfileHero() {
     const { data: profile, isLoading } = useProfile();
     const { data: avatar } = useMyAvatar();
@@ -95,7 +79,7 @@ export function ProfileHero() {
         onSaved: () => toast.success("Photo mise à jour", "Elle apparaît déjà dans la barre latérale."),
     });
 
-    if (isLoading || !profile) return <Shimmer className="h-[188px] rounded-3xl" />;
+    if (isLoading || !profile) return <Shimmer className="h-[112px] rounded-3xl" />;
 
     const hasPhoto = Boolean(avatar?.url);
     const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -116,92 +100,66 @@ export function ProfileHero() {
     };
 
     return (
-        <HeroCard className="flex flex-col md:flex-row md:items-center gap-5 md:gap-6">
+        <section
+            className={cn(
+                "bg-surface rounded-3xl border shadow-card p-5 flex flex-col sm:flex-row sm:items-center gap-4 transition-colors",
+                dragging ? "border-emerald-400 bg-emerald-50/40" : "border-line",
+            )}
+            onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+        >
             {picker.element}
-
-            <div
-                className="relative self-start md:self-center"
-                onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragging(true);
-                }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={onDrop}
+            <button
+                type="button"
+                onClick={picker.open}
+                aria-label={hasPhoto ? "Changer la photo de profil" : "Ajouter une photo de profil"}
+                className={cn("group relative self-start sm:self-center rounded-2xl flex-shrink-0", FOCUS_RING_CLASS)}
             >
-                <button
-                    type="button"
-                    onClick={picker.open}
-                    aria-label={hasPhoto ? "Changer la photo de profil" : "Ajouter une photo de profil"}
-                    className={cn(
-                        "group relative block rounded-[22px] outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-inverse",
-                        dragging && "ring-2 ring-accent-300 ring-offset-2 ring-offset-inverse",
-                    )}
-                >
-                    <UserAvatar
-                        name={profile.name}
-                        src={avatar?.url}
-                        className="w-24 h-24 rounded-[22px] text-2xl shadow-[0_6px_18px_rgba(2,44,34,0.45)] ring-1 ring-inverse-line"
-                        fallbackClassName="bg-white/10 text-inverse-ink"
-                    />
-                    <span
-                        aria-hidden
-                        className={cn(
-                            "absolute inset-0 rounded-[22px] bg-zinc-950/55 flex flex-col items-center justify-center gap-1 text-[10px] font-bold text-white transition-opacity",
-                            dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
-                        )}
-                    >
-                        <Camera className="w-5 h-5" />
-                        {dragging ? "Déposer" : "Modifier"}
-                    </span>
-                </button>
+                <UserAvatar name={profile.name} src={avatar?.url} className="w-[72px] h-[72px] rounded-2xl text-xl ring-1 ring-line" />
                 <span
                     aria-hidden
-                    className="pointer-events-none absolute -bottom-1.5 -right-1.5 w-8 h-8 rounded-xl bg-white text-primary border border-line shadow-[0_2px_8px_rgba(2,44,34,0.35)] flex items-center justify-center"
-                >
-                    <Camera className="w-4 h-4" />
-                </span>
-            </div>
-
-            <div className="min-w-0 flex-1 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                    <HeroPill icon={ShieldCheck}>{ROLE_LABEL[profile.role] ?? profile.role}</HeroPill>
-                    {profile.clientName && <HeroPill icon={Building2}>{profile.clientName}</HeroPill>}
-                </div>
-                <div className="min-w-0">
-                    <h2 className="text-2xl sm:text-[28px] font-black tracking-tight leading-tight truncate">{profile.name}</h2>
-                    <p className="text-sm font-medium text-inverse-ink-2 truncate">{profile.email}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <button
-                        type="button"
-                        onClick={picker.open}
-                        className="inline-flex items-center gap-2 h-9 px-3.5 rounded-xl bg-white text-primary text-xs font-black shadow-sm hover:bg-surface-2 active:scale-[0.98] transition-[background-color,transform] outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-inverse"
-                    >
-                        <Camera className="w-3.5 h-3.5" aria-hidden />
-                        {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
-                    </button>
-                    {hasPhoto && (
-                        <button
-                            type="button"
-                            onClick={removePhoto}
-                            disabled={removing}
-                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl border border-inverse-line text-xs font-bold text-inverse-ink-2 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
-                        >
-                            {removing ? <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" aria-hidden /> : <Trash2 className="w-3.5 h-3.5" aria-hidden />}
-                            Retirer
-                        </button>
+                    className={cn(
+                        "absolute inset-0 rounded-2xl bg-zinc-950/55 flex items-center justify-center text-white transition-opacity",
+                        dragging ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
                     )}
-                    <span className="text-[11px] font-semibold text-inverse-ink-3 hidden sm:inline">PNG, JPEG, WebP ou GIF · glissez-déposez sur la photo</span>
-                </div>
+                >
+                    <Camera className="w-5 h-5" />
+                </span>
+            </button>
+
+            <div className="min-w-0 flex-1">
+                <p className="text-lg font-black tracking-tight text-ink truncate">{profile.name}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink-3">
+                    <span className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-surface-2 text-ink-2">
+                        <ShieldCheck className="w-3.5 h-3.5" aria-hidden />
+                        {ROLE_LABEL[profile.role] ?? profile.role}
+                    </span>
+                    {profile.clientName && (
+                        <span className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-surface-2 text-ink-2">
+                            <Building2 className="w-3.5 h-3.5" aria-hidden />
+                            {profile.clientName}
+                        </span>
+                    )}
+                </p>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-1 gap-2.5 md:w-52 flex-shrink-0">
-                <HeroTile label="Membre depuis">
-                    <span className="capitalize">{monthYear(profile.createdAt)}</span>
-                </HeroTile>
-                <HeroTile label="Dernière connexion">{profile.lastSignInAt ? relativeTime(profile.lastSignInAt) : "—"}</HeroTile>
+            <div className="flex items-center gap-2 flex-shrink-0">
+                {hasPhoto && (
+                    <button type="button" onClick={removePhoto} disabled={removing} className={DANGER_BUTTON}>
+                        {removing ? <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" aria-hidden /> : <Trash2 className="w-3.5 h-3.5" aria-hidden />}
+                        Retirer
+                    </button>
+                )}
+                <button type="button" onClick={picker.open} className={SECONDARY_BUTTON}>
+                    <Camera className="w-3.5 h-3.5" aria-hidden />
+                    {hasPhoto ? "Changer la photo" : "Ajouter une photo"}
+                </button>
             </div>
-        </HeroCard>
+        </section>
     );
 }
 

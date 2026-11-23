@@ -1,437 +1,320 @@
 "use client";
 
 // ============================================
-// Paramètres → Intégrations: the agency's own keys (OpenAI, Allo, Serper…),
-// one card per group, one row per key. A value goes in once and never comes
-// back to the browser: rows show where the key comes from and its last four
-// characters. Same store as the Console (lib/integrations/store).
+// Paramètres → Intégrations: the agency's own keys (OpenAI, Onoff, Allo, Serper…).
+// One tile per tool, with its state at a glance; a tile opens a side panel to
+// connect, replace, test or remove the key. A value goes in once and never comes
+// back to the browser: only where it comes from and its last four characters.
+// Same store as the Console (lib/integrations/store).
+//
+// Embedded (onlyGroup, e.g. the « Nouveau client » wizard's « Connecter »): no side
+// panel, the focused tool's form opens in place.
 // ============================================
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CircleCheck, CircleX, Cpu, Database, ExternalLink, KeyRound, Loader2, Lock, Mic, PhoneCall, ShieldCheck, type LucideIcon } from "lucide-react";
-import { useToast } from "@/components/ui";
+import { ArrowRight, Cpu, Database, Layers, Lock, Mic, PhoneCall, type LucideIcon } from "lucide-react";
+import { Drawer } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import { BADGE, Shimmer, StatusPill, type AccueilTone } from "@/components/accueil/AccueilUI";
-import { NotetakerKeyHelp } from "@/components/notetakers/NotetakerKeyHelp";
-import { NotetakerLogo, NotetakerLogoStack } from "@/components/notetakers/NotetakerLogo";
-import { DANGER_BUTTON, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SECONDARY_BUTTON, SettingsCard } from "@/components/settings/SettingsUI";
+import { BADGE, FOCUS, Shimmer, type AccueilTone } from "@/components/accueil/AccueilUI";
+import { NotetakerLogo } from "@/components/notetakers/NotetakerLogo";
+import { Notice } from "@/components/settings/SettingsUI";
 import type { IntegrationGroup } from "@/lib/integrations/catalog";
-import { NOTETAKER_IDS, notetakerForKey, type NotetakerDef } from "@/lib/notetakers/catalog";
-import { LEEXI_SETTINGS_ANCHOR, NOTETAKER_GUIDES, NOTETAKER_HOW_IT_WORKS } from "@/lib/notetakers/guide";
+import { notetakerForKey, type NotetakerDef } from "@/lib/notetakers/catalog";
+import { LEEXI_SETTINGS_ANCHOR, NOTETAKER_GUIDES } from "@/lib/notetakers/guide";
 import type { IntegrationKeyStatus } from "@/lib/integrations/store";
+import { OnoffPanel } from "./OnoffPanel";
+import { KeyEditor, KeyLine, StateDot, callIntegrations, isOn } from "./KeyEditor";
 
-const GROUP_LOOK: Record<IntegrationGroup, { icon: LucideIcon; tone: AccueilTone; subtitle: string }> = {
-    ai: { icon: Cpu, tone: "violet", subtitle: "Assistant, fiches, analyses et rédaction" },
-    telephony: { icon: PhoneCall, tone: "emerald", subtitle: "Statistiques d'appels et enregistrements" },
-    data: { icon: Database, tone: "indigo", subtitle: "Sourcing, enrichissement, recherche d'entreprises" },
-    meetings: { icon: Mic, tone: "amber", subtitle: "Créer un client à partir de son appel de closing" },
+const GROUP_LOOK: Record<IntegrationGroup, { icon: LucideIcon; tone: AccueilTone; label: string }> = {
+    telephony: { icon: PhoneCall, tone: "emerald", label: "Téléphonie" },
+    ai: { icon: Cpu, tone: "violet", label: "IA" },
+    meetings: { icon: Mic, tone: "amber", label: "Enregistreurs" },
+    data: { icon: Database, tone: "indigo", label: "Données" },
 };
 
-const GROUP_ORDER: IntegrationGroup[] = ["ai", "telephony", "meetings", "data"];
+const GROUP_ORDER: IntegrationGroup[] = ["telephony", "ai", "meetings", "data"];
+type Filter = IntegrationGroup | "all";
 
-async function call<T>(init?: RequestInit): Promise<T> {
-    const res = await fetch("/api/manager/integrations", init);
-    const json = await res.json().catch(() => null);
-    if (!json?.success) throw new Error(json?.error || "Erreur lors de la sauvegarde");
-    return json.data as T;
+/** Onoff has its own card above the tiles. */
+const ONOFF_KEYS = new Set(["ONOFF_WEBHOOK_KEY", "ONOFF_API_KEY"]);
+
+/** One tool = the keys that share a name before « — » (Twilio has six, Allo two) or one note-taker. */
+interface Tool {
+    id: string;
+    name: string;
+    group: IntegrationGroup;
+    keys: IntegrationKeyStatus[];
+    notetaker: NotetakerDef | null;
 }
 
-const put = (values: Record<string, string | null>) =>
-    call<{ changed: string[]; keys: IntegrationKeyStatus[] }>({
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ values }),
-    });
+function toTools(keys: IntegrationKeyStatus[]): Tool[] {
+    const tools: Tool[] = [];
+    for (const k of keys) {
+        const notetaker = notetakerForKey(k.name);
+        const name = notetaker ? notetaker.label : k.label.split(" — ")[0].trim();
+        const id = notetaker ? `nt:${notetaker.id}` : `${k.group}:${name}`;
+        const t = tools.find((x) => x.id === id);
+        if (t) t.keys.push(k);
+        else tools.push({ id, name, group: k.group, keys: [k], notetaker });
+    }
+    return tools;
+}
 
-const shortDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : null;
+const toolOn = (t: Pick<Tool, "keys">) => t.keys.filter(isOn).length;
 
 export function IntegrationKeysPanel({ onlyGroup, initialTool }: { onlyGroup?: IntegrationGroup; initialTool?: string } = {}) {
     const [keys, setKeys] = useState<IntegrationKeyStatus[] | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
-    // ?tool=fireflies (the « Nouveau client » wizard's « Connecter »): that row opens, scrolled into view.
+    const [filter, setFilter] = useState<Filter>(onlyGroup ?? "all");
+    const [openTool, setOpenTool] = useState<string | null>(null);
+    // ?tool=fireflies (the « Nouveau client » wizard's « Connecter »): that tool opens.
     const queryTool = useSearchParams().get("tool");
     const focusTool = initialTool ?? queryTool;
+    const embedded = !!onlyGroup;
 
     useEffect(() => {
-        call<IntegrationKeyStatus[]>()
+        callIntegrations<IntegrationKeyStatus[]>()
             .then(setKeys)
             .catch((e) => setLoadError(e instanceof Error ? e.message : "Erreur de connexion"));
     }, []);
 
-    // Leexi has its own card (identifier + secret), below this panel.
+    // A tool asked by the URL: Leexi scrolls to its own card, the others open their panel.
     useEffect(() => {
-        if (keys && focusTool === "leexi") document.getElementById(LEEXI_SETTINGS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, [keys, focusTool]);
+        if (!keys || !focusTool) return;
+        if (focusTool === "leexi") {
+            document.getElementById(LEEXI_SETTINGS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
+        const k = keys.find((x) => notetakerForKey(x.name)?.id === focusTool);
+        if (k) {
+            setFilter((f) => (f === "all" || f === k.group ? f : k.group));
+            setOpenTool(`nt:${focusTool}`);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [keys === null, focusTool]);
 
-    const groups = useMemo(
-        () => GROUP_ORDER.filter(g => !onlyGroup || g === onlyGroup).map((g) => ({ group: g, items: (keys ?? []).filter((k) => k.group === g) })).filter((g) => g.items.length),
-        [keys, onlyGroup],
-    );
-    const visibleKeys = keys?.filter(k => !onlyGroup || k.group === onlyGroup) ?? [];
-    const active = visibleKeys.filter(k => k.source !== "none").length;
+    const tools = useMemo(() => toTools((keys ?? []).filter((k) => !ONOFF_KEYS.has(k.name))), [keys]);
+    // Counted in tools, Onoff included: « 3/9 connectés », not 28 keys.
+    const counts = useMemo(() => {
+        const c: Record<Filter, { on: number; all: number }> = {
+            all: { on: 0, all: 0 }, telephony: { on: 0, all: 0 }, ai: { on: 0, all: 0 }, meetings: { on: 0, all: 0 }, data: { on: 0, all: 0 },
+        };
+        const onoff = (keys ?? []).filter((k) => ONOFF_KEYS.has(k.name));
+        const all = [...tools, ...(onoff.length ? [{ group: "telephony" as IntegrationGroup, keys: onoff }] : [])];
+        for (const t of all) {
+            for (const f of ["all", t.group] as Filter[]) {
+                c[f].all++;
+                if (toolOn(t) > 0) c[f].on++;
+            }
+        }
+        return c;
+    }, [keys, tools]);
 
     if (loadError) return <Notice tone="rose">{loadError}</Notice>;
-    if (!keys) return <Shimmer className="h-64 rounded-3xl" />;
+    if (!keys) {
+        return (
+            <div className="space-y-4">
+                <Shimmer className="h-12 rounded-2xl" />
+                <Shimmer className="h-56 rounded-3xl" />
+                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    {[0, 1, 2].map((i) => <Shimmer key={i} className="h-36 rounded-2xl" />)}
+                </div>
+            </div>
+        );
+    }
+
+    const groups = GROUP_ORDER.filter((g) => filter === "all" || g === filter)
+        .map((g) => ({ group: g, items: tools.filter((t) => t.group === g) }))
+        .filter((g) => g.items.length || g.group === "meetings");
+    const opened = tools.find((t) => t.id === openTool) ?? null;
+    const showOnoff = !embedded && (filter === "all" || filter === "telephony");
+    const total = counts.all;
 
     return (
         <div className="space-y-6">
-            <Notice tone="slate" icon={Lock}>
-                <p className="font-bold text-zinc-900">Vos clés, chiffrées dans votre base.</p>
-                <p>
-                    Une clé enregistrée ici s&apos;applique en quelques secondes, sans redémarrage, et n&apos;est plus jamais
-                    affichée. Sans clé, la fonction correspondante est désactivée. {active}/{visibleKeys.length} configurées.
-                </p>
-            </Notice>
+            {!embedded && (
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div role="tablist" aria-label="Catégories" className="flex gap-1 p-1 rounded-2xl bg-surface-2 overflow-x-auto max-w-full">
+                        {(["all", ...GROUP_ORDER] as Filter[]).map((f) => {
+                            const on = filter === f;
+                            const Icon = f === "all" ? Layers : GROUP_LOOK[f].icon;
+                            return (
+                                <button
+                                    key={f}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={on}
+                                    onClick={() => setFilter(f)}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-colors",
+                                        FOCUS,
+                                        on ? "bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,0.08)]" : "text-ink-3 hover:text-ink",
+                                    )}
+                                >
+                                    <Icon className="w-3.5 h-3.5" aria-hidden />
+                                    {f === "all" ? "Tout" : GROUP_LOOK[f].label}
+                                    <span className={cn("tabular-nums text-[10px] font-extrabold", on ? "text-ink-3" : "text-ink-3/70")}>
+                                        {counts[f].on}/{counts[f].all}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <p className="flex items-center gap-1.5 text-[11px] font-semibold text-ink-3">
+                        <Lock className="w-3.5 h-3.5" aria-hidden />
+                        Clés chiffrées, actives en quelques secondes · {total.on}/{total.all} outils connectés
+                    </p>
+                </div>
+            )}
+
+            {showOnoff && <OnoffPanel keys={keys} onKeysChanged={setKeys} />}
+
             {groups.map(({ group, items }) => {
                 const look = GROUP_LOOK[group];
-                const on = items.filter((k) => k.source !== "none").length;
                 return (
-                    <SettingsCard
-                        key={group}
-                        icon={look.icon}
-                        tone={look.tone}
-                        title={items[0].groupLabel}
-                        subtitle={look.subtitle}
-                        right={<StatusPill tone={on === items.length ? "emerald" : on ? "amber" : "slate"}>{on}/{items.length}</StatusPill>}
-                    >
-                        {group === "meetings" && <MeetingsIntro />}
-                        {group === "telephony" && <OnoffSetup connected={["stored", "env"].includes(keys.find((x) => x.name === "ONOFF_WEBHOOK_KEY")?.source ?? "none")} />}
-                        <ul className="divide-y divide-slate-100 -my-2">
-                            {group === "meetings" && <LeexiPointer />}
-                            {items.map((k) => {
-                                const tool = notetakerForKey(k.name);
-                                // One « Tester » per tool, on its last key (Gong has two).
-                                const last = !!tool && tool.keys[tool.keys.length - 1] === k.name;
-                                const ready = last && tool.keys.every((n) => keys.find((x) => x.name === n)?.source !== "none");
-                                return (
-                                    <KeyRow
-                                        key={k.name}
-                                        item={k}
-                                        tone={look.tone}
-                                        onSaved={setKeys}
-                                        tool={tool}
-                                        testable={ready}
-                                        focused={!!tool && tool.id === focusTool && tool.keys[0] === k.name}
-                                    />
-                                );
-                            })}
-                        </ul>
-                    </SettingsCard>
+                    <section key={group} aria-label={look.label} className="space-y-3">
+                        {!embedded && (filter === "all" || group === "meetings") && (
+                            <div className="flex items-baseline justify-between gap-2 px-0.5">
+                                <h3 className="text-sm font-black text-ink">{look.label}</h3>
+                                {group === "meetings" && (
+                                    <p className="text-[11px] font-semibold text-ink-3 truncate">L&apos;IA pré-remplit la fiche client depuis votre appel de closing</p>
+                                )}
+                            </div>
+                        )}
+                        <div className={cn("grid gap-3", embedded ? "grid-cols-1" : "sm:grid-cols-2 xl:grid-cols-3")}>
+                            {items.map((t) => (
+                                <ToolTile key={t.id} tool={t} tone={look.tone} onOpen={() => setOpenTool(t.id)} active={openTool === t.id} />
+                            ))}
+                            {group === "meetings" && !embedded && <LeexiTile />}
+                        </div>
+                        {embedded && opened && opened.group === group && (
+                            <div className="rounded-2xl border border-line bg-surface p-4">
+                                <ToolEditor tool={opened} keys={keys} onSaved={setKeys} />
+                            </div>
+                        )}
+                    </section>
                 );
             })}
-        </div>
-    );
-}
 
-function SourceLine({ item }: { item: IntegrationKeyStatus }) {
-    if (item.source === "stored") {
-        const when = shortDate(item.updatedAt);
-        return (
-            <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-                <StatusPill tone="emerald" icon={ShieldCheck}>Clé de l&apos;agence</StatusPill>
-                <code className="text-[11px] font-bold text-zinc-500">{item.hint}</code>
-                {(item.updatedBy || when) && (
-                    <span className="text-[11px] font-medium text-zinc-400">
-                        {[item.updatedBy, when].filter(Boolean).join(" · ")}
-                    </span>
-                )}
-            </span>
-        );
-    }
-    if (item.source === "env") {
-        return (
-            <span className="inline-flex flex-wrap items-center gap-2">
-                <StatusPill tone="amber" title="Écrite dans le serveur à la création du CRM">Valeur d&apos;origine</StatusPill>
-                <code className="text-[11px] font-bold text-zinc-500">{item.hint}</code>
-            </span>
-        );
-    }
-    return <StatusPill tone="slate">Non configurée</StatusPill>;
-}
-
-/** Above the note-taker rows: what connecting one gives the team. */
-function MeetingsIntro() {
-    return (
-        <div className="mb-4 space-y-3 rounded-2xl bg-zinc-50 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <NotetakerLogoStack ids={NOTETAKER_IDS} max={NOTETAKER_IDS.length} />
-                <p className="text-xs font-medium leading-relaxed text-zinc-600">
-                    Connectez l&apos;outil qui enregistre vos appels de closing. Dans Clients › Nouveau client › « Appel enregistré », vous
-                    choisissez l&apos;appel et l&apos;IA pré-remplit la fiche client, la cible et le discours. Une clé suffit pour toute l&apos;agence.
-                </p>
-            </div>
-            <ol className="grid gap-2 sm:grid-cols-3">
-                {NOTETAKER_HOW_IT_WORKS.map((step, i) => (
-                    <li key={step} className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600">
-                        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-zinc-900 ring-1 ring-zinc-200">
-                            {i + 1}
-                        </span>
-                        {step}
-                    </li>
-                ))}
-            </ol>
-        </div>
-    );
-}
-
-const ONOFF_WEBHOOK_PATH = "/api/webhooks/onoff";
-const noSubscribe = () => () => {};
-
-/** Onoff pushes calls to us: the agency pastes this URL and its own key into Onoff's console. */
-function OnoffSetup({ connected }: { connected: boolean }) {
-    const { success } = useToast();
-    // This agency's own address (each sub-agency has its domain); a path on the server render.
-    const url = useSyncExternalStore(noSubscribe, () => `${window.location.origin}${ONOFF_WEBHOOK_PATH}`, () => ONOFF_WEBHOOK_PATH);
-    const steps = [
-        "Créez une clé de 24 caractères minimum et enregistrez-la ci-dessous dans « Onoff — clé du webhook ».",
-        "Dans la console B2B Onoff : Intégrations → Webhook « Appels », collez l'adresse et la même clé (« Api key »), puis « Intégrer ».",
-        "Activez l'enregistrement des appels dans Onoff, et renseignez le numéro Onoff de chaque SDR dans sa fiche (si son e-mail Onoff diffère).",
-    ];
-    return (
-        <div className="mb-4 space-y-3 rounded-2xl bg-zinc-50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-bold text-zinc-900">Onoff Business</p>
-                <StatusPill tone={connected ? "emerald" : "slate"}>{connected ? "Clé enregistrée" : "Non connecté"}</StatusPill>
-            </div>
-            <p className="text-xs font-medium leading-relaxed text-zinc-600">
-                Onoff envoie chaque appel de vos SDR au CRM : durée, notes et enregistrement sont rattachés au bon prospect et au RDV.
-                Nécessite un abonnement Onoff Business Advanced ou Max.
-            </p>
-            <div className="flex items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded-lg bg-white px-2.5 py-1.5 text-[11.5px] font-medium text-zinc-800 ring-1 ring-zinc-200">{url}</code>
-                <button
-                    type="button"
-                    className={SECONDARY_BUTTON}
-                    onClick={() => {
-                        void navigator.clipboard?.writeText(url).then(() => success("Adresse copiée", "Collez-la dans Onoff → Intégrations → Webhook « Appels »."));
-                    }}
+            {!embedded && (
+                <Drawer
+                    isOpen={!!opened}
+                    onClose={() => setOpenTool(null)}
+                    size="md"
+                    title={opened?.name}
+                    description={opened ? GROUP_LOOK[opened.group].label : undefined}
                 >
-                    Copier
-                </button>
-            </div>
-            <ol className="grid gap-2 sm:grid-cols-3">
-                {steps.map((step, i) => (
-                    <li key={step} className="flex items-start gap-2 text-xs font-medium leading-relaxed text-zinc-600">
-                        <span className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-bold text-zinc-900 ring-1 ring-zinc-200">
-                            {i + 1}
-                        </span>
-                        {step}
-                    </li>
-                ))}
-            </ol>
+                    {opened && <ToolEditor key={opened.id} tool={opened} keys={keys} onSaved={setKeys} />}
+                </Drawer>
+            )}
         </div>
+    );
+}
+
+// ── Tiles ───────────────────────────────────────────────────────────────────
+
+function monogram(label: string) {
+    const word = label.split(/[\s—–-]+/)[0] ?? label;
+    return word.slice(0, 2).toUpperCase();
+}
+
+function ToolLogo({ tool, tone }: { tool: Tool; tone: AccueilTone }) {
+    if (tool.notetaker) return <NotetakerLogo id={tool.notetaker.id} size="md" />;
+    return (
+        <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[12px] font-black tracking-tight", BADGE[tone])} aria-hidden>
+            {monogram(tool.name)}
+        </span>
+    );
+}
+
+function ToolState({ tool }: { tool: Tool }) {
+    const on = toolOn(tool);
+    const all = tool.keys.length;
+    if (all === 1) return <StateDot item={tool.keys[0]} />;
+    const look =
+        on === all ? { dot: "bg-emerald-500", text: "text-emerald-700", label: "Connecté" }
+        : on > 0 ? { dot: "bg-amber-500", text: "text-amber-700", label: `Incomplet ${on}/${all}` }
+        : { dot: "bg-slate-300", text: "text-ink-3", label: "À connecter" };
+    return (
+        <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-bold", look.text)}>
+            <span className={cn("w-1.5 h-1.5 rounded-full", look.dot)} aria-hidden />
+            {look.label}
+        </span>
+    );
+}
+
+/** One key: its editor. Several (Twilio, Allo): one collapsible line each, the first missing one open. */
+function ToolEditor({ tool, keys, onSaved }: { tool: Tool; keys: IntegrationKeyStatus[]; onSaved: (k: IntegrationKeyStatus[]) => void }) {
+    const fresh = tool.keys.map((k) => keys.find((x) => x.name === k.name) ?? k);
+    if (fresh.length === 1) return <KeyEditor item={fresh[0]} keys={keys} onSaved={onSaved} autoEdit={fresh[0].source === "none"} />;
+    const firstMissing = fresh.find((k) => !isOn(k))?.name;
+    return (
+        <div className="space-y-4">
+            <p className="text-sm font-medium text-ink-2 leading-relaxed">{fresh[0].usedFor}</p>
+            <div className="space-y-2">
+                {fresh.map((k) => (
+                    <KeyLine key={`${k.name}:${k.source}`} item={k} keys={keys} onSaved={onSaved} defaultOpen={k.name === firstMissing} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function ToolTile({ tool, tone, onOpen, active }: { tool: Tool; tone: AccueilTone; onOpen: () => void; active: boolean }) {
+    const on = toolOn(tool);
+    const connected = on > 0;
+    const single = tool.keys.length === 1 ? tool.keys[0] : null;
+    return (
+        <button
+            type="button"
+            onClick={onOpen}
+            aria-haspopup="dialog"
+            className={cn(
+                "group text-left rounded-2xl border bg-surface p-4 flex flex-col gap-3 min-h-[148px] transition-[border-color,box-shadow,transform] duration-150",
+                "hover:border-line-strong hover:shadow-raised active:scale-[0.995]",
+                FOCUS,
+                active ? "border-emerald-400 ring-4 ring-emerald-500/10" : "border-line",
+            )}
+        >
+            <div className="flex items-start justify-between gap-2">
+                <ToolLogo tool={tool} tone={tone} />
+                <ToolState tool={tool} />
+            </div>
+            <div className="min-w-0">
+                <p className="text-sm font-extrabold text-ink leading-snug">{tool.name}</p>
+                <p className="text-xs font-medium text-ink-3 leading-relaxed line-clamp-2 mt-0.5">{tool.keys[0].usedFor}</p>
+            </div>
+            <div className="mt-auto flex items-center justify-between gap-2 text-xs">
+                <code className="text-[11px] font-bold text-ink-3 truncate">
+                    {single ? (connected ? single.hint : "") : `${on}/${tool.keys.length} clés`}
+                </code>
+                <span className={cn("inline-flex items-center gap-1 font-extrabold", connected ? "text-ink-2" : "text-emerald-700")}>
+                    {connected ? "Gérer" : "Connecter"}
+                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </span>
+            </div>
+        </button>
     );
 }
 
 /** Leexi takes an identifier and a secret: its card is below this panel. */
-function LeexiPointer() {
+function LeexiTile() {
     return (
-        <li className="py-4">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                <NotetakerLogo id="leexi" size="md" />
-                <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="text-sm font-extrabold text-zinc-900">Leexi</p>
-                    <p className="text-xs font-medium text-zinc-500 leading-relaxed">
-                        {NOTETAKER_GUIDES.leexi.tagline}. Se connecte avec un identifiant et un secret API, dans la carte Leexi ci-dessous.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => document.getElementById(LEEXI_SETTINGS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                    className={cn(SECONDARY_BUTTON, "h-9 rounded-xl text-xs sm:ml-2 flex-shrink-0")}
-                >
-                    Configurer Leexi
-                </button>
+        <button
+            type="button"
+            onClick={() => document.getElementById(LEEXI_SETTINGS_ANCHOR)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className={cn("group text-left rounded-2xl border border-dashed border-line bg-surface p-4 flex flex-col gap-3 min-h-[148px] hover:border-line-strong transition-colors", FOCUS)}
+        >
+            <NotetakerLogo id="leexi" size="md" />
+            <div className="min-w-0">
+                <p className="text-sm font-extrabold text-ink">Leexi</p>
+                <p className="text-xs font-medium text-ink-3 leading-relaxed line-clamp-2 mt-0.5">{NOTETAKER_GUIDES.leexi.tagline}. Identifiant + secret, plus bas.</p>
             </div>
-        </li>
-    );
-}
-
-function KeyRow({
-    item,
-    tone,
-    onSaved,
-    tool,
-    testable,
-    focused,
-}: {
-    item: IntegrationKeyStatus;
-    tone: AccueilTone;
-    onSaved: (k: IntegrationKeyStatus[]) => void;
-    /** Note-taker this key belongs to: its logo, its « Où trouver la clé ». */
-    tool: NotetakerDef | null;
-    /** The tool's key(s) are saved and can be tried against its API. */
-    testable: boolean;
-    /** Reached from the wizard's « Connecter »: scrolled into view, form open if the key is missing. */
-    focused?: boolean;
-}) {
-    const toast = useToast();
-    const [editing, setEditing] = useState(false);
-    const [value, setValue] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [testing, setTesting] = useState(false);
-    const [tested, setTested] = useState<{ ok: boolean; message: string } | null>(null);
-    const rowRef = useRef<HTMLLIElement>(null);
-
-    useEffect(() => {
-        if (!focused) return;
-        rowRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        if (item.source === "none") setEditing(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [focused]);
-
-    const runTest = async () => {
-        if (!tool) return;
-        setTesting(true);
-        setTested(null);
-        try {
-            const res = await fetch(`/api/notetakers/${tool.id}/test`, { method: "POST" });
-            const json = await res.json().catch(() => null);
-            setTested(json?.success ? json.data : { ok: false, message: json?.error || "Test impossible" });
-        } catch {
-            setTested({ ok: false, message: "Erreur de connexion" });
-        } finally {
-            setTesting(false);
-        }
-    };
-
-    const close = () => {
-        setEditing(false);
-        setValue("");
-        setError(null);
-    };
-
-    const save = async () => {
-        setBusy(true);
-        setError(null);
-        try {
-            const r = await put({ [item.name]: value });
-            onSaved(r.keys);
-            close();
-            setTested(null);
-            toast.success(`${item.label} enregistrée`, "Active dans quelques secondes.");
-        } catch (e) {
-            setError(e instanceof Error ? e.message.replace(`${item.name} : `, "") : "Erreur de connexion");
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const remove = async () => {
-        if (!window.confirm(`Retirer la clé ${item.label} ? Sans autre clé, la fonction sera désactivée.`)) return;
-        setBusy(true);
-        try {
-            const r = await put({ [item.name]: null });
-            onSaved(r.keys);
-            const next = r.keys.find((k) => k.name === item.name);
-            toast.success(
-                `${item.label} retirée`,
-                next?.source === "env" ? "La valeur d'origine du serveur reprend le relais." : "La fonction est désactivée.",
-            );
-        } catch (e) {
-            toast.error("Échec", e instanceof Error ? e.message : "Erreur de connexion");
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    return (
-        <li ref={rowRef} className="py-4 scroll-mt-24">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
-                {tool ? (
-                    <NotetakerLogo id={tool.id} size="md" />
-                ) : (
-                    <span className={cn("w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0", BADGE[tone])}>
-                        <KeyRound className="w-4 h-4" aria-hidden />
-                    </span>
-                )}
-                <div className="min-w-0 flex-1 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                        <p className="text-sm font-extrabold text-zinc-900">{item.label}</p>
-                        <SourceLine item={item} />
-                    </div>
-                    <p className="text-xs font-medium text-zinc-500 leading-relaxed">{item.usedFor}</p>
-                </div>
-                {!editing && (
-                    <div className="flex items-center gap-2 sm:pl-2 flex-shrink-0">
-                        {testable && (
-                            <button type="button" onClick={runTest} disabled={busy || testing} className={cn(SECONDARY_BUTTON, "h-9 rounded-xl text-xs")}>
-                                {testing && <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" aria-hidden />}
-                                Tester
-                            </button>
-                        )}
-                        {item.source === "stored" && (
-                            <button type="button" onClick={remove} disabled={busy} className={DANGER_BUTTON}>
-                                Retirer
-                            </button>
-                        )}
-                        <button type="button" onClick={() => setEditing(true)} disabled={busy} className={cn(SECONDARY_BUTTON, "h-9 rounded-xl text-xs")}>
-                            {item.source === "none" ? "Ajouter" : "Remplacer"}
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {tested && !editing && (
-                <p
-                    role="status"
-                    className={cn(
-                        "mt-2 sm:ml-12 inline-flex items-start gap-1.5 text-xs font-semibold",
-                        tested.ok ? "text-emerald-700" : "text-rose-700",
-                    )}
-                >
-                    {tested.ok ? <CircleCheck className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden /> : <CircleX className="w-3.5 h-3.5 mt-px shrink-0" aria-hidden />}
-                    {tested.message}
-                </p>
-            )}
-
-            {editing && (
-                <form
-                    className="mt-3 sm:ml-12 space-y-2"
-                    onSubmit={(e) => {
-                        e.preventDefault();
-                        if (value.trim()) void save();
-                    }}
-                >
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <label className="sr-only" htmlFor={`key-${item.name}`}>{item.label}</label>
-                        <input
-                            id={`key-${item.name}`}
-                            type="password"
-                            autoFocus
-                            autoComplete="off"
-                            spellCheck={false}
-                            value={value}
-                            onChange={(e) => {
-                                setValue(e.target.value);
-                                setError(null);
-                            }}
-                            onKeyDown={(e) => e.key === "Escape" && close()}
-                            placeholder={item.placeholder ?? "Collez la clé"}
-                            className={cn(INPUT, "font-mono text-[13px] flex-1")}
-                        />
-                        <div className="flex gap-2">
-                            <button type="button" onClick={close} disabled={busy} className={SECONDARY_BUTTON}>Annuler</button>
-                            <button type="submit" disabled={busy || !value.trim()} className={PRIMARY_BUTTON}>
-                                {busy && <Loader2 className="w-4 h-4 motion-safe:animate-spin" aria-hidden />}
-                                Enregistrer
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <FormStatus error={error} />
-                        {item.docsUrl && !tool && (
-                            <a href={item.docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-bold text-zinc-500 hover:text-zinc-900">
-                                Où trouver cette clé <ExternalLink className="w-3 h-3" aria-hidden />
-                            </a>
-                        )}
-                    </div>
-                    {tool && <NotetakerKeyHelp id={tool.id} />}
-                </form>
-            )}
-        </li>
+            <span className="mt-auto inline-flex items-center gap-1 text-xs font-extrabold text-ink-2">
+                Configurer Leexi
+                <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </span>
+        </button>
     );
 }

@@ -5,7 +5,7 @@ import { PhonePrefsPanel } from "@/components/settings/PhonePrefsPanel";
 import { CalendarClock, Phone, ShieldCheck, User } from "lucide-react";
 import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
 import {
-    AccountHeaderPills, PersonalInfoCard, ProfileHero, SecuritySection, WorkdaySection,
+    PersonalInfoCard, ProfileHero, SecuritySection, WorkdaySection,
 } from "@/components/settings/AccountPanels";
 
 // ============================================
@@ -26,7 +26,6 @@ function SdrSettings() {
         <SettingsShell
             title="Paramètres"
             subtitle="Votre profil, votre journée de travail et la sécurité de votre compte."
-            pills={<AccountHeaderPills />}
             sections={SECTIONS}
             active={active}
             onSelect={select}

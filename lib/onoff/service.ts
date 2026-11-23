@@ -10,8 +10,10 @@ import { prisma } from "@/lib/prisma";
 import { phoneKey } from "@/lib/exclusions/matching";
 import { integrationKey } from "@/lib/integrations/keys";
 import { matchOnoffUser, onoffRecordingRef, type OnoffCallEvent } from "./webhook";
+import { freshOnoffAudioUrl, isOnoffApiConfigured } from "./audio";
 
-export const isOnoffConfigured = () => Boolean(integrationKey("ONOFF_WEBHOOK_KEY")?.trim());
+/** Calls come in by the webhook, or by the history import (API key). Either makes Onoff a call source. */
+export const isOnoffConfigured = () => Boolean(integrationKey("ONOFF_WEBHOOK_KEY")?.trim()) || isOnoffApiConfigured();
 
 export async function ingestOnoffEvent(event: OnoffCallEvent): Promise<{ id: string; sdrId: string | null }> {
     const users = await prisma.user.findMany({
@@ -63,6 +65,9 @@ export interface OnoffCallMatch {
     durationSec: number;
     startedAt: string;
     notes: string | null;
+    /** Onoff AI (history import): summary with action items, and the speaker-by-speaker transcript. */
+    summary: string | null;
+    transcription: string | null;
     /** Stable reference ("onoff:<id>"), never Onoff's own link. Null when Onoff sent no audio. */
     recordingUrl: string | null;
 }
@@ -101,7 +106,9 @@ export async function findOnoffCalls(search: OnoffSearch): Promise<OnoffCallMatc
             durationSec: c.durationSec ?? 0,
             startedAt: c.startedAt.toISOString(),
             notes: c.notes,
-            recordingUrl: c.recordingUrl || c.voicemailUrl ? onoffRecordingRef(c.id) : null,
+            summary: c.summary,
+            transcription: c.transcription,
+            recordingUrl: c.recordingUrl || c.voicemailUrl || c.recordingId || c.voicemailId ? onoffRecordingRef(c.id) : null,
         };
     });
 }
@@ -116,8 +123,19 @@ export function rankOnoffMatches(calls: OnoffCallMatch[], sdrId?: string | null)
     return [...calls].sort((a, b) => score(b) - score(a) || b.startedAt.localeCompare(a.startedAt));
 }
 
-/** The audio link Onoff sent for a stored call (recording first, else voicemail). */
+/**
+ * The audio of a stored call: a fresh link signed by Onoff's API when the call has
+ * Onoff ids (its links expire in 10 min), else the link the webhook pushed.
+ */
 export async function onoffAudioUrl(callId: string): Promise<string | null> {
-    const c = await prisma.onoffCall.findUnique({ where: { id: callId }, select: { recordingUrl: true, voicemailUrl: true } });
-    return c?.recordingUrl || c?.voicemailUrl || null;
+    const c = await prisma.onoffCall.findUnique({
+        where: { id: callId },
+        select: { recordingUrl: true, voicemailUrl: true, apiCallId: true, recordingId: true, voicemailId: true },
+    });
+    if (!c) return null;
+    if (c.recordingId || c.voicemailId) {
+        const fresh = await freshOnoffAudioUrl(c);
+        if (fresh) return fresh;
+    }
+    return c.recordingUrl || c.voicemailUrl || null;
 }

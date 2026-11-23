@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { BellRing, ShieldCheck, User } from "lucide-react";
 import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
 import {
-    AccountHeaderPills, DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
+    DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
 } from "@/components/settings/AccountPanels";
 
 // ============================================
@@ -23,7 +23,6 @@ function BdSettings() {
         <SettingsShell
             title="Mon profil"
             subtitle="Votre profil, vos alertes et la sécurité de votre compte."
-            pills={<AccountHeaderPills />}
             sections={SECTIONS}
             active={active}
             onSelect={select}

@@ -10,10 +10,10 @@
 // link) can open one directly, and the browser's back button walks between them.
 // ============================================
 
-import { useCallback, useId, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Loader2, Undo2, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Search, Undo2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     BADGE, CARD, CARD_HOVER, FOCUS, PRIMARY_BUTTON, ROW, SECONDARY_BUTTON, SectionHeader, TEXT, type AccueilTone,
@@ -26,6 +26,12 @@ export interface SettingsSectionDef {
     icon: LucideIcon;
     tone: AccueilTone;
     group: string;
+    /** Longer sentence under the section title (defaults to the hint). */
+    description?: string;
+    /** Extra words the search matches (tool names, synonyms). */
+    keywords?: string;
+    /** Small flag next to the label (« 2 », « Nouveau »). */
+    badge?: string;
 }
 
 // ── Section routing ─────────────────────────────────────────────────────────
@@ -51,117 +57,178 @@ export function useSettingsSection(sections: SettingsSectionDef[]): [string, (id
 
 // ── Shell ───────────────────────────────────────────────────────────────────
 
+const normalize = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Sections whose label, hint or keywords contain every word typed. */
+export function filterSections(sections: SettingsSectionDef[], query: string): SettingsSectionDef[] {
+    const words = normalize(query).split(/\s+/).filter(Boolean);
+    if (!words.length) return sections;
+    return sections.filter((s) => {
+        const hay = normalize(`${s.label} ${s.hint} ${s.group} ${s.keywords ?? ""}`);
+        return words.every((w) => hay.includes(w));
+    });
+}
+
+/**
+ * Two columns: a quiet sidebar (title, search, grouped sections) and the open
+ * section under its own big title. Phones get a native section picker instead.
+ */
 export function SettingsShell({
     title,
     subtitle,
-    pills,
     sections,
     active,
     onSelect,
     children,
 }: {
     title: string;
-    subtitle: string;
-    pills?: ReactNode;
+    subtitle?: string;
     sections: SettingsSectionDef[];
     active: string;
     onSelect: (id: string) => void;
     children: ReactNode;
 }) {
-    const groups = sections.reduce<{ name: string; items: SettingsSectionDef[] }[]>((acc, s) => {
-        const g = acc.find((x) => x.name === s.group);
-        if (g) g.items.push(s);
-        else acc.push({ name: s.group, items: [s] });
-        return acc;
-    }, []);
+    const [query, setQuery] = useState("");
+    const searchRef = useRef<HTMLInputElement>(null);
+    const visible = useMemo(() => filterSections(sections, query), [sections, query]);
+    const groups = useMemo(
+        () =>
+            visible.reduce<{ name: string; items: SettingsSectionDef[] }[]>((acc, s) => {
+                const g = acc.find((x) => x.name === s.group);
+                if (g) g.items.push(s);
+                else acc.push({ name: s.group, items: [s] });
+                return acc;
+            }, []),
+        [visible],
+    );
+    const allGroups = useMemo(() => [...new Set(sections.map((s) => s.group))], [sections]);
     const current = sections.find((s) => s.id === active) ?? sections[0];
+    const CurrentIcon = current.icon;
+
+    // « / » jumps to the search.
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+            const t = e.target as HTMLElement | null;
+            if (t && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName))) return;
+            e.preventDefault();
+            searchRef.current?.focus();
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, []);
+
+    const pick = (id: string) => {
+        onSelect(id);
+        setQuery("");
+    };
 
     return (
-        <div className="w-full max-w-[1180px] mx-auto space-y-6 pb-16 antialiased text-zinc-900">
-            <header className="space-y-1.5 pt-1">
-                {pills && <div className="flex flex-wrap items-center gap-2">{pills}</div>}
-                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">{title}</h1>
-                <p className="text-xs sm:text-sm text-zinc-500 font-medium">{subtitle}</p>
-            </header>
-
-            <div className="grid grid-cols-1 lg:grid-cols-[264px_minmax(0,1fr)] gap-6 items-start">
-                {/* Mobile / tablet: one scrollable row of chips */}
-                <nav aria-label="Sections des paramètres" className="lg:hidden -mx-1 px-1 overflow-x-auto">
-                    <div className="flex gap-2 w-max pb-1">
-                        {sections.map((s) => {
-                            const on = s.id === active;
-                            return (
-                                <button
-                                    key={s.id}
-                                    type="button"
-                                    onClick={() => onSelect(s.id)}
-                                    aria-current={on ? "page" : undefined}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 h-9 pl-1.5 pr-3.5 rounded-xl border text-xs font-bold whitespace-nowrap transition-colors",
-                                        FOCUS,
-                                        on ? "bg-zinc-950 border-zinc-950 text-white shadow-sm" : "bg-white border-slate-200 text-zinc-700 hover:border-slate-300",
-                                    )}
-                                >
-                                    <span className={cn("w-6 h-6 rounded-lg flex items-center justify-center", on ? "bg-white/15" : BADGE[s.tone])}>
-                                        <s.icon className="w-3.5 h-3.5" aria-hidden />
-                                    </span>
-                                    {s.label}
-                                </button>
-                            );
-                        })}
+        <div className="w-full max-w-[1200px] mx-auto pb-16 antialiased text-ink">
+            <div className="grid grid-cols-1 lg:grid-cols-[248px_minmax(0,1fr)] gap-6 lg:gap-10 items-start">
+                {/* Phones and tablets: the title and one native picker, nothing scrolls sideways */}
+                <div className="lg:hidden space-y-3 pt-1">
+                    <h1 className="text-2xl font-black tracking-tight">{title}</h1>
+                    <label className="sr-only" htmlFor="settings-section-picker">Section</label>
+                    <div className="relative">
+                        <CurrentIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3 pointer-events-none" aria-hidden />
+                        <select
+                            id="settings-section-picker"
+                            value={current.id}
+                            onChange={(e) => pick(e.target.value)}
+                            className={cn(INPUT, "pl-10 pr-10 appearance-none font-bold cursor-pointer")}
+                        >
+                            {allGroups.map((g) => (
+                                <optgroup key={g} label={g}>
+                                    {sections.filter((s) => s.group === g).map((s) => (
+                                        <option key={s.id} value={s.id}>{s.label}</option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3 pointer-events-none" aria-hidden />
                     </div>
-                </nav>
+                </div>
 
-                {/* Desktop: grouped vertical nav, sticky */}
-                <nav aria-label="Sections des paramètres" className={cn(CARD, "hidden lg:block p-2 sticky top-4")}>
-                    {groups.map((g, gi) => (
-                        <div key={g.name} className={cn(gi > 0 && "mt-2 pt-2 border-t border-slate-100")}>
-                            <p className="px-3 pt-2 pb-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">{g.name}</p>
-                            <ul className="space-y-0.5">
-                                {g.items.map((s) => {
-                                    const on = s.id === active;
-                                    return (
-                                        <li key={s.id}>
-                                            <button
-                                                type="button"
-                                                onClick={() => onSelect(s.id)}
-                                                aria-current={on ? "page" : undefined}
-                                                className={cn(
-                                                    "group w-full flex items-center gap-3 p-2 rounded-2xl text-left transition-[background-color,box-shadow] duration-150",
-                                                    FOCUS,
-                                                    on ? "bg-slate-50 shadow-[inset_0_0_0_1px_rgba(226,232,240,1)]" : "hover:bg-slate-50",
-                                                )}
-                                            >
-                                                <span
+                {/* Desktop sidebar */}
+                <aside className="hidden lg:block sticky top-4 space-y-4 pt-1">
+                    <div className="px-1">
+                        <h1 className="text-[22px] font-black tracking-tight">{title}</h1>
+                        {subtitle && <p className="text-xs font-medium text-ink-3 mt-0.5 leading-relaxed">{subtitle}</p>}
+                    </div>
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3 pointer-events-none" aria-hidden />
+                        <input
+                            ref={searchRef}
+                            type="search"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" && visible[0]) pick(visible[0].id);
+                                if (e.key === "Escape") setQuery("");
+                            }}
+                            placeholder="Rechercher un réglage"
+                            aria-label="Rechercher un réglage"
+                            className="w-full h-10 pl-9 pr-9 rounded-xl bg-surface-2 border border-transparent text-[13px] font-semibold text-ink placeholder:text-ink-3 placeholder:font-medium focus:outline-none focus:bg-surface focus:border-line-strong focus:ring-4 focus:ring-emerald-500/10 transition-colors [&::-webkit-search-cancel-button]:hidden"
+                        />
+                        {!query && (
+                            <kbd aria-hidden className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 min-w-5 px-1 rounded-md border border-line bg-surface text-[10px] font-bold text-ink-3 flex items-center justify-center">
+                                /
+                            </kbd>
+                        )}
+                    </div>
+                    <nav aria-label="Sections des paramètres" className="space-y-4">
+                        {groups.map((g) => (
+                            <div key={g.name}>
+                                <p className="px-3 pb-1 text-[11px] font-bold text-ink-3">{g.name}</p>
+                                <ul className="space-y-px">
+                                    {g.items.map((s) => {
+                                        const on = s.id === active;
+                                        return (
+                                            <li key={s.id}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => pick(s.id)}
+                                                    aria-current={on ? "page" : undefined}
+                                                    title={s.hint}
                                                     className={cn(
-                                                        "w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors",
-                                                        on ? "bg-zinc-950 text-white shadow-[0_2px_6px_rgba(9,9,11,0.20)]" : BADGE[s.tone],
+                                                        "relative w-full flex items-center gap-2.5 h-9 px-3 rounded-xl text-left text-[13px] transition-colors duration-150",
+                                                        FOCUS,
+                                                        on
+                                                            ? "bg-surface text-ink font-extrabold shadow-[0_1px_2px_rgba(15,23,42,0.06),inset_0_0_0_1px_var(--ds-line)]"
+                                                            : "text-ink-2 font-semibold hover:bg-surface-2 hover:text-ink",
                                                     )}
                                                 >
-                                                    <s.icon className="w-4 h-4" aria-hidden />
-                                                </span>
-                                                <span className="min-w-0 flex-1">
-                                                    <span className={cn("block text-[13px] font-extrabold truncate", on ? "text-zinc-950" : "text-zinc-700 group-hover:text-zinc-950")}>
-                                                        {s.label}
-                                                    </span>
-                                                    <span className="block text-[11px] font-semibold text-zinc-400 truncate">{s.hint}</span>
-                                                </span>
-                                                <ChevronRight
-                                                    className={cn("w-3.5 h-3.5 flex-shrink-0 transition-[opacity,transform]", on ? "text-zinc-500 opacity-100" : "text-zinc-300 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5")}
-                                                    aria-hidden
-                                                />
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-                    ))}
-                </nav>
+                                                    {on && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-emerald-500" aria-hidden />}
+                                                    <s.icon className={cn("w-4 h-4 flex-shrink-0", on ? TEXT[s.tone] : "text-ink-3")} aria-hidden />
+                                                    <span className="truncate">{s.label}</span>
+                                                    {s.badge && (
+                                                        <span className="ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900">{s.badge}</span>
+                                                    )}
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        ))}
+                        {!groups.length && <p className="px-3 text-xs font-medium text-ink-3">Aucun réglage ne correspond à « {query} ».</p>}
+                    </nav>
+                </aside>
 
-                <div role="region" aria-label={current.label} className="min-w-0 space-y-6">
+                <main aria-labelledby="settings-section-title" className="min-w-0 space-y-6">
+                    <header className="flex items-start gap-3.5 pt-1">
+                        <span className={cn("hidden sm:flex w-11 h-11 rounded-2xl items-center justify-center flex-shrink-0", BADGE[current.tone])}>
+                            <CurrentIcon className="w-5 h-5" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-bold text-ink-3">{current.group}</p>
+                            <h2 id="settings-section-title" className="text-xl sm:text-[26px] font-black tracking-tight leading-tight">{current.label}</h2>
+                            <p className="text-sm font-medium text-ink-3 mt-0.5">{current.description ?? current.hint}</p>
+                        </div>
+                    </header>
                     {children}
-                </div>
+                </main>
             </div>
         </div>
     );

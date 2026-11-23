@@ -14,8 +14,9 @@ export class OnoffProvider implements CallProvider {
         if (!best) return null;
         return {
             recordingUrl: best.recordingUrl ?? undefined,
-            // Notes typed in the Onoff app during the call: the only text Onoff sends.
-            summary: best.notes ?? undefined,
+            // Onoff's AI summary (history import), else the notes typed in the Onoff app.
+            summary: best.summary ?? best.notes ?? undefined,
+            transcription: best.transcription ?? undefined,
             duration: best.durationSec || undefined,
             providerCallId: best.id,
             startedAt: best.startedAt,
