@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { defaultCallbackDate } from "@/lib/utils/parseDateFromNote";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -15,6 +16,8 @@ import {
     type DuplicateScope,
 } from "@/lib/import/dedup";
 import { applyActiveExclusionsToList } from "@/lib/exclusions/service";
+
+const IMPORT_CALLBACK_RESULTS = new Set<string>(["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"]);
 
 // ============================================
 // CSV IMPORT API (streaming + batched for performance)
@@ -1311,9 +1314,15 @@ async function processBatch(
                         if (parsedCallback) callbackDate = parsedCallback;
                     }
 
-                    // Backward-compatible fallback when no explicit callback date is provided
-                    if (!callbackDate && (result === "MEETING_BOOKED" || result === "CALLBACK_REQUESTED" || result === "MEETING_CANCELLED")) {
+                    // Meetings without an explicit slot keep the status date (historical RDV).
+                    if (!callbackDate && (result === "MEETING_BOOKED" || result === "MEETING_CANCELLED")) {
                         callbackDate = createdAt;
+                    }
+                    // A callback needs a date that is still ahead: the status date of an
+                    // imported line is in the past and would land as "en retard" at once.
+                    // Without a future date it is due the next working day at 09:00 (Paris).
+                    if (IMPORT_CALLBACK_RESULTS.has(result) && (!callbackDate || callbackDate.getTime() <= Date.now())) {
+                        callbackDate = defaultCallbackDate();
                     }
 
                     actionsToCreate.push({

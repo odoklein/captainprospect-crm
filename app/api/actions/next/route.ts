@@ -6,6 +6,8 @@ import {
     withErrorHandler,
 } from '@/lib/api-utils';
 import { statusConfigService } from '@/lib/services/StatusConfigService';
+import { callbackCodesFromStatuses } from '@/lib/callbacks/pending';
+import { callbackGate } from '@/lib/sdr-queue/callback-gate';
 import { getSdrMissionScope } from '@/lib/sdr-today-missions';
 import { LAST_ACTION_CTES } from '@/lib/sdr-queue/last-action';
 import { findAbsentRdvRecalls } from '@/lib/sdr-queue/absent-rdv';
@@ -14,17 +16,6 @@ import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from '@/l
 import { listCommercialIds } from '@/lib/lists/commercials';
 import { applySmartOrder, qualifyQueueRows, smartQueueMode } from '@/lib/qualification/queue';
 
-function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
-    const defaults = ["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"];
-    const configured = config.statuses
-        .filter((s) => {
-            if (s.triggersCallback === true) return true;
-            const haystack = `${s.code} ${s.label}`.toUpperCase();
-            return haystack.includes("RAPPEL") || haystack.includes("RELANCE");
-        })
-        .map((s) => s.code);
-    return new Set<string>([...defaults, ...configured]);
-}
 
 const COMPANY_PHONE_SQL = `COALESCE(NULLIF(co.phone, ''), NULLIF(co."customData"->'additionalPhones'->>0, ''))`;
 
@@ -310,7 +301,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         configMissionId ? { missionId: configMissionId } : {}
     );
 
-    const callbackResultCodes = buildCallbackResultCodes(config);
+    // Same callback codes as the Rappels page (stored enum values, triggersCallback only).
+    const callbackResultCodes = callbackCodesFromStatuses(config.statuses);
+    const now = new Date();
 
     const [{ contactIds: absentContactIds, companyIds: absentCompanyIds }, cooldownOffListIds] = await Promise.all([
         findAbsentRdvRecalls(result),
@@ -340,6 +333,9 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         const isOwnedCallback = !!r.last_action_result && callbackResultCodes.has(r.last_action_result) && r.last_action_sdr_id === sdrId;
 
         if (r._priorityOrder >= 999) return false;
+        // A callback waits for its day, and for its author first.
+        const gate = callbackGate(r, sdrId, callbackResultCodes, now);
+        if (gate === "scheduled" || gate === "owned_by_other") return false;
         if (!isInCooldown) return true;
         if (!isOwnedCallback) pausedRows.push(r);
         return isOwnedCallback;

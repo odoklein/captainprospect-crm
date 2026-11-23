@@ -105,6 +105,10 @@ interface Callback {
         };
     } | null;
     sdr?: { id: string; name: string | null };
+    /** Stored result of the callback action (CALLBACK_REQUESTED, RELANCE, RAPPEL…). */
+    result?: string;
+    /** Author no longer works this mission: anyone on the mission may take it. */
+    orphan?: boolean;
 }
 
 type SortKey = "urgency" | "date" | "name" | "mission";
@@ -113,6 +117,21 @@ type SortDir = "asc" | "desc";
 // ============================================
 // HELPERS
 // ============================================
+
+/** "YYYY-MM-DDTHH:mm" in the browser's local time (what the date-time picker reads). */
+function toLocalInputValue(d: Date): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Next Monday–Friday at 09:00 local time. */
+function nextWorkingDayAt9(): Date {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    d.setHours(9, 0, 0, 0);
+    return d;
+}
 
 function getUrgencyLevel(cb: Callback): { level: "overdue" | "due_now" | "upcoming" | "future"; label: string; color: string; sortPriority: number } {
     if (!cb.callbackDate) return { level: "upcoming", label: "Non planifié", color: "bg-slate-100 text-slate-600 border-slate-200", sortPriority: 3 };
@@ -257,6 +276,7 @@ export default function SDRCallbacksPage() {
     const [outcomeCallback, setOutcomeCallback] = useState<Callback | null>(null);
     const [outcomeResult, setOutcomeResult] = useState<ActionResult | null>(null);
     const [outcomeNote, setOutcomeNote] = useState("");
+    const [outcomeDate, setOutcomeDate] = useState("");
     const [outcomeSubmitting, setOutcomeSubmitting] = useState(false);
 
     // Filters (persisted in localStorage)
@@ -315,7 +335,7 @@ export default function SDRCallbacksPage() {
     const openReschedule = (cb: Callback, e?: React.MouseEvent) => {
         if (e) e.stopPropagation();
         setRescheduleCallback(cb);
-        setRescheduleDateValue(cb.callbackDate ? new Date(cb.callbackDate).toISOString().slice(0, 16) : "");
+        setRescheduleDateValue(cb.callbackDate ? toLocalInputValue(new Date(cb.callbackDate)) : "");
     };
 
     const submitReschedule = async () => {
@@ -332,7 +352,7 @@ export default function SDRCallbacksPage() {
                 setCallbacks((prev) =>
                     prev.map((c) =>
                         c.id === rescheduleCallback.id
-                            ? { ...c, callbackDate: rescheduleDateValue }
+                            ? { ...c, callbackDate: new Date(rescheduleDateValue).toISOString() }
                             : c
                     )
                 );
@@ -359,6 +379,7 @@ export default function SDRCallbacksPage() {
         setOutcomeCallback(cb);
         setOutcomeResult(result);
         setOutcomeNote("");
+        setOutcomeDate(toLocalInputValue(nextWorkingDayAt9()));
     };
 
     const submitOutcome = async () => {
@@ -368,6 +389,7 @@ export default function SDRCallbacksPage() {
             outcomeResult === "CALLBACK_REQUESTED" ||
             outcomeResult === "ENVOIE_MAIL";
         if (noteRequired && !outcomeNote.trim()) return;
+        if (outcomeResult === "CALLBACK_REQUESTED" && !outcomeDate) return;
         setOutcomeSubmitting(true);
         try {
             const res = await fetch("/api/actions", {
@@ -385,9 +407,11 @@ export default function SDRCallbacksPage() {
                                 : outcomeCallback.channel === "LINKEDIN"
                                     ? "LINKEDIN"
                                     : "CALL",
-                    result: outcomeResult,
+                    // Same status as the callback being worked (RELANCE stays RELANCE);
+                    // the API maps it to the mission's configured code.
+                    result: outcomeResult === "CALLBACK_REQUESTED" ? (outcomeCallback.result ?? "CALLBACK_REQUESTED") : outcomeResult,
                     note: outcomeNote.trim() || (outcomeResult === "MEETING_BOOKED" ? "RDV pris suite au rappel" : undefined),
-                    callbackDate: outcomeResult === "CALLBACK_REQUESTED" ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() : undefined,
+                    callbackDate: outcomeResult === "CALLBACK_REQUESTED" ? new Date(outcomeDate).toISOString() : undefined,
                 }),
             });
             const json = await res.json();
@@ -449,8 +473,8 @@ export default function SDRCallbacksPage() {
             const params = new URLSearchParams();
             if (selectedMissionId) params.set("missionId", selectedMissionId);
             if (selectedListId) params.set("listId", selectedListId);
-            if (dateFrom) params.set("dateFrom", new Date(dateFrom).toISOString());
-            if (dateTo) params.set("dateTo", new Date(dateTo + "T23:59:59.999Z").toISOString());
+            if (dateFrom) params.set("dateFrom", new Date(`${dateFrom}T00:00:00`).toISOString());
+            if (dateTo) params.set("dateTo", new Date(`${dateTo}T23:59:59.999`).toISOString());
             if (showOthers) params.set("includeOthers", "true");
             const res = await fetch(`/api/sdr/callbacks?${params.toString()}`, { signal });
             const json = await res.json();
@@ -1088,6 +1112,11 @@ export default function SDRCallbacksPage() {
                                                             Assigné à: {callback.sdr.name ?? '—'}
                                                         </Badge>
                                                     )}
+                                                    {callback.orphan && (
+                                                        <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200" title="L'auteur ne travaille plus cette mission : à reprendre par l'équipe.">
+                                                            Sans responsable
+                                                        </Badge>
+                                                    )}
                                                     {callback.mission?.client && (
                                                         <Badge variant="outline" className="bg-primary-50/50 text-primary-700 border-primary-100">
                                                             {callback.mission.name}
@@ -1243,6 +1272,15 @@ export default function SDRCallbacksPage() {
                             />
                             <p className="text-xs text-slate-400 mt-1 text-right">{outcomeNote.length}/500</p>
                         </div>
+                        {outcomeResult === "CALLBACK_REQUESTED" && (
+                            <DateTimePicker
+                                label="Nouveau rappel le *"
+                                value={outcomeDate}
+                                onChange={setOutcomeDate}
+                                placeholder="Choisir date et heure…"
+                                min={toLocalInputValue(new Date())}
+                            />
+                        )}
                         <ModalFooter>
                             <Button variant="ghost" onClick={() => { setOutcomeCallback(null); setOutcomeResult(null); setOutcomeNote(""); }}>
                                 Annuler
@@ -1250,7 +1288,7 @@ export default function SDRCallbacksPage() {
                             <Button
                                 variant="primary"
                                 onClick={submitOutcome}
-                                disabled={outcomeSubmitting || ((outcomeResult === "INTERESTED" || outcomeResult === "CALLBACK_REQUESTED" || outcomeResult === "ENVOIE_MAIL") && !outcomeNote.trim())}
+                                disabled={outcomeSubmitting || ((outcomeResult === "INTERESTED" || outcomeResult === "CALLBACK_REQUESTED" || outcomeResult === "ENVOIE_MAIL") && !outcomeNote.trim()) || (outcomeResult === "CALLBACK_REQUESTED" && !outcomeDate)}
                                 isLoading={outcomeSubmitting}
                             >
                                 Enregistrer
@@ -1296,7 +1334,7 @@ export default function SDRCallbacksPage() {
                                         type="button"
                                         onClick={() => {
                                             const date = shortcut.fn ? shortcut.fn() : new Date(Date.now() + (shortcut.ms || 0));
-                                            setRescheduleDateValue(date.toISOString().slice(0, 16));
+                                            setRescheduleDateValue(toLocalInputValue(date));
                                         }}
                                         className="px-3 py-1.5 text-xs font-medium border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors"
                                     >
@@ -1311,7 +1349,7 @@ export default function SDRCallbacksPage() {
                                 value={rescheduleDateValue}
                                 onChange={setRescheduleDateValue}
                                 placeholder="Choisir date et heure…"
-                                min={new Date().toISOString().slice(0, 16)}
+                                min={toLocalInputValue(new Date())}
                                 triggerClassName="border-amber-200 focus:ring-amber-400/40 focus:border-amber-400"
                             />
                         </div>

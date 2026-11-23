@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 /**
  * Parse callback date from SDR note
  * Supports formats:
@@ -10,102 +12,108 @@
  * - "Rappeler demain"
  */
 
-export function parseDateFromNote(note: string | null | undefined): Date | null {
+const NOTE_TIMEZONE = 'Europe/Paris';
+const DEFAULT_HOUR = 9;
+
+/** A match is ignored when the words just before it negate it ("pas demain", "sauf lundi"). */
+function isNegated(text: string, index: number): boolean {
+    const before = text.slice(Math.max(0, index - 12), index);
+    return /(?:\bpas|\bsauf|\bni|\bnot|\bexcept)\s+(?:le\s+|ce\s+|this\s+)?$/.test(before);
+}
+
+/** Optional "à 14h" / "14h30" / "14:30" right after a date. */
+function timeAfter(text: string, from: number): { hour: number; minute: number } | null {
+    const m = text.slice(from, from + 14).match(/^\s*(?:à|a|vers|at)?\s*(\d{1,2})\s*(?:h|:)\s*(\d{2})?/);
+    if (!m) return null;
+    const hour = parseInt(m[1], 10);
+    const minute = m[2] ? parseInt(m[2], 10) : 0;
+    if (hour > 23 || minute > 59) return null;
+    return { hour, minute };
+}
+
+function atParis(year: number, month: number, day: number, time: { hour: number; minute: number } | null): DateTime | null {
+    const dt = DateTime.fromObject(
+        { year, month, day, hour: time?.hour ?? DEFAULT_HOUR, minute: time?.minute ?? 0 },
+        { zone: NOTE_TIMEZONE },
+    );
+    // Rejects 31/02 and friends instead of rolling over to March.
+    return dt.isValid && dt.day === day && dt.month === month ? dt : null;
+}
+
+/**
+ * Parse a callback date from an SDR note, in Europe/Paris (the server runs on UTC).
+ * Supports "30/01/2027", "30-01-2027", "30.01.2027", "2027-01-30", "30/01" (next
+ * occurrence), "demain", "après-demain", "dans 3 jours", "dans 2 semaines" and
+ * weekdays ("lundi"). An optional time ("à 14h30") is honoured, else 09:00.
+ * Negated mentions ("pas demain, rappeler lundi") are skipped; among the rest the
+ * first mention wins. Dates in the past are ignored.
+ */
+export function parseDateFromNote(note: string | null | undefined, now: Date = new Date()): Date | null {
     if (!note || !note.trim()) {
         return null;
     }
 
-    const noteText = note.toLowerCase().trim();
-
-    // Pattern 1: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
-    const ddmmyyyyRegex = /(\d{1,2})[\/.\\-](\d{1,2})[\/.\\-](\d{4})/;
-    const ddmmyyyyMatch = noteText.match(ddmmyyyyRegex);
-    if (ddmmyyyyMatch) {
-        const day = parseInt(ddmmyyyyMatch[1], 10);
-        const month = parseInt(ddmmyyyyMatch[2], 10);
-        const year = parseInt(ddmmyyyyMatch[3], 10);
-
-        // Validate date
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-            const date = new Date(year, month - 1, day);
-            // Only return if date is in the future
-            if (date > new Date()) {
-                return date;
-            }
-        }
-    }
-
-    // Pattern 2: YYYY-MM-DD (ISO format)
-    const yyyymmddRegex = /(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/;
-    const yyyymmddMatch = noteText.match(yyyymmddRegex);
-    if (yyyymmddMatch) {
-        const year = parseInt(yyyymmddMatch[1], 10);
-        const month = parseInt(yyyymmddMatch[2], 10);
-        const day = parseInt(yyyymmddMatch[3], 10);
-
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-            const date = new Date(year, month - 1, day);
-            if (date > new Date()) {
-                return date;
-            }
-        }
-    }
-
-    // Pattern 3: "demain" / "tomorrow"
-    if (noteText.includes('demain') || noteText.includes('tomorrow')) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(9, 0, 0, 0); // Set to 9 AM
-        return tomorrow;
-    }
-
-    // Pattern 4: "dans X jours" / "in X days"
-    const daysRegex = /dans (\d+) jours?|in (\d+) days?/;
-    const daysMatch = noteText.match(daysRegex);
-    if (daysMatch) {
-        const days = parseInt(daysMatch[1] || daysMatch[2], 10);
-        const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + days);
-        futureDate.setHours(9, 0, 0, 0);
-        return futureDate;
-    }
-
-    // Pattern 5: Days of week (lundi, mardi, etc.) - find next occurrence
-    const daysOfWeek: { [key: string]: number } = {
-        'lundi': 1,
-        'mardi': 2,
-        'mercredi': 3,
-        'jeudi': 4,
-        'vendredi': 5,
-        'samedi': 6,
-        'dimanche': 0,
-        'monday': 1,
-        'tuesday': 2,
-        'wednesday': 3,
-        'thursday': 4,
-        'friday': 5,
-        'saturday': 6,
-        'sunday': 0,
+    const text = note.toLowerCase();
+    const today = DateTime.fromJSDate(now).setZone(NOTE_TIMEZONE);
+    const candidates: Array<{ index: number; date: DateTime }> = [];
+    const push = (index: number, date: DateTime | null) => {
+        if (date && date.toMillis() > now.getTime() && !isNegated(text, index)) candidates.push({ index, date });
     };
 
-    for (const [dayName, dayNum] of Object.entries(daysOfWeek)) {
-        if (noteText.includes(dayName)) {
-            const today = new Date();
-            const currentDay = today.getDay();
-            let daysUntil = dayNum - currentDay;
-
-            if (daysUntil <= 0) {
-                daysUntil += 7; // Next week
-            }
-
-            const futureDate = new Date();
-            futureDate.setDate(today.getDate() + daysUntil);
-            futureDate.setHours(9, 0, 0, 0);
-            return futureDate;
+    for (const m of text.matchAll(/\b(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})\b/g)) {
+        push(m.index!, atParis(+m[1], +m[2], +m[3], timeAfter(text, m.index! + m[0].length)));
+    }
+    // 4-digit year with / . -, 2-digit year only with "/" — never inside a phone
+    // number such as 06.12.34.56.78.
+    for (const m of text.matchAll(/(?<![\d.\/-])(?:(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})|(\d{1,2})\/(\d{1,2})\/(\d{2}))(?![\d.\/-]*\d)/g)) {
+        if (m[4]) {
+            push(m.index!, atParis(2000 + +m[6], +m[5], +m[4], timeAfter(text, m.index! + m[0].length)));
+            continue;
         }
+        push(m.index!, atParis(+m[3], +m[2], +m[1], timeAfter(text, m.index! + m[0].length)));
+    }
+    // "le 30/01" without a year: the next 30/01 to come.
+    for (const m of text.matchAll(/(?<![\d.\/-])(\d{1,2})\/(\d{1,2})(?![\d.\/-]*\d)/g)) {
+        const time = timeAfter(text, m.index! + m[0].length);
+        let date = atParis(today.year, +m[2], +m[1], time);
+        if (date && date.toMillis() <= now.getTime()) date = atParis(today.year + 1, +m[2], +m[1], time);
+        push(m.index!, date);
     }
 
-    return null;
+    const relative = (index: number, days: number, length: number) => {
+        const d = today.plus({ days });
+        push(index, atParis(d.year, d.month, d.day, timeAfter(text, index + length)));
+    };
+    for (const m of text.matchAll(/apr[eè]s[- ]demain|day after tomorrow/g)) relative(m.index!, 2, m[0].length);
+    for (const m of text.matchAll(/(?<!apr[eè]s[- ])\bdemain\b|\btomorrow\b/g)) relative(m.index!, 1, m[0].length);
+    for (const m of text.matchAll(/dans (\d+) jours?|in (\d+) days?/g)) relative(m.index!, parseInt(m[1] || m[2], 10), m[0].length);
+    for (const m of text.matchAll(/dans (\d+) semaines?|in (\d+) weeks?/g)) relative(m.index!, 7 * parseInt(m[1] || m[2], 10), m[0].length);
+
+    const daysOfWeek: Record<string, number> = {
+        lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6, dimanche: 7,
+        monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7,
+    };
+    for (const m of text.matchAll(/\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g)) {
+        let daysUntil = daysOfWeek[m[1]] - today.weekday;
+        if (daysUntil <= 0) daysUntil += 7;
+        relative(m.index!, daysUntil, m[0].length);
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.index - b.index);
+    return candidates[0].date.toJSDate();
+}
+
+/** Next working day (Mon–Fri) at 09:00 Europe/Paris: the default when no date is given. */
+export function defaultCallbackDate(now: Date = new Date()): Date {
+    let d = DateTime.fromJSDate(now).setZone(NOTE_TIMEZONE).plus({ days: 1 });
+    while (d.weekday > 5) d = d.plus({ days: 1 });
+    return d.set({ hour: DEFAULT_HOUR, minute: 0, second: 0, millisecond: 0 }).toJSDate();
+}
+
+/** "23/11/2026 09:00" in Europe/Paris, whatever the server timezone. */
+export function formatParisDateTime(date: Date): string {
+    return DateTime.fromJSDate(date).setZone(NOTE_TIMEZONE).toFormat('dd/MM/yyyy HH:mm');
 }
 
 /**

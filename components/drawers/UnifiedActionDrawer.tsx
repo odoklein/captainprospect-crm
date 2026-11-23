@@ -92,6 +92,7 @@ import { trackLeadView, trackActionLogged, trackEmailSent } from "@/lib/openrepl
 import { openReplayTracker } from "@/lib/openreplay/tracker";
 import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
 import { AccountMap } from "@/components/sdr/workspace/AccountMap";
+import { callbackCodesForUi, resolveCallbackEnum } from "@/lib/callbacks/codes";
 import { ActivityTimeline, actionsToEvents } from "@/components/sdr/workspace/ActivityTimeline";
 import { companyHeadcountText, companyRevenueText } from "@/lib/sdr-queue/company-facets";
 import { isCallActive, useSoftphone } from "@/components/telephony/SoftphoneProvider";
@@ -102,6 +103,9 @@ import { ProspectFiche, HistoryFold, phoneFact, type FicheFact } from "./Prospec
 import { PaneTabs } from "./PaneTabs";
 import type { ScriptVars } from "@/lib/sdr-queue/script-fill";
 import { Kbd } from "@/components/ui/Kbd";
+
+/** Latest actions loaded in the drawer history (the Fil d’activité says "N+" when capped). */
+const ACTIONS_HISTORY_LIMIT = 50;
 
 
 // ============================================
@@ -590,7 +594,7 @@ export function UnifiedActionDrawer({
     } = useQuery<ActionItem[]>({
         queryKey: actionsQueryKey,
         queryFn: async () => {
-            const r = await fetch(`/api/actions?${q}&limit=20`);
+            const r = await fetch(`/api/actions?${q}&limit=${ACTIONS_HISTORY_LIMIT}`);
             const j = await r.json();
             if (!j.success || !Array.isArray(j.data)) throw new Error("Impossible de charger l'historique des actions");
             return j.data;
@@ -1047,24 +1051,24 @@ export function UnifiedActionDrawer({
     const statusLabels = useMemo<Record<string, string>>(
         () =>
             statusConfig?.statuses?.length
-                ? Object.fromEntries(statusConfig.statuses.map((s) => [s.code, s.label]))
+                ? {
+                    // History rows carry the stored enum (a custom "A_RAPPELER" is saved as
+                    // CALLBACK_REQUESTED): label them with the mission's wording too.
+                    ...ACTION_RESULT_LABELS,
+                    ...Object.fromEntries(statusConfig.statuses.flatMap((s) => {
+                        const stored = resolveCallbackEnum(s.code, s.label);
+                        return stored && stored !== s.code ? [[stored, s.label]] : [];
+                    })),
+                    ...Object.fromEntries(statusConfig.statuses.map((s) => [s.code, s.label])),
+                }
                 : { ...ACTION_RESULT_LABELS },
         [statusConfig]
     );
 
     const callbackResultCodes = useMemo(() => {
-        const defaults = ["CALLBACK_REQUESTED", "RAPPEL", "RELANCE"];
-        if (!statusConfig?.statuses?.length) return new Set<string>(defaults);
-
-        const configured = statusConfig.statuses
-            .filter((s) => {
-                if (s.triggersCallback === true) return true;
-                const haystack = `${s.code} ${s.label}`.toUpperCase();
-                return haystack.includes("RAPPEL") || haystack.includes("RELANCE");
-            })
-            .map((s) => s.code);
-
-        return new Set<string>([...defaults, ...configured]);
+        // Same rule as the server (lib/callbacks/codes.ts): flagged triggersCallback,
+        // or a default callback code. No name guessing ("NE PAS RAPPELER" is not one).
+        return callbackCodesForUi(statusConfig?.statuses ?? []);
     }, [statusConfig]);
 
     const isCallbackResult = useCallback(
@@ -3135,7 +3139,7 @@ export function UnifiedActionDrawer({
 
                     <div className={cn(docked && "order-1", !inPane("appel") && "hidden")}>
                         <HistoryFold folded={docked} count={actions.length} last={lastAction} loading={actionsLoading}>
-                        <ActivityTimeline companyId={companyId ?? undefined} events={actionsToEvents(actions,statusLabels)} loading={actionsLoading} />
+                        <ActivityTimeline companyId={companyId ?? undefined} events={actionsToEvents(actions,statusLabels,callbackResultCodes)} loading={actionsLoading} truncated={actions.length >= ACTIONS_HISTORY_LIMIT} />
                         <details className="sdr-history-management"><summary>Gérer les activités · modifier ou supprimer</summary>
                     {/* ── Unified history section (moved to top) ── */}
                     <section

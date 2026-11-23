@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { statusConfigService } from "@/lib/services/StatusConfigService";
+import { findLiveCallbacks, type CallbackScope } from "@/lib/callbacks/pending";
 import { getSdrMissionScope } from "@/lib/sdr-today-missions";
 
 // ============================================
@@ -64,40 +63,19 @@ export async function GET(request: Request) {
         });
         const teamLeadMissionIds = teamLeadMissions.map((m) => m.id);
 
-        const callbackStatusCodes = new Set<string>(["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"]);
-        try {
-            const cfg = await statusConfigService.getEffectiveStatusConfig(
-                missionIdParam ? { missionId: missionIdParam } : {}
-            );
-            for (const status of cfg.statuses) {
-                if (status.triggersCallback) callbackStatusCodes.add(status.code);
-            }
-        } catch {
-            // Keep default callback codes if config lookup fails.
-        }
-
-        // BD: scope by assigned missions.
-        // Bookers: see callbacks on all missions (no mission restriction).
-        // SDR: own callbacks; with includeOthers, every SDR's callbacks on their missions.
-        const whereClause: {
-            sdrId?: string;
-            result: { in: string[] };
-            campaign?: { missionId: string | { in: string[] } };
-            callbackDate?: { gte?: Date; lte?: Date };
-            OR?: Array<{ sdrId: string; campaign: { missionId: string | { in: string[] } } } | { campaign: { missionId: string | { in: string[] } } }>;
-        } = {
-            result: { in: Array.from(callbackStatusCodes) },
-        };
+        // Who and which missions — see lib/callbacks/pending.ts for what "pending" means.
+        const scope: CallbackScope = {};
+        const empty = () => NextResponse.json({
+            success: true,
+            data: [],
+            pagination: { limit: limit || null, skip, hasMore: false },
+        });
 
         if (isBusinessDeveloper) {
-            if (assignedMissionIds.length === 0) {
-                return NextResponse.json({ success: true, data: [] });
-            }
-            if (missionIdParam && assignedMissionIds.includes(missionIdParam)) {
-                whereClause.campaign = { missionId: missionIdParam };
-            } else {
-                whereClause.campaign = { missionId: { in: assignedMissionIds } };
-            }
+            if (assignedMissionIds.length === 0) return empty();
+            scope.missionIds = missionIdParam && assignedMissionIds.includes(missionIdParam)
+                ? [missionIdParam]
+                : assignedMissionIds;
         } else if (!isBooker) {
             if (includeOthers) {
                 // Teammates' callbacks, limited to missions this SDR works on: assigned,
@@ -110,73 +88,43 @@ export async function GET(request: Request) {
                 const scopedMissionIds = missionIdParam
                     ? allowedMissionIds.filter((id) => id === missionIdParam)
                     : allowedMissionIds;
-                if (scopedMissionIds.length === 0) {
-                    return NextResponse.json({
-                        success: true,
-                        data: [],
-                        pagination: { limit: limit || null, skip, hasMore: false },
-                    });
-                }
-                whereClause.campaign = { missionId: { in: scopedMissionIds } };
+                if (scopedMissionIds.length === 0) return empty();
+                scope.missionIds = scopedMissionIds;
             } else {
-                // Default: only the callbacks this SDR created, optionally for one mission
-                whereClause.sdrId = session.user.id;
+                // Default: the SDR's own callbacks, plus orphaned callbacks (author
+                // removed from the mission or disabled) on missions they are assigned to.
+                scope.sdrIds = [session.user.id];
+                scope.orphanMissionIds = assignedMissionIds;
                 if (plannedTodayOnly) {
                     const plannedIds = await getSdrMissionScope(session.user.id);
                     const scopedIds = missionIdParam
                         ? plannedIds.filter((id) => id === missionIdParam)
                         : plannedIds;
-                    if (scopedIds.length === 0) {
-                        return NextResponse.json({
-                            success: true,
-                            data: [],
-                            pagination: { limit: limit || null, skip, hasMore: false },
-                        });
-                    }
-                    whereClause.campaign = { missionId: { in: scopedIds } };
+                    if (scopedIds.length === 0) return empty();
+                    scope.missionIds = scopedIds;
                 } else if (missionIdParam) {
-                    whereClause.campaign = { missionId: missionIdParam };
+                    scope.missionIds = [missionIdParam];
                 }
             }
-        } else {
-            // Booker: only filter by missionId if provided; otherwise all missions
-            if (missionIdParam) {
-                whereClause.campaign = { missionId: missionIdParam };
-            }
+        } else if (missionIdParam) {
+            // Booker: every mission, optionally one.
+            scope.missionIds = [missionIdParam];
         }
 
-        // Date filter: callbackDate range
-        if (dateFromParam || dateToParam) {
-            const dateFrom = dateFromParam ? new Date(dateFromParam) : undefined;
-            const dateTo = dateToParam ? new Date(dateToParam) : undefined;
-            if (dateFrom && dateTo) {
-                whereClause.callbackDate = { gte: dateFrom, lte: dateTo };
-            } else if (dateFrom) {
-                whereClause.callbackDate = { gte: dateFrom };
-            } else if (dateTo) {
-                whereClause.callbackDate = { lte: dateTo };
-            }
-        }
+        if (dateFromParam) scope.dateFrom = new Date(dateFromParam);
+        if (dateToParam) scope.dateTo = new Date(dateToParam);
+        if (listIdParam) scope.listId = listIdParam;
 
-        // List filter: only callbacks whose contact's company or company belongs to this list
-        if (listIdParam) {
-            (whereClause as Record<string, unknown>).AND = [
-                {
-                    OR: [
-                        { contact: { company: { listId: listIdParam } } },
-                        { company: { listId: listIdParam } },
-                    ],
-                },
-            ];
-        }
+        const live = await findLiveCallbacks(scope);
+        const page = limit > 0 ? live.slice(skip, skip + limit) : live.slice(skip);
+        if (page.length === 0) return empty();
+        const liveById = new Map(page.map((r) => [r.id, r]));
 
         // Name whose callback it is whenever the list can hold someone else's.
-        const showSdrName = isBusinessDeveloper || isBooker || teamLeadMissionIds.length > 0 || includeOthers;
+        const showSdrName = true;
 
-        const callbacks = await prisma.action.findMany({
-            where: whereClause,
-            skip,
-            ...(limit > 0 ? { take: limit } : {}),
+        const fetched = await prisma.action.findMany({
+            where: { id: { in: page.map((r) => r.id) } },
             include: {
                 sdr: showSdrName
                     ? { select: { id: true, name: true } }
@@ -223,18 +171,15 @@ export async function GET(request: Request) {
                     }
                 }
             },
-            orderBy: [
-                { callbackDate: 'asc' },
-                { createdAt: 'desc' },
-            ]
         });
+        const order = new Map(page.map((r, i) => [r.id, i]));
+        const callbacks = fetched.sort((x, y) => (order.get(x.id) ?? 0) - (order.get(y.id) ?? 0));
 
-        // Pending = CALLBACK_REQUESTED with no newer action for same contact/company.
-        // Batch query: one SQL call instead of N to find all superseded action ids.
         type CallbackItem = {
             id: string;
             campaignId: string;
             channel: string;
+            result: string;
             createdAt: Date;
             callbackDate: Date | null;
             note: string | null;
@@ -242,36 +187,17 @@ export async function GET(request: Request) {
             company: typeof callbacks[0]["company"];
             mission: { id: string; name: string; client: { name: string } } | null;
             sdr?: { id: string; name: string | null };
+            orphan: boolean;
         };
         const activeCallbacks: CallbackItem[] = [];
 
-        if (callbacks.length === 0) {
-            return NextResponse.json({
-                success: true,
-                data: [],
-                pagination: { limit: limit || null, skip, hasMore: false },
-            });
-        }
-
-        const callbackIds = callbacks.map((c) => c.id);
-        const superseded = await prisma.$queryRaw<{ id: string }[]>`
-            SELECT a.id FROM "Action" a
-            WHERE a.id IN (${Prisma.join(callbackIds)})
-            AND (
-                (a."contactId" IS NOT NULL AND EXISTS (SELECT 1 FROM "Action" b WHERE b."contactId" = a."contactId" AND b."createdAt" > a."createdAt"))
-                OR
-                (a."companyId" IS NOT NULL AND EXISTS (SELECT 1 FROM "Action" b WHERE b."companyId" = a."companyId" AND b."createdAt" > a."createdAt"))
-            )
-        `;
-        const supersededSet = new Set(superseded.map((r) => r.id));
-
         for (const action of callbacks) {
-            if (supersededSet.has(action.id)) continue;
-
             const item: CallbackItem = {
                 id: action.id,
                 campaignId: action.campaignId,
                 channel: (action.campaign?.mission as { channel?: string })?.channel ?? "CALL",
+                result: action.result,
+                orphan: liveById.get(action.id)?.orphan ?? false,
                 createdAt: action.createdAt,
                 callbackDate: action.callbackDate,
                 note: action.note,
@@ -292,7 +218,7 @@ export async function GET(request: Request) {
         return NextResponse.json({
             success: true,
             data: activeCallbacks,
-            pagination: { limit: limit || null, skip, hasMore: limit > 0 ? callbacks.length === limit : false },
+            pagination: { limit: limit || null, skip, total: live.length, hasMore: limit > 0 ? skip + limit < live.length : false },
         });
 
     } catch (error) {

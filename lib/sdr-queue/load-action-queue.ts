@@ -5,6 +5,8 @@ import { findAbsentRdvRecalls } from "@/lib/sdr-queue/absent-rdv";
 import { findSharedPhoneCalls, sharedPhoneRowKey } from "@/lib/sdr-queue/shared-phone";
 import { cooldownCutoff, getCooldownDisabledListIds, summarizePaused } from "@/lib/sdr-queue/cooldown";
 import { statusConfigService } from "@/lib/services/StatusConfigService";
+import { callbackCodesFromStatuses } from "@/lib/callbacks/pending";
+import { callbackGate } from "@/lib/sdr-queue/callback-gate";
 import { getSdrMissionScope } from "@/lib/sdr-today-missions";
 import { COMPANY_PHONE_SQL, COMPANY_REVENUE_SQL, COMPANY_SIZE_SQL } from "@/lib/sdr-queue/company-sql";
 import { applySmartOrder, qualifyQueueRows, smartQueueMode } from "@/lib/qualification/queue";
@@ -29,17 +31,6 @@ function escapeIlikePattern(raw: string): string {
         .replace(/_/g, "\\_");
 }
 
-function buildCallbackResultCodes(config: { statuses: Array<{ code: string; label: string; triggersCallback?: boolean }> }) {
-    const defaults = ["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"];
-    const configured = config.statuses
-        .filter((s) => {
-            if (s.triggersCallback === true) return true;
-            const haystack = `${s.code} ${s.label}`.toUpperCase();
-            return haystack.includes("RAPPEL") || haystack.includes("RELANCE");
-        })
-        .map((s) => s.code);
-    return new Set<string>([...defaults, ...configured]);
-}
 
 // Headcount and revenue for the SDR filters (#118). Imports put them under free
 // keys of customData (TAILLE, Effectif, CA, Chiffre d'affaires…), so the first
@@ -340,7 +331,9 @@ export async function loadActionQueue(params: ActionQueueParams) {
         getCooldownDisabledListIds(rawResult.map((r) => r.list_id)),
         findWorkedCompanyIds(rawResult.map((r) => r.company_id)),
     ]);
-    const callbackResultCodes = buildCallbackResultCodes(config);
+    // Same callback codes as the Rappels page (stored enum values, triggersCallback only).
+    const callbackResultCodes = callbackCodesFromStatuses(config.statuses);
+    const now = new Date();
 
     const withPriority = rawResult.map((row) => {
         const isAbsentRdv = row.contact_id
@@ -363,6 +356,9 @@ export async function loadActionQueue(params: ActionQueueParams) {
         const isOwnedCallback = !!r.last_action_result && callbackResultCodes.has(r.last_action_result) && r.last_action_sdr_id === sdrId;
 
         if (r._priorityOrder >= 999) return false;
+        // A callback waits for its day, and for its author first.
+        const gate = callbackGate(r, sdrId, callbackResultCodes, now);
+        if (gate === "scheduled" || gate === "owned_by_other") return false;
         if (!isInCooldown) return true;
         if (!isOwnedCallback) pausedRows.push(r);
         return isOwnedCallback;

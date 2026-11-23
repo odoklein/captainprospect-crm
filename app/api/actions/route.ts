@@ -17,7 +17,7 @@ import { enqueueActionCallEnrichment } from '@/lib/call-enrichment/scheduler';
 import { linkCallToAction } from '@/lib/telephony/service';
 import { fillRdvFicheIfEmpty } from '@/lib/call-enrichment/rdv-fiche';
 import { z } from 'zod';
-import { ActionValidationError } from '@/lib/actions/action-result';
+import { ActionValidationError, resolveActionResult } from '@/lib/actions/action-result';
 
 // ============================================
 // SCHEMAS
@@ -129,14 +129,20 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
  const session = await requireRole(['SDR', 'MANAGER', 'BUSINESS_DEVELOPER', 'BOOKER'], request);
  const data = await validateRequest(request, createActionSchema);
 
- // Validate result against effective config
- const allowedCodes = await statusConfigService.getAllowedResultCodes({ campaignId: data.campaignId });
+ // Validate result against effective config. A stored enum value (e.g.
+ // CALLBACK_REQUESTED sent by the Rappels page) is accepted when the campaign
+ // configures a status that resolves to it, and mapped to that status's code.
+ const config = await statusConfigService.getEffectiveStatusConfig({ campaignId: data.campaignId });
+ const allowedCodes = config.statuses.map((s) => s.code);
  if (!allowedCodes.includes(data.result)) {
- return errorResponse('Résultat non autorisé pour cette campagne', 400);
+ const match = config.statuses.find((s) => {
+ try { return resolveActionResult(s.code, s) === data.result; } catch { return false; }
+ });
+ if (!match) return errorResponse('Résultat non autorisé pour cette campagne', 400);
+ data.result = match.code;
  }
 
  // Validate required note from config
- const config = await statusConfigService.getEffectiveStatusConfig({ campaignId: data.campaignId });
  const statusDef = config.statuses.find((s) => s.code === data.result);
  if (statusDef?.requiresNote && !data.note?.trim()) {
  return errorResponse('Une note est requise pour ce type de résultat', 400);

@@ -24,6 +24,7 @@ import {
     sendRdvCancelledEmailNotification,
 } from '@/lib/notifications';
 import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
+import { withScheduledText } from '@/lib/callbacks/note';
 
 // ============================================
 // PATCH /api/actions/[id] - Update callback date (reschedule rappel) or meeting (result + note + cancellationReason + callbackDate)
@@ -95,7 +96,24 @@ export const PATCH = withErrorHandler(async (
     }
 
     // Access: SDR, BD, Manager can all modify any meeting (remove, reschedule, cancel, absent)
-    // No restriction by ownership - everyone has full access to meeting actions
+    // No restriction by ownership - everyone has full access to meeting actions.
+    // Any other action (callbacks, call outcomes): a manager, its author, or
+    // someone who works its mission (assigned or team lead).
+    if (!isMeetingAction && session.user.role !== 'MANAGER' && action.sdrId !== session.user.id) {
+        const [assignment, lead] = await Promise.all([
+            prisma.sDRAssignment.findFirst({
+                where: { sdrId: session.user.id, missionId: action.campaign.missionId },
+                select: { id: true },
+            }),
+            prisma.mission.findFirst({
+                where: { id: action.campaign.missionId, teamLeadSdrId: session.user.id },
+                select: { id: true },
+            }),
+        ]);
+        if (!assignment && !lead) {
+            return errorResponse('Accès refusé à cette action', 403);
+        }
+    }
 
     const updateData: {
         callbackDate?: Date;
@@ -112,6 +130,10 @@ export const PATCH = withErrorHandler(async (
     } = {};
     if (data.callbackDate !== undefined) updateData.callbackDate = data.callbackDate;
     if (data.note !== undefined) updateData.note = data.note;
+    // A moved callback keeps its "(Rappel programmé: …)" suffix in step with the date.
+    if (!isMeetingAction && data.callbackDate) {
+        updateData.note = withScheduledText(data.note !== undefined ? data.note : action.note, data.callbackDate);
+    }
     if (isMeetingAction && data.result !== undefined) {
         updateData.result = data.result as (typeof meetingResults)[number];
         if (updateData.result === 'MEETING_CANCELLED') {

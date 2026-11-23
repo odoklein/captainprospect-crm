@@ -1,7 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { resolveActionResult } from '@/lib/actions/action-result';
-import { parseDateFromNote } from '@/lib/utils/parseDateFromNote';
+import { parseDateFromNote, defaultCallbackDate } from '@/lib/utils/parseDateFromNote';
+import { withScheduledText } from '@/lib/callbacks/note';
+import { DEFAULT_CALLBACK_CODES } from '@/lib/callbacks/codes';
 import { createClientPortalNotification, sendNewRdvEmailNotification, createNotification } from '@/lib/notifications';
 import { canEmailClientAboutMeeting, meetingEmailSkippedReason } from '@/lib/meetings/clientEmailGate';
 import { rebookAbsentRdvInPlace } from '@/lib/meetings/absentRebook';
@@ -97,7 +99,10 @@ export class ActionService {
         // statusDef.resultCategoryCode is for reporting grouping (ResultCategory),
         // and may contain values like "OTHER" that are not ActionResult values.
         const resolvedResult = resolveActionResult(input.result, statusDef);
-        const triggersCallback = statusDef?.triggersCallback ?? (resolvedResult === 'CALLBACK_REQUESTED');
+        // Same rule as the Rappels page: flagged, or a default callback code (RELANCE,
+        // RAPPEL…) — otherwise a RELANCE without the flag lands there undated.
+        const triggersCallback = statusDef?.triggersCallback === true
+            || (DEFAULT_CALLBACK_CODES as readonly string[]).includes(resolvedResult);
  const triggersOpportunity = statusDef?.triggersOpportunity ??
  (resolvedResult === 'MEETING_BOOKED' || resolvedResult === 'INTERESTED');
 
@@ -140,10 +145,14 @@ export class ActionService {
                 if (input.callbackDate) {
                     callbackDate = input.callbackDate;
                     // Keep note in sync with calendar so note and callbackDate don't diverge
-                    const scheduledText = `Rappel programmé: ${callbackDate.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`;
-                    noteToStore = (input.note?.trim() ? `${input.note.trim()} (${scheduledText})` : scheduledText).slice(0, 500);
-                } else if (input.note) {
-                    callbackDate = parseDateFromNote(input.note);
+                    // Europe/Paris: the server runs on UTC, the SDR and the prospect do not.
+                    noteToStore = withScheduledText(input.note, callbackDate);
+                } else {
+                    // No date picked: read it from the note, else the next working day
+                    // at 09:00 — an undated callback is never urgent and gets lost.
+                    const parsed = parseDateFromNote(input.note);
+                    callbackDate = parsed ?? defaultCallbackDate();
+                    if (!parsed) noteToStore = withScheduledText(input.note, callbackDate, true);
                 }
             } else if (input.callbackDate) {
                 // For non-callback results (e.g. MEETING_BOOKED), store the provided date directement

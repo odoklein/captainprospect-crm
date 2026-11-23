@@ -9,7 +9,8 @@ interface ThreadActivity {
 }
 
 /** Reuses the mailbox API's existing access controls; never queries mail directly. */
-export function useMailboxActivity(companyId?: string) {
+/** `refreshKey`: changing it refetches (e.g. the newest CRM action id). */
+export function useMailboxActivity(companyId?: string, refreshKey?: string) {
     const [snapshot, setSnapshot] = useState<{ key: string; events: ActivityEvent[]; failed: boolean } | null>(null);
     useEffect(() => {
         if (!companyId) return;
@@ -28,7 +29,7 @@ export function useMailboxActivity(companyId?: string) {
                 if (!controller.signal.aborted) setSnapshot({ key: companyId, events, failed: false });
             }).catch(() => { if (!controller.signal.aborted) setSnapshot({ key: companyId, events: [], failed: true }); });
         return () => controller.abort();
-    }, [companyId]);
+    }, [companyId, refreshKey]);
     const current = snapshot?.key === companyId ? snapshot : null;
     return { events: current?.events ?? [], failed: current?.failed ?? false, loading: !!companyId && !current };
 }

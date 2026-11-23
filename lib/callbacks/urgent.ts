@@ -1,32 +1,23 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { statusConfigService } from "@/lib/services/StatusConfigService";
 import { addDay, parisDay, parisMidnight } from "@/lib/manager-home/today-rules";
 import type { CallbackCount } from "@/lib/tasks/feed-types";
+import { findLiveCallbacks, getAllCallbackCodes } from "@/lib/callbacks/pending";
 
 // ============================================
 // URGENT CALLBACKS — what the unified task list shows instead of listing callbacks.
 // A callback is "urgent" when it is still live and due before tonight
-// (Europe/Paris): late, or still to do today. "Live" follows the Rappels
-// page (app/api/sdr/callbacks): a callback action stops counting once a newer
-// action exists on the same contact or company, and an SDR only counts
-// callbacks on missions they are assigned to.
+// (Europe/Paris): late, or still to do today. "Live" is the shared rule of
+// lib/callbacks/pending.ts (same as the Rappels page and the badge).
+// An SDR counts their own callbacks on missions they still work, plus the
+// orphaned ones (author removed from the mission) on their missions. The team
+// view puts orphans in their own "Sans responsable" row.
 // ============================================
 
-const DEFAULT_CALLBACK_CODES = ["CALLBACK_REQUESTED", "RELANCE", "RAPPEL"];
+export const ORPHAN_CALLBACKS_SDR_ID = "__orphan__";
 
-/** Result codes that mean "call back": the defaults plus every status configured with triggersCallback. */
+/** Result codes that mean "call back" in at least one scope. */
 export async function getCallbackStatusCodes(): Promise<string[]> {
-    const codes = new Set<string>(DEFAULT_CALLBACK_CODES);
-    try {
-        const cfg = await statusConfigService.getEffectiveStatusConfig({});
-        for (const status of cfg.statuses) {
-            if (status.triggersCallback) codes.add(status.code);
-        }
-    } catch {
-        // Keep the default callback codes if the config lookup fails.
-    }
-    return [...codes];
+    return getAllCallbackCodes();
 }
 
 /**
@@ -35,29 +26,36 @@ export async function getCallbackStatusCodes(): Promise<string[]> {
  */
 export async function countUrgentCallbacks(sdrIds: string[] | null, now: Date = new Date()): Promise<CallbackCount[]> {
     if (sdrIds && sdrIds.length === 0) return [];
-    const codes = await getCallbackStatusCodes();
     const tonight = parisMidnight(addDay(parisDay(now), 1));
-    const sdrFilter = sdrIds ? Prisma.sql`AND a."sdrId" IN (${Prisma.join(sdrIds)})` : Prisma.empty;
 
-    const rows = await prisma.$queryRaw<{ sdrId: string; sdrName: string; urgent: number; late: number }[]>`
-        SELECT a."sdrId" AS "sdrId",
-               u."name" AS "sdrName",
-               COUNT(*)::int AS "urgent",
-               (COUNT(*) FILTER (WHERE a."callbackDate" < ${now}))::int AS "late"
-        FROM "Action" a
-        JOIN "User" u ON u."id" = a."sdrId"
-        JOIN "Campaign" c ON c."id" = a."campaignId"
-        WHERE a."result"::text IN (${Prisma.join(codes)})
-          AND a."callbackDate" IS NOT NULL
-          AND a."callbackDate" < ${tonight}
-          ${sdrFilter}
-          AND EXISTS (SELECT 1 FROM "SDRAssignment" s WHERE s."sdrId" = a."sdrId" AND s."missionId" = c."missionId")
-          AND NOT (a."contactId" IS NOT NULL AND EXISTS (
-              SELECT 1 FROM "Action" b WHERE b."contactId" = a."contactId" AND b."createdAt" > a."createdAt"))
-          AND NOT (a."companyId" IS NOT NULL AND EXISTS (
-              SELECT 1 FROM "Action" b WHERE b."companyId" = a."companyId" AND b."createdAt" > a."createdAt"))
-        GROUP BY a."sdrId", u."name"
-        ORDER BY "urgent" DESC, u."name" ASC
-    `;
-    return rows.map((r) => ({ sdrId: r.sdrId, sdrName: r.sdrName, urgent: r.urgent, late: r.late }));
+    let orphanMissionIds: string[] = [];
+    // Orphans are attributed to the SDR only in the single-SDR view (their own task list).
+    if (sdrIds && sdrIds.length === 1) {
+        orphanMissionIds = (
+            await prisma.sDRAssignment.findMany({
+                where: { sdrId: { in: sdrIds } },
+                select: { missionId: true },
+            })
+        ).map((a) => a.missionId);
+    }
+
+    const rows = await findLiveCallbacks({
+        dueBefore: tonight,
+        ...(sdrIds ? { sdrIds, requireAuthorAssigned: true, orphanMissionIds } : {}),
+    });
+
+    const counts = new Map<string, CallbackCount>();
+    for (const r of rows) {
+        // Per-SDR view: an orphan on their mission counts for them.
+        const key = sdrIds
+            ? (sdrIds.includes(r.sdrId) && !r.orphan ? r.sdrId : sdrIds[0])
+            : (r.orphan ? ORPHAN_CALLBACKS_SDR_ID : r.sdrId);
+        const name = key === ORPHAN_CALLBACKS_SDR_ID ? "Sans responsable" : (key === r.sdrId ? r.sdrName ?? "" : "");
+        const entry = counts.get(key) ?? { sdrId: key, sdrName: name, urgent: 0, late: 0 };
+        if (!entry.sdrName && name) entry.sdrName = name;
+        entry.urgent += 1;
+        if (r.callbackDate && new Date(r.callbackDate).getTime() < now.getTime()) entry.late += 1;
+        counts.set(key, entry);
+    }
+    return [...counts.values()].sort((a, b) => b.urgent - a.urgent || a.sdrName.localeCompare(b.sdrName));
 }
