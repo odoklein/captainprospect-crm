@@ -7,13 +7,14 @@
 // ============================================
 
 import { useEffect, useState } from "react";
-import { Headphones, MessageSquareText, Mic, PhoneCall, PhoneIncoming, Voicemail, Volume2 } from "lucide-react";
+import { FileText, Headphones, MessageSquareText, Mic, PhoneCall, PhoneIncoming, Voicemail, Volume2 } from "lucide-react";
 import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
 import { cleanLabel } from "@/lib/telephony/audio-prefs";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/accueil/AccueilUI";
-import { Notice, SaveBar, SECONDARY_BUTTON, SettingRow, SettingsCard, Toggle } from "@/components/settings/SettingsUI";
+import { Notice, SaveBar, SECONDARY_BUTTON, SettingRow, SettingsCard, SettingsLinkRow, Toggle } from "@/components/settings/SettingsUI";
+import { CALL_APP_GUIDE_URL } from "@/lib/guides";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { useBrand } from "@/lib/brand/client";
 
@@ -86,13 +87,16 @@ export function PhonePrefsPanel() {
 
     if (!prefs.configured || !prefs.number) {
         return (
-            <Notice tone="slate" icon={PhoneCall}>
-                <p className="font-bold text-zinc-900">Pas encore de numéro Twilio.</p>
-                <p>
-                    Vos appels passent par Allo. Dès qu&apos;un manager vous attribue un numéro (Paramètres → Téléphonie), vous appellerez depuis le CRM
-                    et vos prospects pourront vous rappeler ici.
-                </p>
-            </Notice>
+            <div className="space-y-4">
+                <Notice tone="slate" icon={PhoneCall}>
+                    <p className="font-bold text-zinc-900">Pas encore de numéro Twilio.</p>
+                    <p>
+                        Vos appels passent par Allo. Dès qu&apos;un manager vous attribue un numéro (Paramètres → Téléphonie), vous appellerez depuis le CRM
+                        et vos prospects pourront vous rappeler ici.
+                    </p>
+                </Notice>
+                <CallAppGuideRow />
+            </div>
         );
     }
 
@@ -164,6 +168,8 @@ export function PhonePrefsPanel() {
                 <p className="mt-1.5 text-[11px] text-zinc-400">Aperçu d&apos;un SMS envoyé.</p>
             </SettingsCard>
 
+            <CallAppGuideRow />
+
             <SaveBar
                 dirty={dirty}
                 saving={savingGreeting}
@@ -184,6 +190,22 @@ export function PhonePrefsPanel() {
                 }}
             />
         </div>
+    );
+}
+
+/** Phone numbers in the CRM are tel: links, opened by the computer's default calling
+ *  app: the PDF guide to choose that app on Windows or Mac. */
+function CallAppGuideRow() {
+    return (
+        <SettingsLinkRow
+            href={CALL_APP_GUIDE_URL}
+            external
+            icon={FileText}
+            tone="teal"
+            title="Choisir votre application d'appel"
+            description="« Appeler » ouvre la mauvaise application, ou rien du tout ? Le guide pour Windows et Mac, en 2 minutes."
+            badge="PDF"
+        />
     );
 }
 

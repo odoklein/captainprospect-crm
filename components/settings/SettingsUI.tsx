@@ -13,7 +13,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, ChevronRight, Loader2, Search, Undo2, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, Loader2, Search, Undo2, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
     BADGE, CARD, CARD_HOVER, FOCUS, PRIMARY_BUTTON, ROW, SECONDARY_BUTTON, SectionHeader, TEXT, type AccueilTone,
@@ -261,7 +261,8 @@ export function SettingsCard({
     );
 }
 
-/** Whole-row link to another settings page (statuts, templates, broadcasts…). */
+/** Whole-row link to another settings page (statuts, templates, broadcasts…), or to a
+ *  file such as a PDF guide (`external`: opens in a new tab). */
 export function SettingsLinkRow({
     href,
     icon: Icon,
@@ -269,6 +270,7 @@ export function SettingsLinkRow({
     title,
     description,
     badge,
+    external,
 }: {
     href: string;
     icon: LucideIcon;
@@ -276,9 +278,11 @@ export function SettingsLinkRow({
     title: string;
     description: string;
     badge?: string;
+    external?: boolean;
 }) {
-    return (
-        <Link href={href} className={cn("group flex items-center gap-3.5 p-3.5 rounded-2xl border bg-white", ROW.slate, CARD_HOVER, FOCUS)}>
+    const className = cn("group flex items-center gap-3.5 p-3.5 rounded-2xl border bg-white", ROW.slate, CARD_HOVER, FOCUS);
+    const body = (
+        <>
             <span className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", BADGE[tone])}>
                 <Icon className="w-[18px] h-[18px]" aria-hidden />
             </span>
@@ -289,7 +293,21 @@ export function SettingsLinkRow({
                 </span>
                 <span className="block text-xs font-medium text-zinc-500 mt-0.5 line-clamp-2">{description}</span>
             </span>
-            <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-600 group-hover:translate-x-0.5 transition-[color,transform] flex-shrink-0" aria-hidden />
+            {external ? (
+                <ArrowUpRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-600 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-[color,transform] flex-shrink-0" aria-hidden />
+            ) : (
+                <ChevronRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-600 group-hover:translate-x-0.5 transition-[color,transform] flex-shrink-0" aria-hidden />
+            )}
+        </>
+    );
+    return external ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+            {body}
+            <span className="sr-only"> (s&apos;ouvre dans un nouvel onglet)</span>
+        </a>
+    ) : (
+        <Link href={href} className={className}>
+            {body}
         </Link>
     );
 }

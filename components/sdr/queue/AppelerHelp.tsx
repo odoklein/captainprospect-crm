@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Keyboard, X } from "lucide-react";
 import { Kbd, Modal } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { CALL_APP_GUIDE_URL } from "@/lib/guides";
 
 type Step = "opened" | "called" | "saved";
 type GuideState = Record<Step, boolean> & { hidden: boolean };
@@ -161,6 +162,17 @@ export function AppelerShortcutsSheet({ open, onClose }: { open: boolean; onClos
                 ))}
                 <p className="text-[12px] text-ink-3">
                     Le Mode Focus a ses propres raccourcis (appeler, passer, pause) : <Kbd>?</Kbd> pendant une session.
+                </p>
+                <p className="text-[12px] text-ink-3">
+                    « Appeler » ouvre la mauvaise application ?{" "}
+                    <a
+                        href={CALL_APP_GUIDE_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-sm font-medium text-ink-2 underline underline-offset-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                        Guide Windows et Mac (PDF)
+                    </a>
                 </p>
             </div>
         </Modal>
