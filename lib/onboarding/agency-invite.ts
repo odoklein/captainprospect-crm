@@ -11,6 +11,22 @@ export function validInviteToken(token: string, stored: string | null | undefine
     return timingSafeEqual(Buffer.from(token), Buffer.from(stored));
 }
 
+/**
+ * CSRF guard for the public signup POST. Behind the proxy (standalone server on
+ * 0.0.0.0:5000), request.nextUrl.origin is the container address, never the
+ * public domain, so comparing against it rejected every real signup. Compare the
+ * browser's Origin with the host it actually reached (or the configured app URL).
+ */
+export function sameOriginRequest(headers: Headers, appUrl?: string): boolean {
+    const origin = headers.get("origin");
+    if (!origin) return true; // Browsers always send Origin on POST; other clients carry no ambient cookies here.
+    let host: string;
+    try { host = new URL(origin).host.toLowerCase(); } catch { return false; } // e.g. "null"
+    const allowed = [headers.get("x-forwarded-host")?.split(",")[0], headers.get("host")];
+    if (appUrl) try { allowed.push(new URL(appUrl).host); } catch { /* malformed env: ignore */ }
+    return allowed.some((value) => value?.trim().toLowerCase() === host);
+}
+
 export async function getAgencyInvite(db = prisma) {
     return (await db.systemConfig.findUnique({ where: { key: AGENCY_INVITE_KEY } }))?.value ?? null;
 }

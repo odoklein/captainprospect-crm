@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { errorResponse, successResponse, withErrorHandler } from "@/lib/api-utils";
-import { getAgencyInvite, registerInvitedClient, validInviteToken } from "@/lib/onboarding/agency-invite";
+import { getAgencyInvite, registerInvitedClient, sameOriginRequest, validInviteToken } from "@/lib/onboarding/agency-invite";
+import { runtimeAppUrl } from "@/lib/runtime-config/env";
 import { registrationSchema } from "@/lib/onboarding/self-service-schema";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/geo-ip";
@@ -17,8 +18,7 @@ export const GET = withErrorHandler(async (_request: NextRequest, { params }: Co
 });
 
 export const POST = withErrorHandler(async (request: NextRequest, { params }: Context) => {
-    const origin = request.headers.get("origin");
-    if (origin && origin !== request.nextUrl.origin) return errorResponse("Origine non autorisée.", 403);
+    if (!sameOriginRequest(request.headers, runtimeAppUrl())) return errorResponse("Origine non autorisée.", 403);
     if (!checkRateLimit(`client-signup:${getClientIp(request) ?? "unknown"}`, 5, 15 * 60 * 1000).allowed) {
         return errorResponse("Trop de tentatives. Réessayez dans 15 minutes.", 429);
     }
