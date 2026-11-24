@@ -30,7 +30,7 @@ export const POST = withErrorHandler(async (request: NextRequest, { params }: Co
     const { token } = await params;
     try {
         await registerInvitedClient(token, parsed.data);
-        return successResponse({ redirectTo: "/client/missions?new=1" }, 201);
+        return successResponse({ redirectTo: "/client/missions/new" }, 201);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
             return errorResponse(EMAIL_TAKEN_MESSAGE, 409);

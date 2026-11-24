@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUpRight, Plus, Target } from "lucide-react";
-import { Button, Modal } from "@/components/ui";
-import { MissionBriefForm } from "@/components/onboarding/MissionBriefForm";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, Check, Plus, Target } from "lucide-react";
+import { Button } from "@/components/ui";
 import type { MissionBrief } from "@/lib/onboarding/self-service-schema";
 import "@/components/onboarding/self-service.css";
 
@@ -16,12 +16,25 @@ const date = (value: string) => new Date(value).toLocaleDateString("fr-FR", { da
 
 function ClientMissions() {
     const params = useSearchParams();
+    const router = useRouter();
     const { data: session } = useSession();
-    const queryClient = useQueryClient();
     const queryKey = ["client", "mission-briefs", session?.user.id];
-    const [creating, setCreating] = useState(() => params.get("new") === "1");
-    const [selected, setSelected] = useState<ClientMission | null>(null);
-    const [saved, setSaved] = useState(false);
+    // Read once: Next syncs useSearchParams with the replaceState below, which would drop the note at once.
+    const [sent] = useState(() => params.get("sent"));
+    // The tile that just received the brief card keeps its transition name only for that landing.
+    const [landing, setLanding] = useState(sent);
+    useEffect(() => {
+        // Older links (signup redirect, e-mails) still open the brief.
+        if (params.get("new") === "1") router.replace("/client/missions/new");
+    }, [params, router]);
+    useEffect(() => {
+        if (!sent) return;
+        const timer = window.setTimeout(() => setLanding(null), 900);
+        const url = new URL(window.location.href);
+        url.searchParams.delete("sent");
+        window.history.replaceState(window.history.state, "", url.pathname + url.search);
+        return () => window.clearTimeout(timer);
+    }, [sent]);
     const query = useQuery({
         queryKey,
         enabled: Boolean(session?.user.id),
@@ -32,42 +45,24 @@ function ClientMissions() {
             return json.data;
         }, retry: 1,
     });
-    function closeBrief() {
-        setCreating(false); setSelected(null);
-        if (params.get("new") === "1") {
-            const url = new URL(window.location.href);
-            url.searchParams.delete("new");
-            window.history.replaceState(window.history.state, "", url.pathname + url.search);
-        }
-    }
-    const editable = !selected || (selected.status === "DRAFT" && !selected.isActive);
 
     return <div className="ss-workspace">
         <header className="ss-workspace-head"><div><p className="ss-eyebrow">{query.data?.client.name ?? "Votre espace client"}</p><h1>Mes missions</h1><p>Donnez le cap. Votre agence prépare la suite avec vous.</p></div>
-            <Button onClick={() => { setSelected(null); setCreating(true); setSaved(false); }} leftIcon={<Plus size={16} />}>Créer une mission</Button>
+            <Button onClick={() => router.push("/client/missions/new")} leftIcon={<Plus size={16} />}>Créer une mission</Button>
         </header>
-        {saved && <div role="status" className="ss-note"><CheckNote /><p>Votre brief est enregistré. L’agence peut le consulter et préparer le lancement de votre mission.</p></div>}
+        {sent && <div role="status" className="ss-note"><Check size={18} aria-hidden /><p>Votre brief est envoyé. L’agence le consulte et prépare le lancement de votre mission avec vous.</p></div>}
         {query.isPending ? <div className="ss-empty" role="status">Chargement de vos missions…</div>
         : query.isError ? <div className="ss-empty"><p role="alert">{query.error.message}</p><Button variant="secondary" onClick={() => void query.refetch()}>Réessayer</Button></div>
-        : query.data.missions.length === 0 ? <section className="ss-empty"><Target size={32} aria-hidden /><h2>Tout commence par votre brief</h2><p>Présentez vos objectifs, votre cible et votre offre. Votre agence s’appuiera sur ces informations pour préparer votre première mission.</p><Button onClick={() => setCreating(true)} leftIcon={<Plus size={16} />}>Créer ma première mission</Button></section>
-        : <div className="ss-mission-grid">{query.data.missions.map((mission) => <article key={mission.id} className="ss-mission-card">
+        : query.data.missions.length === 0 ? <section className="ss-empty"><Target size={32} aria-hidden /><h2>Tout commence par votre brief</h2><p>Présentez vos objectifs, votre cible et votre offre. Votre agence s’appuiera sur ces informations pour préparer votre première mission.</p><Button onClick={() => router.push("/client/missions/new")} leftIcon={<Plus size={16} />}>Créer ma première mission</Button></section>
+        : <div className="ss-mission-grid">{query.data.missions.map((mission) => <article key={mission.id} className="ss-mission-card" data-mission-id={mission.id}
+            data-landed={mission.id === sent || undefined} style={mission.id === landing ? { viewTransitionName: "ms-brief" } : undefined}>
             <div className="ss-mission-top"><Target size={20} aria-hidden /><span className="ss-status" data-active={mission.status === "ACTIVE"}>{STATUS[mission.status] ?? mission.status}</span></div>
             <h2>{mission.name}</h2><p className="ss-mission-objective">{mission.objective}</p>
-            <dl><div><dt>Période souhaitée</dt><dd>{date(mission.startDate)} – {date(mission.endDate)}</dd></div><div><dt>Canaux</dt><dd>{mission.channels.map((channel) => ({ CALL: "Appel", EMAIL: "Email", LINKEDIN: "LinkedIn" })[channel]).join(" · ")}</dd></div></dl>
-            <Button variant="ghost" onClick={() => { setSelected(mission); setCreating(false); }} rightIcon={<ArrowUpRight size={16} />}>{mission.status === "DRAFT" && !mission.isActive ? "Compléter mon brief" : "Consulter la mission"}</Button>
+            <dl><div><dt>Période souhaitée</dt><dd>{mission.startDate ? `${date(mission.startDate)} – ${date(mission.endDate)}` : "—"}</dd></div><div><dt>Canaux</dt><dd>{(mission.channels ?? []).map((channel) => ({ CALL: "Appel", EMAIL: "Email", LINKEDIN: "LinkedIn" })[channel]).join(" · ")}</dd></div></dl>
+            <Link className="ss-card-link" href={`/client/missions/${encodeURIComponent(mission.id)}`}>{mission.status === "DRAFT" && !mission.isActive ? "Compléter mon brief" : "Consulter la mission"}<ArrowUpRight size={16} aria-hidden /></Link>
         </article>)}</div>}
-        <Modal isOpen={creating || Boolean(selected)} onClose={closeBrief} title={selected ? selected.name : "Votre nouvelle mission"} description={editable ? "Un brief en trois étapes pour préparer votre prospection." : "Le brief partagé avec votre agence."} size="xl" closeOnOverlay={false}>
-            {(creating || selected) && (editable ? <MissionBriefForm key={selected?.id ?? "new"} missionId={selected?.id}
-                initial={selected ? { ...(selected.brief ?? {}), name: selected.name, objective: selected.objective, channels: selected.channels, targetMeetings: selected.targetMeetings, startDate: selected.startDate.slice(0, 10), endDate: selected.endDate.slice(0, 10) } : undefined}
-                onSaved={() => { closeBrief(); setSaved(true); void queryClient.invalidateQueries({ queryKey }); }} />
-                : <div className="ss-readonly"><p>Pour modifier une mission prise en charge, contactez votre agence depuis la messagerie.</p><h3>Objectif</h3><p>{selected?.objective}</p>
-                    {selected?.brief && ([ ["Cible", selected.brief.targetAudience], ["Géographie", selected.brief.geography], ["Offre", selected.brief.offer], ["Différenciation", selected.brief.differentiators], ["Exclusions", selected.brief.exclusions] ].map(([label, value]) => value && <section key={label}><h3>{label}</h3><p>{value}</p></section>))}
-                </div>)}
-        </Modal>
     </div>;
 }
-
-function CheckNote() { return <Target size={18} aria-hidden />; }
 
 export default function Page() {
     return <Suspense fallback={<p role="status">Chargement…</p>}><ClientMissions /></Suspense>;

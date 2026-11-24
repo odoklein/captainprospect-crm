@@ -1,7 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "@/lib/api-utils";
-import { missionBriefData, missionBriefSchema } from "./self-service-schema";
+import { portalVisibleMissionWhere } from "@/lib/portal-visibility";
+import { missionBriefData, missionBriefSchema, withTerritoryGeography } from "./self-service-schema";
 
 /** Resolve the current account from the DB; never trust a posted clientId or a stale JWT. */
 export async function requireClientSpace(userId: string, db = prisma) {
@@ -29,9 +30,17 @@ export function clientMissionView(mission: SelectedMission) {
     return { ...safe, brief: brief.success ? brief.data : null };
 }
 
+/** One of the client's own missions (portal-visible), or a 404. */
+export async function getClientMission(userId: string, missionId: string, db = prisma) {
+    const client = await requireClientSpace(userId, db);
+    const mission = await db.mission.findFirst({ where: { id: missionId, clientId: client.id, ...portalVisibleMissionWhere() }, select: clientMissionSelect });
+    if (!mission) throw new AuthError("Mission introuvable.", 404);
+    return clientMissionView(mission);
+}
+
 export async function saveClientMission(userId: string, raw: unknown, missionId?: string, db = prisma) {
     const client = await requireClientSpace(userId, db);
-    const input = missionBriefSchema.parse(raw);
+    const input = withTerritoryGeography(missionBriefSchema.parse(raw));
     const fields = missionBriefData(input);
     if (!missionId) {
         const mission = await db.mission.create({

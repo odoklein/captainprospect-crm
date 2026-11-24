@@ -51,7 +51,7 @@ export function AgencySignup({ token }: { token: string }) {
             // If authentication fails after registration, expose sign-in rather than resubmitting signup.
             setCreated(true);
             const login = await signIn("credentials", { email: parsed.data.email, password: parsed.data.password, redirect: false });
-            if (login?.ok && !login.error) window.location.assign("/client/missions?new=1");
+            if (login?.ok && !login.error) window.location.assign("/client/missions/new");
             else setError("Votre compte est créé. Connectez-vous pour retrouver votre espace.");
         } catch (error) { setError(error instanceof Error ? error.message : "Une erreur est survenue."); }
         finally { setBusy(false); }

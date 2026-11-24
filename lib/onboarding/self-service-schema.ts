@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { answersSchema } from "@/lib/client-onboarding/questionnaire";
+import { composeGeography, normalizeCodes } from "./territory";
 
 export const registrationSchema = z.object({
     companyName: z.string().trim().min(1, "Indiquez le nom de votre entreprise.").max(200),
@@ -15,6 +16,13 @@ const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide.")
         return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
     }, "Date invalide.");
 
+/** The map selection, as structured codes; `geography` is the readable text derived from it. */
+export const territorySchema = z.object({
+    all: z.boolean().optional().default(false),
+    codes: z.array(z.string().max(3)).max(120).optional().default([]).transform((codes) => normalizeCodes(codes)),
+    note: z.string().trim().max(500).optional().default(""),
+});
+
 export const missionBriefSchema = z.object({
     questionnaire: answersSchema.optional(),
     name: z.string().trim().min(1, "Nommez votre mission.").max(200),
@@ -29,11 +37,18 @@ export const missionBriefSchema = z.object({
     offer: z.string().trim().min(1, "Décrivez votre offre.").max(10000),
     differentiators: z.string().trim().max(10000).default(""),
     exclusions: z.string().trim().max(10000).default(""),
+    territory: territorySchema.optional(),
 }).refine((data) => data.endDate >= data.startDate, {
     message: "La date de fin doit suivre la date de début.", path: ["endDate"],
 });
 
 export type MissionBrief = z.infer<typeof missionBriefSchema>;
+export type MissionBriefInput = z.input<typeof missionBriefSchema>;
+
+/** With a map selection, the agency-readable geography is always rebuilt from it (never trusted from the browser). */
+export function withTerritoryGeography(input: MissionBrief): MissionBrief {
+    return input.territory ? { ...input, geography: composeGeography(input.territory) } : input;
+}
 
 /** Explicit allowlist: browser input can never set ownership, activity or status. */
 export function missionBriefData(input: MissionBrief) {
