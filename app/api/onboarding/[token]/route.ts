@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { errorResponse, successResponse, withErrorHandler } from "@/lib/api-utils";
-import { getAgencyInvite, registerInvitedClient, sameOriginRequest, validInviteToken } from "@/lib/onboarding/agency-invite";
+import { EMAIL_TAKEN_MESSAGE, getAgencyInvite, registerInvitedClient, sameOriginRequest, validInviteToken } from "@/lib/onboarding/agency-invite";
 import { runtimeAppUrl } from "@/lib/runtime-config/env";
 import { registrationSchema } from "@/lib/onboarding/self-service-schema";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -33,7 +33,7 @@ export const POST = withErrorHandler(async (request: NextRequest, { params }: Co
         return successResponse({ redirectTo: "/client/missions?new=1" }, 201);
     } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-            return errorResponse("Impossible de créer ce compte. Essayez de vous connecter ou contactez l’agence.", 409);
+            return errorResponse(EMAIL_TAKEN_MESSAGE, 409);
         }
         throw error;
     }

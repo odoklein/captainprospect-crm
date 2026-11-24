@@ -45,6 +45,8 @@ export function AgencySignup({ token }: { token: string }) {
         try {
             const response = await fetch(`/api/onboarding/${encodeURIComponent(token)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data) });
             const json = await response.json();
+            // Email already has an account: say it next to the email field, the sign-in link sits just below.
+            if (response.status === 409) { setFieldErrors({ email: json.error || "Un compte existe déjà avec cette adresse email." }); return; }
             if (!response.ok || !json.success) throw new Error(json.error || "Impossible de créer votre espace.");
             // If authentication fails after registration, expose sign-in rather than resubmitting signup.
             setCreated(true);

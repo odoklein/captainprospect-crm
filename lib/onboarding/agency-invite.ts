@@ -5,6 +5,9 @@ import { AuthError } from "@/lib/api-utils";
 import { registrationSchema } from "./self-service-schema";
 
 export const AGENCY_INVITE_KEY = "agencyClientInviteToken";
+/** Says plainly that the email is taken: the vague message left invited clients stuck.
+ *  Probing needs a valid invite link and is rate-limited (5 per 15 min per IP). */
+export const EMAIL_TAKEN_MESSAGE = "Un compte existe déjà avec cette adresse email. Connectez-vous, ou utilisez une autre adresse.";
 
 export function validInviteToken(token: string, stored: string | null | undefined): boolean {
     if (!/^[a-f0-9]{64}$/.test(token) || !stored || !/^[a-f0-9]{64}$/.test(stored)) return false;
@@ -50,7 +53,7 @@ export async function registerInvitedClient(token: string, raw: unknown, db = pr
         const invite = await tx.systemConfig.findUnique({ where: { key: AGENCY_INVITE_KEY } });
         if (!validInviteToken(token, invite?.value)) throw new AuthError("Ce lien d’invitation n’est plus valide.", 404);
         const existing = await tx.user.findFirst({ where: { email: { equals: input.email, mode: "insensitive" } }, select: { id: true } });
-        if (existing) throw new AuthError("Impossible de créer ce compte. Essayez de vous connecter ou contactez l’agence.", 409);
+        if (existing) throw new AuthError(EMAIL_TAKEN_MESSAGE, 409);
         // Nested write is atomic: failed/duplicate user creation leaves no orphan space.
         const client = await tx.client.create({
             data: {
