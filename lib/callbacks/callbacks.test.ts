@@ -145,6 +145,134 @@ test("full query — team view flags orphans", async () => {
 });
 
 // ============================================
+// SQL — equivalence with the previous superseded rule
+// ============================================
+
+// The rule before the split into index-friendly EXISTS (one EXISTS with an OR;
+// 60 s+ in production at ~87k actions). Kept verbatim as the reference.
+const LEGACY_SUPERSEDED = `EXISTS (
+        SELECT 1 FROM "Action" b
+        JOIN "Campaign" cb ON cb.id = b."campaignId"
+        WHERE cb."missionId" = c."missionId"
+          AND b.id <> a.id
+          AND (b."createdAt" > a."createdAt" OR (b."createdAt" = a."createdAt" AND b.id > a.id))
+          AND (
+            (a."contactId" IS NOT NULL AND b."contactId" = a."contactId")
+            OR (
+              a."contactId" IS NULL AND a."companyId" IS NOT NULL AND b."companyId" IN (
+                SELECT co.id FROM "Company" co
+                WHERE co.id = a."companyId"
+                   OR co."linkedFromId" = a."companyId"
+                   OR co.id = (SELECT "linkedFromId" FROM "Company" WHERE id = a."companyId")
+              )
+            )
+          )
+    )`;
+
+function legacyLiveQuery(scope: CallbackScope, codes: string[]) {
+    const q = buildLiveCallbacksQuery(scope, codes);
+    const current = supersededSql().text;
+    assert.ok(q.text.includes(current));
+    return { text: q.text.replace(current, LEGACY_SUPERSEDED), values: q.values as unknown[] };
+}
+
+async function supersededPair(target: PGlite): Promise<{ legacy: string[]; current: string[] }> {
+    const from = `SELECT a.id FROM "Action" a JOIN "Campaign" c ON c.id = a."campaignId" WHERE`;
+    const legacy = await target.query<{ id: string }>(`${from} ${LEGACY_SUPERSEDED} ORDER BY a.id`);
+    const current = await target.query<{ id: string }>(`${from} ${supersededSql().text} ORDER BY a.id`);
+    return { legacy: legacy.rows.map((r) => r.id), current: current.rows.map((r) => r.id) };
+}
+
+test("equivalence — fixture above: same superseded actions as the previous rule", async () => {
+    const { legacy, current } = await supersededPair(db);
+    assert.deepEqual(current, legacy);
+});
+
+// Small deterministic PRNG so a failure is reproducible.
+function prng(seed: number) {
+    return () => {
+        seed = (seed * 1103515245 + 12345) % 2147483648;
+        return seed / 2147483648;
+    };
+}
+
+test("equivalence — dense random history (shared contacts, linked companies, tied timestamps)", async () => {
+    const rnd = prng(20261126);
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
+    const r = new PGlite();
+    try {
+        await r.exec(`
+            CREATE TABLE "User" (id text PRIMARY KEY, name text, role text NOT NULL, "isActive" boolean NOT NULL DEFAULT true);
+            CREATE TABLE "Campaign" (id text PRIMARY KEY, "missionId" text NOT NULL);
+            CREATE TABLE "Company" (id text PRIMARY KEY, "linkedFromId" text, "listId" text);
+            CREATE TABLE "Contact" (id text PRIMARY KEY, "companyId" text);
+            CREATE TABLE "SDRAssignment" ("sdrId" text, "missionId" text);
+            CREATE TABLE "Action" (id text PRIMARY KEY, "contactId" text, "companyId" text, "sdrId" text,
+                "campaignId" text, result text, "createdAt" timestamptz, "callbackDate" timestamptz);
+            CREATE INDEX ON "Action" ("contactId", "createdAt");
+            CREATE INDEX ON "Action" ("companyId", "createdAt");
+            CREATE INDEX ON "Company" ("linkedFromId");
+        `);
+        const users = ["u1", "u2", "u3", "u4", "u5"];
+        const missions = ["m1", "m2", "m3"];
+        const campaigns = ["k1", "k2", "k3", "k4", "k5"]; // k1,k4 → m1; k2,k5 → m2; k3 → m3
+        const companies = Array.from({ length: 24 }, (_, i) => `co${i}`);
+        const contacts = Array.from({ length: 40 }, (_, i) => `ct${i}`);
+        const sql: string[] = [];
+        sql.push(`INSERT INTO "User" VALUES ('u1','A','SDR',true),('u2','B','SDR',true),('u3','C','SDR',false),('u4','D','BOOKER',true),('u5','E','SDR',true);`);
+        sql.push(`INSERT INTO "Campaign" VALUES ('k1','m1'),('k2','m2'),('k3','m3'),('k4','m1'),('k5','m2');`);
+        sql.push(`INSERT INTO "SDRAssignment" VALUES ('u1','m1'),('u1','m2'),('u2','m1'),('u3','m1'),('u5','m3');`);
+        // Copies (linkedFromId → original), copies of copies, two copies of one original,
+        // and a 2-cycle: every shape the company rule can meet.
+        const linked: Record<string, string | null> = {};
+        companies.forEach((c) => (linked[c] = null));
+        Object.assign(linked, { co1: "co0", co2: "co0", co3: "co1", co5: "co4", co7: "co6", co6: "co7", co9: "co8", co11: "co10", co12: "co11" });
+        sql.push(`INSERT INTO "Company" VALUES ${companies.map((c) => `('${c}',${linked[c] ? `'${linked[c]}'` : "NULL"},'l${c.length % 2}')`).join(",")};`);
+        const contactCompany: Record<string, string> = {};
+        contacts.forEach((ct, i) => (contactCompany[ct] = companies[i % 14]));
+        sql.push(`INSERT INTO "Contact" VALUES ${contacts.map((ct) => `('${ct}','${contactCompany[ct]}')`).join(",")};`);
+        const results = ["CALLBACK_REQUESTED", "RELANCE", "RAPPEL", "NO_RESPONSE", "INTERESTED", "MEETING_BOOKED"];
+        const rows: string[] = [];
+        for (let n = 0; n < 1500; n++) {
+            const companyOnly = rnd() < 0.35;
+            const contact = companyOnly ? null : pick(contacts);
+            // Contact actions usually carry their company; some don't, some point elsewhere.
+            const company = companyOnly ? pick(companies) : rnd() < 0.8 ? contactCompany[contact!] : rnd() < 0.5 ? null : pick(companies);
+            // Few distinct timestamps: many ties, broken by id.
+            const createdAt = new Date(Date.UTC(2026, 9, 1) + Math.floor(rnd() * 120) * 3_600_000).toISOString();
+            const callbackDate = rnd() < 0.8 ? new Date(Date.UTC(2026, 10, 1) + Math.floor(rnd() * 60) * 86_400_000).toISOString() : null;
+            const q = (v: string | null) => (v === null ? "NULL" : `'${v}'`);
+            rows.push(`('x${(n * 7919) % 1500}-${n}',${q(contact)},${q(company)},'${pick(users)}','${pick(campaigns)}','${pick(results)}','${createdAt}',${q(callbackDate)})`);
+        }
+        sql.push(`INSERT INTO "Action" VALUES ${rows.join(",")};`);
+        await r.exec(sql.join("\n") + "\nANALYZE;");
+
+        const { legacy, current } = await supersededPair(r);
+        assert.ok(legacy.length > 300 && legacy.length < 1400, `superseded: ${legacy.length}`);
+        assert.deepEqual(current, legacy);
+
+        const scopes: CallbackScope[] = [
+            {},
+            { missionIds: ["m1", "m3"] },
+            { sdrIds: ["u1"], orphanMissionIds: ["m1", "m2"] },
+            { sdrIds: ["u1", "u2"], requireAuthorAssigned: true, orphanMissionIds: ["m1"], dueBefore: new Date("2026-12-01T00:00:00Z") },
+            { listId: "l1", dateFrom: new Date("2026-11-10T00:00:00Z"), dateTo: new Date("2026-12-20T00:00:00Z") },
+        ];
+        for (const scope of scopes) {
+            const now = buildLiveCallbacksQuery(scope, CODES);
+            const before = legacyLiveQuery(scope, CODES);
+            const a = (await r.query(now.text, now.values as unknown[])).rows;
+            const b = (await r.query(before.text, before.values)).rows;
+            assert.ok(b.length > 0, `scope ${JSON.stringify(scope)} returns rows`);
+            // Same rows, same order (the ORDER BY ends on a.id, so it is total).
+            assert.deepEqual(a, b, `scope ${JSON.stringify(scope)}`);
+        }
+    } finally {
+        await r.close();
+    }
+});
+
+// ============================================
 // Codes
 // ============================================
 

@@ -4,26 +4,58 @@ import { Prisma } from "@prisma/client";
 // the Prisma client instance so they run on PGlite in tests.
 // Aliases expected: "Action" a, "Campaign" c, "User" u.
 
-/** SQL: the action aliased `a` (campaign aliased `c`) has been superseded. */
+// "b is newer than a": createdAt, then id (CSV imports stamp a batch with one createdAt).
+const NEWER = Prisma.sql`(b."createdAt" > a."createdAt" OR (b."createdAt" = a."createdAt" AND b.id > a.id))`;
+
+// One subquery per way an action can supersede `a`, each an equality join the
+// existing indexes serve: Action(contactId), Action(companyId),
+// Company(linkedFromId) and the primary keys. This used to be one EXISTS whose
+// OR mixed the contact and the company set (built by a sub-select): Postgres
+// ran it as a scan of the whole mission for every callback (60 s+ at ~87k
+// actions).
+function supersedingActions(): Prisma.Sql[] {
+    return [
+        // Contact callback: a newer action on the same contact.
+        Prisma.sql`SELECT 1 FROM "Action" b
+            JOIN "Campaign" cb ON cb.id = b."campaignId"
+            WHERE b."contactId" = a."contactId"
+              AND cb."missionId" = c."missionId"
+              AND ${NEWER}`,
+        // Company-only callback: a newer action on the same company...
+        Prisma.sql`SELECT 1 FROM "Company" co
+            JOIN "Action" b ON b."companyId" = co.id
+            JOIN "Campaign" cb ON cb.id = b."campaignId"
+            WHERE a."contactId" IS NULL
+              AND co.id = a."companyId"
+              AND cb."missionId" = c."missionId"
+              AND ${NEWER}`,
+        // ...on one of its imported copies...
+        Prisma.sql`SELECT 1 FROM "Company" co
+            JOIN "Action" b ON b."companyId" = co.id
+            JOIN "Campaign" cb ON cb.id = b."campaignId"
+            WHERE a."contactId" IS NULL
+              AND co."linkedFromId" = a."companyId"
+              AND cb."missionId" = c."missionId"
+              AND ${NEWER}`,
+        // ...or on the company it was imported from.
+        Prisma.sql`SELECT 1 FROM "Company" ac
+            JOIN "Company" co ON co.id = ac."linkedFromId"
+            JOIN "Action" b ON b."companyId" = co.id
+            JOIN "Campaign" cb ON cb.id = b."campaignId"
+            WHERE a."contactId" IS NULL
+              AND ac.id = a."companyId"
+              AND cb."missionId" = c."missionId"
+              AND ${NEWER}`,
+    ];
+}
+
+/**
+ * SQL: the action aliased `a` (campaign aliased `c`) has been superseded.
+ * Used negated in the live query: Postgres keeps each EXISTS as a per-row
+ * index probe, stopping at the first match.
+ */
 export function supersededSql(): Prisma.Sql {
-    return Prisma.sql`EXISTS (
-        SELECT 1 FROM "Action" b
-        JOIN "Campaign" cb ON cb.id = b."campaignId"
-        WHERE cb."missionId" = c."missionId"
-          AND b.id <> a.id
-          AND (b."createdAt" > a."createdAt" OR (b."createdAt" = a."createdAt" AND b.id > a.id))
-          AND (
-            (a."contactId" IS NOT NULL AND b."contactId" = a."contactId")
-            OR (
-              a."contactId" IS NULL AND a."companyId" IS NOT NULL AND b."companyId" IN (
-                SELECT co.id FROM "Company" co
-                WHERE co.id = a."companyId"
-                   OR co."linkedFromId" = a."companyId"
-                   OR co.id = (SELECT "linkedFromId" FROM "Company" WHERE id = a."companyId")
-              )
-            )
-          )
-    )`;
+    return Prisma.sql`(${Prisma.join(supersedingActions().map((q) => Prisma.sql`EXISTS (${q})`), " OR ")})`;
 }
 
 /** SQL: the callback's author no longer works its mission. */
