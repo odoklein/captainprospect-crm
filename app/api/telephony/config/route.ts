@@ -3,6 +3,7 @@ import { requireRole, successResponse, withErrorHandler } from "@/lib/api-utils"
 import { prisma } from "@/lib/prisma";
 import { callerIdFor, getTwilioConfig } from "@/lib/telephony/config";
 import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
+import { pauseView } from "@/lib/telephony/line-pause";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
     const config = getTwilioConfig();
     if (!config) return successResponse({ softphone: false, reason: "not_configured" as const });
 
-    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { twilioCallerId: true, twilioReceiveCalls: true } });
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { twilioCallerId: true, twilioReceiveCalls: true, preferences: true } });
     const callerId = callerIdFor(config, user?.twilioCallerId);
     // No number assigned to this user (Paramètres → Téléphonie): they keep Allo.
     if (!callerId) return successResponse({ softphone: false, reason: "no_assigned_number" as const });
@@ -28,5 +29,6 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         recording: config.record,
         transcription: Boolean(config.transcription),
         receiveCalls: user?.twilioReceiveCalls ?? true,
+        pause: user ? pauseView(user.preferences) : null,
     });
 });

@@ -21,7 +21,12 @@ import { isFinalStatus, type TelephonyStatus } from "@/lib/telephony/status";
 import { isCurrentAttempt } from "@/lib/telephony/client-state";
 import { CallIsland } from "./CallIsland";
 import { AudioSettingsDialog } from "./AudioSettingsDialog";
-import { AUDIO_PREFS_KEY, EMPTY_AUDIO_PREFS, parseAudioPrefs, resolveDevice, type AudioPrefs, type DeviceLike } from "@/lib/telephony/audio-prefs";
+import { AUDIO_PREFS_KEY, EMPTY_AUDIO_PREFS, adoptPluggedDevices, parseAudioPrefs, resolveDevice, type AudioPrefs, type DeviceLike } from "@/lib/telephony/audio-prefs";
+import {
+    MISSED_IN_A_ROW, MISSED_PAUSE_MINUTES, activePause, lineStatus, pauseLabel, rings,
+    type LinePause, type LineSettings, type LineStatus, type PauseReason,
+} from "@/lib/telephony/line-state";
+import { useToast } from "@/components/ui";
 
 export interface DialTarget {
     phone: string;
@@ -66,8 +71,10 @@ interface SoftphoneConfig {
     edge?: string;
     recording?: boolean;
     transcription?: boolean;
-    /** Calls to the user's number ring in the browser (Paramètres → Téléphone). */
+    /** Calls to the user's number ring in the browser (Paramètres → Ma ligne). */
     receiveCalls?: boolean;
+    /** Voicemail until a time (press and hold the sidebar avatar), epoch ms. */
+    pause?: LinePause | null;
 }
 
 interface SoftphoneContextValue {
@@ -99,6 +106,14 @@ interface SoftphoneContextValue {
     /** Opens « Réglages audio » (micro, casque, sonnerie, tests). */
     openAudioSettings: () => void;
     audioPrefs: AudioPrefs;
+    /** Whether calls to the user's number ring here (lib/telephony/line-state); meaningful when `enabled`. */
+    line: LineStatus;
+    lineSettings: LineSettings;
+    setReceiveCalls: (on: boolean) => Promise<void>;
+    /** Voicemail for `minutes`, then the line is on again by itself. */
+    pauseLine: (minutes: number, reason?: PauseReason) => Promise<void>;
+    /** Calls ring here again (ends a pause, and voicemail mode). */
+    resumeLine: () => Promise<void>;
 }
 
 export interface DialerLeg {
@@ -302,6 +317,83 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     const enabled = Boolean(config?.softphone);
 
+    // ── line: on / paused / voicemail ──────────────────────────────────────
+    const toast = useToast();
+    const [lineSettings, setLineSettings] = useState<LineSettings>({ receiveCalls: true, pause: null });
+    const lineRef = useRef(lineSettings);
+    lineRef.current = lineSettings;
+    useEffect(() => {
+        if (config) setLineSettings({ receiveCalls: config.receiveCalls ?? true, pause: activePause(config.pause ?? null, Date.now()) });
+    }, [config]);
+
+    // Other tabs follow: each one registers its own Device.
+    const lineChannelRef = useRef<BroadcastChannel | null>(null);
+    useEffect(() => {
+        if (!enabled || typeof BroadcastChannel === "undefined") return;
+        const channel = new BroadcastChannel("cp-softphone-line");
+        channel.onmessage = (e: MessageEvent<LineSettings>) => {
+            if (e.data && typeof e.data.receiveCalls === "boolean") setLineSettings(e.data);
+        };
+        lineChannelRef.current = channel;
+        return () => {
+            channel.close();
+            lineChannelRef.current = null;
+        };
+    }, [enabled]);
+
+    // A pause ends on its own: re-render when it runs out so the Device registers again.
+    useEffect(() => {
+        const until = lineSettings.pause?.until;
+        if (!until) return;
+        const t = setTimeout(() => setLineSettings((l) => (l.pause?.until === until ? { ...l, pause: null } : l)), Math.max(0, until - Date.now()) + 50);
+        return () => clearTimeout(t);
+    }, [lineSettings.pause?.until]);
+
+    /** Optimistic: the ring changes now, the server confirms (or the change is undone). */
+    const writeLine = useCallback(async (next: LineSettings, body: Record<string, unknown>) => {
+        const before = lineRef.current;
+        setLineSettings(next);
+        lineChannelRef.current?.postMessage(next);
+        try {
+            const saved = await fetchJson<{ receiveCalls: boolean; pause: LinePause | null }>("/api/telephony/prefs", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            const confirmed = { receiveCalls: saved.receiveCalls, pause: activePause(saved.pause, Date.now()) };
+            setLineSettings(confirmed);
+            lineChannelRef.current?.postMessage(confirmed);
+        } catch (e) {
+            setLineSettings(before);
+            lineChannelRef.current?.postMessage(before);
+            throw e;
+        }
+    }, []);
+
+    const setReceiveCalls = useCallback(
+        (on: boolean) =>
+            writeLine({ receiveCalls: on, pause: on ? lineRef.current.pause : null }, on ? { receiveCalls: true } : { receiveCalls: false, pause: null }),
+        [writeLine],
+    );
+    const pauseLine = useCallback(
+        (minutes: number, reason: PauseReason = "manual") => {
+            const now = Date.now();
+            return writeLine({ receiveCalls: true, pause: { from: now, until: now + minutes * 60_000, reason } }, { receiveCalls: true, pause: { minutes, reason } });
+        },
+        [writeLine],
+    );
+    const resumeLine = useCallback(() => writeLine({ receiveCalls: true, pause: null }, { receiveCalls: true, pause: null }), [writeLine]);
+
+    /** Placing a call ends a pause (not voicemail mode, which the user chose until further notice). */
+    const resumeIfPaused = useCallback(() => {
+        if (lineRef.current.receiveCalls && activePause(lineRef.current.pause, Date.now())) {
+            void resumeLine().then(() => toast.info("Ligne reprise", "Vous appelez : vos rappels sonnent de nouveau ici."), () => undefined);
+        }
+    }, [resumeLine, toast]);
+
+    /** Callbacks that rang out unanswered, in a row. */
+    const missedRef = useRef(0);
+
     // ── helpers ────────────────────────────────────────────────────────────
     const patch = useCallback((key: number, update: Partial<SoftphoneCall> | ((c: SoftphoneCall) => Partial<SoftphoneCall>)) => {
         setCall((current) => {
@@ -484,6 +576,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         if (!enabled || isCallActive(callRef.current)) return false;
         if (dialerCallRef.current && dialerLegRef.current.sessionId === sessionId) return true;
         dialerCallRef.current?.disconnect();
+        resumeIfPaused();
         setDialerLeg({ state: "connecting", sessionId, muted: false, error: null });
         try {
             const device = await getDevice();
@@ -512,7 +605,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             setDialerLeg({ state: "failed", sessionId, muted: false, error: softphoneErrorMessage(e?.code, e?.message) });
             return false;
         }
-    }, [enabled, getDevice]);
+    }, [enabled, getDevice, resumeIfPaused]);
 
     const toggleDialerMute = useCallback(() => {
         const c = dialerCallRef.current;
@@ -527,6 +620,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             // Keep the SDR on the call they are in; the bar already shows it.
             return true;
         }
+        resumeIfPaused();
         const key = ++keyRef.current;
         cancelledRef.current.clear();
         const next: SoftphoneCall = {
@@ -549,7 +643,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         setCall(next);
         void start(key, target);
         return true;
-    }, [enabled, start]);
+    }, [enabled, start, resumeIfPaused]);
 
     const closeRingNotice = useCallback(() => {
         ringNoticeRef.current?.close();
@@ -620,6 +714,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
                 patch(key, (c) => (c.phase === "incoming" ? { phase: "ended", endedAt: Date.now(), outcome: "NO_ANSWER" } : {}));
             };
             incoming.on("accept", () => {
+                missedRef.current = 0;
                 closeRingNotice();
                 patch(key, { phase: "live", answeredAt: Date.now() });
             });
@@ -627,8 +722,23 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             incoming.on("volume", (input: number, output: number) => {
                 if (key === keyRef.current) pushLevels({ input, output });
             });
-            incoming.on("cancel", missed); // the caller hung up, or the ring time ran out
-            incoming.on("reject", missed);
+            // The caller hung up, or the ring time ran out. Twice in a row: the SDR is away,
+            // so the line pauses itself and the next callers hear the voicemail at once.
+            incoming.on("cancel", () => {
+                missed();
+                missedRef.current++;
+                if (missedRef.current >= MISSED_IN_A_ROW && rings(lineRef.current, Date.now())) {
+                    missedRef.current = 0;
+                    void pauseLine(MISSED_PAUSE_MINUTES, "missed").then(
+                        () => toast.warning("Ligne en pause", `${MISSED_IN_A_ROW} appels sans réponse : messagerie pendant ${pauseLabel(MISSED_PAUSE_MINUTES)}. Votre prochain appel la reprend.`),
+                        () => undefined,
+                    );
+                }
+            });
+            incoming.on("reject", () => {
+                missedRef.current = 0; // declined on purpose
+                missed();
+            });
             incoming.on("disconnect", () => finish(key, "ended", null, callId));
             incoming.on("error", (e: { code?: number; message?: string }) => {
                 closeRingNotice();
@@ -639,7 +749,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     // Registered while the user receives calls; re-registers after a Device was
     // dropped (network error) or the token was refreshed into a new Device.
-    const receive = enabled && Boolean(config?.receiveCalls);
+    const receive = enabled && rings(lineSettings, Date.now());
     useEffect(() => {
         if (!receive) return;
         let stopped = false;
@@ -768,6 +878,35 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
+    // A headset plugged in becomes the call audio, as on a phone: no trip to the audio settings.
+    useEffect(() => {
+        const media = typeof navigator !== "undefined" ? navigator.mediaDevices : undefined;
+        if (!enabled || !media?.enumerateDevices || !media.addEventListener) return;
+        let known: DeviceLike[] = [];
+        let alive = true;
+        const list = () => media.enumerateDevices().then((d) => d.map(({ deviceId, label, kind }) => ({ deviceId, label, kind })));
+        void list().then((d) => {
+            if (alive) known = d;
+        }, () => undefined);
+        const onChange = () => {
+            void list().then((now) => {
+                if (!alive) return;
+                const adopted = adoptPluggedDevices(known, now, audioPrefsRef.current);
+                known = now;
+                if (!adopted) return;
+                saveAudioPrefs(adopted.prefs);
+                toast.info(`${adopted.name} branché`, "Vos appels passent maintenant par cet appareil.");
+            }, () => undefined);
+        };
+        media.addEventListener("devicechange", onChange);
+        return () => {
+            alive = false;
+            media.removeEventListener("devicechange", onChange);
+        };
+    }, [enabled, saveAudioPrefs, toast]);
+
+    const line = lineStatus(lineSettings, Date.now());
+
     const value = useMemo<SoftphoneContextValue>(
         () => ({
             enabled,
@@ -790,8 +929,15 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             toggleDialerMute,
             openAudioSettings,
             audioPrefs,
+            line,
+            lineSettings,
+            setReceiveCalls,
+            pauseLine,
+            resumeLine,
         }),
-        [openAudioSettings, audioPrefs, enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
+        // `line` is derived from lineSettings and the clock (the pause timer re-renders when it runs out).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [lineSettings, setReceiveCalls, pauseLine, resumeLine, openAudioSettings, audioPrefs, enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
     );
 
     return (
@@ -834,6 +980,11 @@ const DISABLED: SoftphoneContextValue = {
     toggleDialerMute: () => undefined,
     openAudioSettings: () => undefined,
     audioPrefs: EMPTY_AUDIO_PREFS,
+    line: { mode: "on", pause: null, remaining: 0 },
+    lineSettings: { receiveCalls: true, pause: null },
+    setReceiveCalls: async () => undefined,
+    pauseLine: async () => undefined,
+    resumeLine: async () => undefined,
 };
 
 /** Safe outside the provider (portals, public pages): behaves as "softphone off". */

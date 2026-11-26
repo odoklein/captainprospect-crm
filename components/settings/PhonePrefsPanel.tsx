@@ -1,19 +1,28 @@
 "use client";
 
 // ============================================
-// Paramètres → Téléphone (my account): my Twilio number, whether calls to it
-// ring in my browser, and the greeting callers hear when I can't answer.
-// The number itself is chosen by a manager (Paramètres → Téléphonie).
+// Paramètres → Ma ligne (my account): my Twilio number and whether calls to it
+// ring here, the greeting callers hear when I can't answer, my SMS signature,
+// and the desktop alerts. The number itself is chosen by a manager
+// (Paramètres → Téléphonie).
+//
+// The day-to-day part of the line — pause it, take calls again, switch to a
+// headset — lives on the sidebar avatar (components/telephony/LineRing): this
+// page is where it is explained and where the set-once parts are written.
 // ============================================
 
 import { useEffect, useState } from "react";
-import { FileText, Headphones, MessageSquareText, Mic, PhoneCall, PhoneIncoming, Voicemail, Volume2 } from "lucide-react";
+import { FileText, Headphones, MessageSquareText, PhoneIncoming, Voicemail, Volume2 } from "lucide-react";
 import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
 import { cleanLabel } from "@/lib/telephony/audio-prefs";
+import { describeLine } from "@/lib/telephony/line-state";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/accueil/AccueilUI";
-import { Notice, SaveBar, SECONDARY_BUTTON, SettingRow, SettingsCard, SettingsLinkRow, Toggle } from "@/components/settings/SettingsUI";
+import {
+    INPUT, Notice, SaveBar, SECONDARY_BUTTON, SettingRow, SettingsCard, SettingsLinkRow, SettingsList, Toggle,
+} from "@/components/settings/SettingsUI";
+import { DesktopNotificationsCard } from "@/components/settings/AccountPanels";
 import { CALL_APP_GUIDE_URL } from "@/lib/guides";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { useBrand } from "@/lib/brand/client";
@@ -37,6 +46,7 @@ async function api(init?: RequestInit): Promise<Prefs> {
 export function PhonePrefsPanel() {
     const brand = useBrand();
     const { success, error: showError } = useToast();
+    const softphone = useSoftphone();
     const [prefs, setPrefs] = useState<Prefs | null>(null);
     const [greeting, setGreeting] = useState("");
     const [signature, setSignature] = useState("");
@@ -56,19 +66,18 @@ export function PhonePrefsPanel() {
     if (loadError) return <Notice tone="rose">{loadError}</Notice>;
     if (!prefs) return <Shimmer className="h-64 rounded-3xl" />;
 
-    const save = async (patch: Partial<Pick<Prefs, "receiveCalls" | "voicemailGreeting" | "smsSignature">>) => {
+    const save = async (patch: Partial<Pick<Prefs, "voicemailGreeting" | "smsSignature">>) => {
         const next = await api({ method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
         setPrefs(next);
         return next;
     };
 
+    // The same switch as the avatar's ring: the softphone owns the line state.
     const toggleReceive = async (v: boolean) => {
-        setPrefs({ ...prefs, receiveCalls: v }); // instant feedback
         try {
-            await save({ receiveCalls: v });
-            success(v ? "Appels entrants activés" : "Appels entrants en pause", v ? "Les appels vers votre numéro sonnent dans le CRM." : "Vos appelants tombent directement sur votre messagerie.");
+            await softphone.setReceiveCalls(v);
+            success(v ? "Les appels sonnent ici" : "Messagerie activée", v ? "Les appels vers votre numéro sonnent dans le CRM." : "Vos appelants tombent directement sur votre messagerie.");
         } catch (e) {
-            setPrefs({ ...prefs, receiveCalls: !v });
             showError("Enregistrement impossible", e instanceof Error ? e.message : "Erreur");
         }
     };
@@ -87,52 +96,72 @@ export function PhonePrefsPanel() {
 
     if (!prefs.configured || !prefs.number) {
         return (
-            <div className="space-y-4">
-                <Notice tone="slate" icon={PhoneCall}>
-                    <p className="font-bold text-zinc-900">Pas encore de numéro Twilio.</p>
+            <div className="space-y-6">
+                <Notice tone="slate" icon={PhoneIncoming}>
+                    <p className="font-medium text-ink">Vos appels passent par Allo.</p>
                     <p>
-                        Vos appels passent par Allo. Dès qu&apos;un manager vous attribue un numéro (Paramètres → Téléphonie), vous appellerez depuis le CRM
-                        et vos prospects pourront vous rappeler ici.
+                        Dès qu&apos;un manager vous attribue un numéro (Paramètres → Téléphonie), vous appellerez depuis le CRM et vos prospects
+                        pourront vous rappeler ici.
                     </p>
                 </Notice>
+                <DesktopNotificationsCard />
                 <CallAppGuideRow />
             </div>
         );
     }
 
+    const receiving = softphone.lineSettings.receiveCalls;
+    const audioName = (p: { label: string } | null) => (p?.label ? cleanLabel(p.label) : "Par défaut du système");
+
     return (
         <div className="space-y-6">
-            <AudioCard />
-
-            <SettingsCard icon={PhoneCall} tone="emerald" title="Mon numéro" subtitle="Le numéro que vos prospects voient, et sur lequel ils vous rappellent.">
-                <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3.5">
-                    <span className="font-mono text-[22px] font-semibold tracking-tight tabular-nums text-zinc-900">{formatPhone(prefs.number)}</span>
-                    <span className="text-xs font-medium text-zinc-500">Attribué par votre manager · appels via Twilio</span>
-                </div>
-                <div className="mt-3">
+            <SettingsCard
+                icon={PhoneIncoming}
+                title="Mon numéro"
+                subtitle="Le numéro que vos prospects voient, et sur lequel ils vous rappellent. Attribué par votre manager."
+            >
+                <p className="font-mono text-xl font-semibold tracking-tight tabular-nums text-ink">{formatPhone(prefs.number)}</p>
+                <SettingsList className="mt-4 -mx-6 px-6 border-t border-line-subtle pt-4">
                     <SettingRow
-                        icon={PhoneIncoming}
-                        tone="emerald"
                         title="Recevoir les appels dans le CRM"
                         description={
-                            prefs.receiveCalls
-                                ? "Un prospect qui rappelle fait sonner votre navigateur 20 secondes, puis tombe sur votre messagerie."
-                                : "En pause : vos appelants tombent directement sur votre messagerie (ex. pendant une réunion)."
+                            receiving ? (
+                                <>
+                                    {describeLine(softphone.line)}. Pour une pause, maintenez votre photo en bas de la barre latérale : chaque quart de tour
+                                    ajoute 15 min, et la ligne reprend seule.
+                                </>
+                            ) : (
+                                "Vos appelants tombent directement sur votre messagerie, jusqu'à ce que vous rouvriez la ligne."
+                            )
                         }
-                        control={<Toggle checked={prefs.receiveCalls} onChange={(v) => void toggleReceive(v)} label="Recevoir les appels dans le CRM" />}
-                        active={prefs.receiveCalls}
+                        control={<Toggle checked={receiving} onChange={(v) => void toggleReceive(v)} label="Recevoir les appels dans le CRM" />}
                     />
-                </div>
+                    {softphone.enabled && (
+                        <SettingRow
+                            icon={Headphones}
+                            title="Micro et écoute"
+                            description={
+                                <>
+                                    {audioName(softphone.audioPrefs.input)} · {audioName(softphone.audioPrefs.output)}. Un casque branché est choisi tout seul.
+                                </>
+                            }
+                            control={
+                                <button type="button" onClick={softphone.openAudioSettings} className={SECONDARY_BUTTON}>
+                                    Tester
+                                </button>
+                            }
+                        />
+                    )}
+                </SettingsList>
             </SettingsCard>
 
             <SettingsCard
                 icon={Voicemail}
-                tone="violet"
                 title="Ma messagerie"
-                subtitle="Ce que vos appelants entendent quand vous ne décrochez pas. Le message laissé est transcrit et vous est notifié."
+                subtitle="Ce que vos appelants entendent quand vous ne décrochez pas. Le message qu'ils laissent est transcrit et vous est notifié."
                 right={
-                    <button type="button" onClick={preview} className={cn(SECONDARY_BUTTON, "gap-1.5")}>
-                        <Volume2 className="h-3.5 w-3.5" /> Écouter
+                    <button type="button" onClick={preview} className={SECONDARY_BUTTON}>
+                        <Volume2 className="h-4 w-4" aria-hidden /> Écouter
                     </button>
                 }
             >
@@ -143,31 +172,33 @@ export function PhonePrefsPanel() {
                     rows={4}
                     placeholder={prefs.defaultGreeting}
                     aria-label="Message d'accueil de la messagerie"
-                    className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-sm leading-relaxed text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/15"
+                    className={cn(INPUT, "h-auto resize-none py-3 leading-relaxed")}
                 />
-                <p className="mt-1.5 flex justify-between text-[11px] font-medium text-zinc-400">
-                    <span>{greeting.trim() ? "Votre message personnalisé" : "Vide : le message par défaut ci-dessus est utilisé"}</span>
+                <p className="mt-2 flex justify-between gap-4 text-xs text-ink-3">
+                    <span>
+                        {greeting.trim() ? "Votre message." : "Vide : le message par défaut, ci-dessus, est lu."} « Écouter » utilise la voix du navigateur, un peu
+                        différente de celle du téléphone.
+                    </span>
                     <span className="tabular-nums">{greeting.length}/600</span>
                 </p>
-                <p className="mt-1 text-[11px] text-zinc-400">« Écouter » utilise la voix de votre navigateur ; au téléphone, la voix de Twilio est légèrement différente.</p>
             </SettingsCard>
 
-            <SettingsCard icon={MessageSquareText} tone="indigo" title="Mes SMS" subtitle="Ajoutée sur sa propre ligne à la fin de chaque SMS que vous envoyez.">
+            <SettingsCard icon={MessageSquareText} title="Signature de mes SMS" subtitle="Ajoutée sur sa propre ligne à la fin de chaque SMS que vous envoyez.">
                 <input
                     value={signature}
                     onChange={(e) => setSignature(e.target.value)}
                     maxLength={80}
                     placeholder={`Ex. Julie · ${brand.name}`}
                     aria-label="Signature des SMS"
-                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-semibold text-zinc-900 placeholder:font-medium placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/15"
+                    className={INPUT}
                 />
-                <div className="mt-3 max-w-sm rounded-[18px] rounded-br-md bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-fg shadow-sm">
+                <div className="mt-4 max-w-sm rounded-[18px] rounded-br-md bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-primary-fg shadow-sm" aria-label="Aperçu d'un SMS envoyé">
                     Bonjour, suite à notre échange je vous envoie le lien pour réserver un créneau.
                     {signature.trim() && <span className="mt-1 block opacity-80">{signature.trim()}</span>}
                 </div>
-                <p className="mt-1.5 text-[11px] text-zinc-400">Aperçu d&apos;un SMS envoyé.</p>
             </SettingsCard>
 
+            <DesktopNotificationsCard />
             <CallAppGuideRow />
 
             <SaveBar
@@ -201,43 +232,9 @@ function CallAppGuideRow() {
             href={CALL_APP_GUIDE_URL}
             external
             icon={FileText}
-            tone="teal"
             title="Choisir votre application d'appel"
             description="« Appeler » ouvre la mauvaise application, ou rien du tout ? Le guide pour Windows et Mac, en 2 minutes."
             badge="PDF"
         />
-    );
-}
-
-/** Micro / casque used by the integrated phone on this computer (Réglages audio). */
-function AudioCard() {
-    const { enabled, audioPrefs, openAudioSettings } = useSoftphone();
-    if (!enabled) return null;
-    const name = (p: { label: string } | null) => (p?.label ? cleanLabel(p.label) : "Par défaut du système");
-    return (
-        <SettingsCard
-            icon={Headphones}
-            tone="indigo"
-            title="Audio"
-            subtitle="Le micro et le casque utilisés pour vos appels sur cet ordinateur."
-            right={<button type="button" onClick={openAudioSettings} className={SECONDARY_BUTTON}>Tester et régler</button>}
-        >
-            <dl className="grid gap-2 sm:grid-cols-2">
-                <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
-                    <Mic className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-                    <div className="min-w-0">
-                        <dt className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Micro</dt>
-                        <dd className="truncate text-sm font-semibold text-zinc-900">{name(audioPrefs.input)}</dd>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
-                    <Volume2 className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-                    <div className="min-w-0">
-                        <dt className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Écoute</dt>
-                        <dd className="truncate text-sm font-semibold text-zinc-900">{name(audioPrefs.output)}</dd>
-                    </div>
-                </div>
-            </dl>
-        </SettingsCard>
     );
 }

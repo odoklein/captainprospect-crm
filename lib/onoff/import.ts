@@ -1,5 +1,5 @@
 // ============================================
-// ONOFF HISTORY IMPORT — « Récupérer l'historique » (Paramètres → Intégrations).
+// ONOFF HISTORY IMPORT — « Récupérer l'historique » (Paramètres → Téléphonie).
 //
 //   1. members   Onoff members → CRM users (same e-mail, else an Onoff number on the profile)
 //   2. calls     every call of every member in the range → OnoffCall (upsert; a call the

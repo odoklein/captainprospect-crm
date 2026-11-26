@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================
-// Paramètres → Intégrations → Onoff Business. Two ways in, one card:
+// Paramètres → Téléphonie → Lignes et fournisseurs → Onoff Business. Two ways in, one card:
 //   1. Appels en direct  the webhook: every new call lands in the CRM (Advanced or MAX)
 //   2. Historique + IA   the API key (MAX only): past calls, recordings, Onoff's AI
 //                        summaries and transcripts, imported by « Récupérer l'historique »
@@ -118,11 +118,11 @@ export function OnoffPanel({ keys, onKeysChanged }: { keys: IntegrationKeyStatus
     return (
         <section aria-labelledby="onoff-title" className="rounded-3xl border border-line bg-surface shadow-card overflow-hidden">
             <header className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),transparent_55%)]">
-                <span className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center text-[15px] font-black tracking-tight shadow-[0_6px_16px_rgba(9,9,11,0.22)] flex-shrink-0" aria-hidden>
+                <span className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center text-[15px] font-semibold tracking-tight shadow-[0_6px_16px_rgba(9,9,11,0.22)] flex-shrink-0" aria-hidden>
                     On
                 </span>
                 <div className="min-w-0 flex-1">
-                    <h3 id="onoff-title" className="text-lg font-black tracking-tight text-ink">Onoff Business</h3>
+                    <h3 id="onoff-title" className="text-lg font-semibold tracking-tight text-ink">Onoff Business</h3>
                     <p className="text-xs font-medium text-ink-3 leading-relaxed">
                         Les appels de vos SDR arrivent dans le CRM, rattachés au bon prospect et au RDV, avec l&apos;enregistrement et le résumé IA.
                     </p>
@@ -155,7 +155,7 @@ export function OnoffPanel({ keys, onKeysChanged }: { keys: IntegrationKeyStatus
                                 "Activez l'enregistrement des appels dans Onoff. Chaque SDR doit avoir le même e-mail dans Onoff et dans le CRM, sinon renseignez son numéro Onoff dans sa fiche.",
                             ].map((s, i) => (
                                 <li key={s} className="flex gap-2 text-xs font-medium leading-relaxed text-ink-2">
-                                    <span className="w-5 h-5 rounded-full bg-surface-2 text-[11px] font-black text-ink flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                                    <span className="w-5 h-5 rounded-full bg-surface-2 text-[11px] font-semibold text-ink flex items-center justify-center flex-shrink-0">{i + 1}</span>
                                     {s}
                                 </li>
                             ))}
@@ -191,8 +191,8 @@ export function OnoffPanel({ keys, onKeysChanged }: { keys: IntegrationKeyStatus
 function Stat({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-xl bg-surface border border-line px-2.5 py-2 text-center">
-            <dd className="text-base font-black tabular-nums text-ink leading-none">{value}</dd>
-            <dt className="text-[10px] font-bold text-ink-3 mt-1">{label}</dt>
+            <dd className="text-base font-semibold tabular-nums text-ink leading-none">{value}</dd>
+            <dt className="text-[10px] font-medium text-ink-3 mt-1">{label}</dt>
         </div>
     );
 }
@@ -200,12 +200,12 @@ function Stat({ label, value }: { label: string; value: string }) {
 function StepTitle({ n, icon: Icon, title, done, plan, accent }: { n: number; icon: typeof History; title: string; done: boolean; plan: string; accent?: boolean }) {
     return (
         <div className="flex items-center gap-2.5">
-            <span className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0", done ? "bg-emerald-500 text-white" : "bg-surface-2 text-ink-2")}>
+            <span className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0", done ? "bg-emerald-500 text-white" : "bg-surface-2 text-ink-2")}>
                 {done ? <Check className="w-4 h-4" aria-hidden /> : n}
             </span>
             <Icon className="w-4 h-4 text-ink-3 flex-shrink-0" aria-hidden />
-            <h4 className="text-sm font-black text-ink">{title}</h4>
-            <span className={cn("ml-auto text-[10px] font-extrabold px-2 py-0.5 rounded-md whitespace-nowrap", accent ? "bg-zinc-950 text-white" : "bg-surface-2 text-ink-2")}>{plan}</span>
+            <h4 className="text-sm font-semibold text-ink">{title}</h4>
+            <span className={cn("ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap", accent ? "bg-zinc-950 text-white" : "bg-surface-2 text-ink-2")}>{plan}</span>
         </div>
     );
 }
@@ -238,7 +238,7 @@ function WebhookUrl() {
 function Disclosure({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <details className="group">
-            <summary className="list-none cursor-pointer inline-flex items-center gap-1 text-xs font-bold text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
+            <summary className="list-none cursor-pointer inline-flex items-center gap-1 text-xs font-medium text-ink-2 hover:text-ink [&::-webkit-details-marker]:hidden">
                 <ChevronDown className="w-3.5 h-3.5 transition-transform group-open:rotate-180" aria-hidden />
                 {label}
             </summary>
@@ -276,7 +276,7 @@ function MembersCheck() {
             <FormStatus error={error} />
             {members && (
                 <div className="rounded-xl border border-line overflow-hidden">
-                    <p className="px-3 py-2 text-[11px] font-bold text-ink-2 bg-surface-2 flex items-center gap-1.5">
+                    <p className="px-3 py-2 text-[11px] font-medium text-ink-2 bg-surface-2 flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden />
                         Clé valide · {members.length} membre{members.length > 1 ? "s" : ""} Onoff
                         {unmatched.length > 0 && <span className="ml-auto text-amber-700">{unmatched.length} sans compte CRM</span>}
@@ -286,10 +286,10 @@ function MembersCheck() {
                             <li key={m.id} className="px-3 py-2 flex items-center gap-2.5">
                                 {m.user ? <UserCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" aria-hidden /> : <UserX className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden />}
                                 <span className="min-w-0 flex-1">
-                                    <span className="block text-xs font-bold text-ink truncate">{m.name}</span>
+                                    <span className="block text-xs font-medium text-ink truncate">{m.name}</span>
                                     <span className="block text-[11px] font-medium text-ink-3 truncate">{m.email ?? m.numbers.join(", ")}</span>
                                 </span>
-                                <span className={cn("text-[11px] font-bold truncate max-w-[45%]", m.user ? "text-ink-2" : "text-amber-700")}>
+                                <span className={cn("text-[11px] font-medium truncate max-w-[45%]", m.user ? "text-ink-2" : "text-amber-700")}>
                                     {m.user ? `→ ${m.user.name}` : "Aucun compte CRM"}
                                 </span>
                             </li>
@@ -357,7 +357,7 @@ function ImportBox({ state, running, onStarted }: { state: OnoffState; running: 
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
                         <CalendarRange className="w-4 h-4 text-ink-3" aria-hidden />
-                        <h4 className="text-sm font-black text-ink">Récupérer l&apos;historique</h4>
+                        <h4 className="text-sm font-semibold text-ink">Récupérer l&apos;historique</h4>
                     </div>
                     <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Période">
                         {[...PRESETS, { id: "custom", label: "Personnalisé", days: 0 }].map((p) => (
@@ -368,7 +368,7 @@ function ImportBox({ state, running, onStarted }: { state: OnoffState; running: 
                                 aria-checked={preset === p.id}
                                 onClick={() => choose(p.id)}
                                 className={cn(
-                                    "h-8 px-3 rounded-xl text-xs font-bold border transition-colors",
+                                    "h-8 px-3 rounded-xl text-xs font-medium border transition-colors",
                                     FOCUS,
                                     preset === p.id ? "bg-zinc-950 border-zinc-950 text-white" : "bg-surface border-line text-ink-2 hover:border-line-strong",
                                 )}
@@ -380,11 +380,11 @@ function ImportBox({ state, running, onStarted }: { state: OnoffState; running: 
                     {preset === "custom" && (
                         <div className="grid grid-cols-2 gap-3 max-w-md">
                             <label className="space-y-1">
-                                <span className="text-[11px] font-bold text-ink-3">Du</span>
+                                <span className="text-[11px] font-medium text-ink-3">Du</span>
                                 <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className={INPUT} />
                             </label>
                             <label className="space-y-1">
-                                <span className="text-[11px] font-bold text-ink-3">Au</span>
+                                <span className="text-[11px] font-medium text-ink-3">Au</span>
                                 <input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className={INPUT} />
                             </label>
                         </div>
@@ -404,7 +404,7 @@ function ImportBox({ state, running, onStarted }: { state: OnoffState; running: 
 
             {past.length > 0 && (
                 <div className="space-y-2">
-                    <p className="text-[11px] font-bold text-ink-3">Derniers imports</p>
+                    <p className="text-[11px] font-medium text-ink-3">Derniers imports</p>
                     <ul className="space-y-1.5">
                         {past.map((r) => <RunRow key={r.id} run={r} />)}
                     </ul>
@@ -425,8 +425,8 @@ function RunProgress({ run }: { run: Run }) {
         <div className="space-y-4" role="status" aria-live="polite">
             <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 text-emerald-600 motion-safe:animate-spin" aria-hidden />
-                <h4 className="text-sm font-black text-ink">Import en cours · {fmtDay(run.fromDate)} → {fmtDay(run.toDate)}</h4>
-                <span className="ml-auto text-sm font-black tabular-nums text-ink">{pct}%</span>
+                <h4 className="text-sm font-semibold text-ink">Import en cours · {fmtDay(run.fromDate)} → {fmtDay(run.toDate)}</h4>
+                <span className="ml-auto text-sm font-semibold tabular-nums text-ink">{pct}%</span>
             </div>
             <div className="h-2 rounded-full bg-surface-2 overflow-hidden">
                 <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} />
@@ -442,7 +442,7 @@ function RunProgress({ run }: { run: Run }) {
                         : run.actionsLinked ? `${nf.format(run.actionsLinked)} complétées` : "";
                     return (
                         <li key={p.id} className={cn("rounded-xl border px-3 py-2", now ? "border-emerald-300 bg-emerald-50/60" : "border-line bg-surface")}>
-                            <p className={cn("flex items-center gap-1.5 text-xs font-extrabold", done ? "text-emerald-700" : now ? "text-ink" : "text-ink-3")}>
+                            <p className={cn("flex items-center gap-1.5 text-xs font-semibold", done ? "text-emerald-700" : now ? "text-ink" : "text-ink-3")}>
                                 {done ? <Check className="w-3.5 h-3.5" aria-hidden /> : now ? <Loader2 className="w-3.5 h-3.5 motion-safe:animate-spin" aria-hidden /> : <span className="w-3.5 h-3.5 rounded-full border border-line" aria-hidden />}
                                 {p.label}
                             </p>
@@ -464,8 +464,8 @@ function RunRow({ run }: { run: Run }) {
     return (
         <li className="rounded-xl bg-surface border border-line px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
             <look.icon className={cn("w-4 h-4 flex-shrink-0", look.cls)} aria-hidden />
-            <span className="text-xs font-bold text-ink">{fmtDay(run.fromDate)} → {fmtDay(run.toDate)}</span>
-            <span className={cn("text-[11px] font-bold", look.cls)}>{look.label}</span>
+            <span className="text-xs font-medium text-ink">{fmtDay(run.fromDate)} → {fmtDay(run.toDate)}</span>
+            <span className={cn("text-[11px] font-medium", look.cls)}>{look.label}</span>
             <span className="ml-auto flex flex-wrap items-center gap-3 text-[11px] font-semibold text-ink-3 tabular-nums">
                 <span>{nf.format(run.callsFound)} appels</span>
                 <span className="inline-flex items-center gap-1"><AudioLines className="w-3 h-3" aria-hidden />{nf.format(run.recordings)}</span>

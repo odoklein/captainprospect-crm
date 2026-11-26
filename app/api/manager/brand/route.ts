@@ -13,7 +13,7 @@ import {
 } from "@/lib/brand/write";
 
 // ============================================
-// /api/manager/brand — the instance's identity (Paramètres → Identité).
+// /api/manager/brand — the instance's identity (Paramètres → Marque; the email sender is edited from Messages).
 // GET  → stored settings (merged over the defaults) + the resolved brand
 // PUT  → partial update of the editable fields, audited (BRAND_UPDATE)
 // ============================================

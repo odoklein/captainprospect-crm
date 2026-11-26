@@ -3,12 +3,12 @@
 import { Suspense, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { Bell, CalendarCheck, ExternalLink, Link2, Loader2, ShieldCheck, User } from "lucide-react";
+import { CalendarCheck, ExternalLink, Link2, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/accueil/AccueilUI";
 import {
-    Field, FormStatus, INPUT, SECONDARY_BUTTON, SettingsCard, SettingsShell, useSettingsSection, type SettingsSectionDef,
+    Field, FormStatus, INPUT, PRIMARY_BUTTON, SECONDARY_BUTTON, SettingsCard, SettingsPage,
 } from "@/components/settings/SettingsUI";
 import {
     ClientNotificationsSection, PersonalInfoCard, ProfileHero, SecuritySection,
@@ -19,11 +19,6 @@ import {
 // booking link), notification preferences, security.
 // ============================================
 
-const SECTIONS: SettingsSectionDef[] = [
-    { id: "profil", label: "Mon profil", hint: "Photo, coordonnées, réservation", icon: User, tone: "indigo", group: "Mon compte" },
-    { id: "notifications", label: "Notifications", hint: "Alertes et rappels", icon: Bell, tone: "amber", group: "Mon compte" },
-    { id: "securite", label: "Sécurité", hint: "Mot de passe et appareils", icon: ShieldCheck, tone: "violet", group: "Mon compte" },
-];
 
 function BookingLinkCard() {
     const { data: session } = useSession();
@@ -79,7 +74,6 @@ function BookingLinkForm({ initial }: { initial: string }) {
     return (
         <SettingsCard
             icon={CalendarCheck}
-            tone="emerald"
             title="Lien de réservation"
             subtitle="Utilisé par l'équipe pour planifier vos rendez-vous"
             right={
@@ -108,14 +102,7 @@ function BookingLinkForm({ initial }: { initial: string }) {
                         />
                     )}
                 </Field>
-                <button
-                    type="submit"
-                    disabled={!dirty || saving}
-                    className={cn(
-                        "sm:mt-[26px] inline-flex items-center justify-center gap-2 h-11 px-5 rounded-2xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-black shadow-[0_4px_12px_rgba(9,9,11,0.18)] transition-colors disabled:opacity-40 disabled:pointer-events-none",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45 focus-visible:ring-offset-2",
-                    )}
-                >
+                <button type="submit" disabled={!dirty || saving} className={cn(PRIMARY_BUTTON, "sm:mt-7")}>
                     {saving && <Loader2 className="w-4 h-4 motion-safe:animate-spin" aria-hidden />}
                     Enregistrer
                 </button>
@@ -126,25 +113,25 @@ function BookingLinkForm({ initial }: { initial: string }) {
 }
 
 function ClientSettings() {
-    const [active, select] = useSettingsSection(SECTIONS);
     return (
-        <SettingsShell
+        <SettingsPage
             title="Paramètres"
-            subtitle="Gérez vos informations, vos alertes et la sécurité de votre compte."
-            sections={SECTIONS}
-            active={active}
-            onSelect={select}
-        >
-            {active === "profil" && (
-                <>
-                    <ProfileHero />
-                    <PersonalInfoCard />
-                    <BookingLinkCard />
-                </>
-            )}
-            {active === "notifications" && <ClientNotificationsSection />}
-            {active === "securite" && <SecuritySection />}
-        </SettingsShell>
+            sections={[
+                {
+                    id: "profil",
+                    label: "Profil",
+                    content: (
+                        <>
+                            <ProfileHero />
+                            <PersonalInfoCard />
+                            <BookingLinkCard />
+                        </>
+                    ),
+                },
+                { id: "notifications", label: "Notifications", content: <ClientNotificationsSection /> },
+                { id: "securite", label: "Sécurité", content: <SecuritySection /> },
+            ]}
+        />
     );
 }
 

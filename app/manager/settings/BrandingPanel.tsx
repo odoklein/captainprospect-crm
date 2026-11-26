@@ -10,6 +10,7 @@
 // ============================================
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     AlertTriangle, Building2, Globe, ImageIcon, Languages, Loader2, Palette, RotateCcw, Trash2, Type, Upload,
@@ -221,7 +222,7 @@ export function BrandingPanel() {
         <Field
             label={label}
             className={opts.className}
-            hint={errors[field] ? <span className="text-rose-600 font-bold">{errors[field]}</span> : opts.hint}
+            hint={errors[field] ? <span className="text-rose-600 font-medium">{errors[field]}</span> : opts.hint}
         >
             {(id) => (
                 <input
@@ -249,7 +250,6 @@ export function BrandingPanel() {
         <>
             <SettingsCard
                 icon={Building2}
-                tone="indigo"
                 title="Identité"
                 subtitle="Les noms affichés dans l'application, les emails, les PDF et les prompts IA"
                 right={saved.updatedAt ? <StatusPill tone="slate">Modifiée le {new Date(saved.updatedAt).toLocaleDateString("fr-FR")}</StatusPill> : undefined}
@@ -264,28 +264,30 @@ export function BrandingPanel() {
                 </div>
             </SettingsCard>
 
-            <SettingsCard icon={Globe} tone="teal" title="Web & emails" subtitle="Adresses publiques et expéditeur des emails automatiques">
+            <SettingsCard icon={Globe} title="Web & emails" subtitle="Adresses publiques de l'agence">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {text("appUrl", "URL de l'application", {
                         type: "url",
                         hint: (
                             <>
                                 Utilisée seulement si APP_URL / NEXTAUTH_URL ne sont pas définies sur le serveur.
-                                {effectiveAppUrl && <> Adresse effective : <span className="font-bold text-zinc-600">{effectiveAppUrl}</span></>}
+                                {effectiveAppUrl && <> Adresse effective : <span className="font-medium text-zinc-600">{effectiveAppUrl}</span></>}
                             </>
                         ),
                     })}
                     {text("website", "Site web", { type: "url" })}
-                    {text("senderName", "Nom de l'expéditeur", { hint: "« Nom » <adresse> des emails automatiques" })}
-                    {text("notificationsAddress", "Adresse des notifications", { type: "email" })}
                     {text("supportAddress", "Adresse du support", { type: "email", hint: "Affichée aux utilisateurs bloqués" })}
                     {text("emailDomains", "Domaines email", { hint: "Séparés par des virgules, proposés en premier", placeholder: "agence.fr, agence.com" })}
                 </div>
+                <p className="mt-4 text-[13px] text-ink-3">
+                    L&apos;expéditeur des emails automatiques se règle dans{" "}
+                    <Link href="/manager/settings?section=emails" className="font-medium text-ink-2 underline underline-offset-2 hover:text-ink">Messages</Link>.
+                </p>
             </SettingsCard>
 
-            <SettingsCard icon={Languages} tone="amber" title="Langue & région" subtitle="Formats de date, de nombre et de devise">
+            <SettingsCard icon={Languages} title="Langue & région" subtitle="Formats de date, de nombre et de devise">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Langue" hint={errors.lang ? <span className="text-rose-600 font-bold">{errors.lang}</span> : undefined}>
+                    <Field label="Langue" hint={errors.lang ? <span className="text-rose-600 font-medium">{errors.lang}</span> : undefined}>
                         {(id) => (
                             <select id={id} value={form.lang} onChange={(e) => set("lang", e.target.value)} className={INPUT}>
                                 {!LANGS.some((l) => l.value === form.lang) && <option value={form.lang}>{form.lang}</option>}
@@ -297,7 +299,7 @@ export function BrandingPanel() {
                     </Field>
                     {text("locale", "Locale", { placeholder: "fr-FR", hint: "Format des dates et nombres (BCP 47)" })}
                     {text("currency", "Devise", { placeholder: "EUR", hint: "Code ISO à 3 lettres" })}
-                    <Field label="Fuseau horaire" hint={errors.timeZone ? <span className="text-rose-600 font-bold">{errors.timeZone}</span> : "Fuseau IANA"}>
+                    <Field label="Fuseau horaire" hint={errors.timeZone ? <span className="text-rose-600 font-medium">{errors.timeZone}</span> : "Fuseau IANA"}>
                         {(id) => (
                             <>
                                 <input
@@ -318,7 +320,7 @@ export function BrandingPanel() {
                 </div>
             </SettingsCard>
 
-            <SettingsCard icon={Palette} tone="violet" title="Couleurs" subtitle="Deux couleurs suffisent : toutes les nuances sont calculées">
+            <SettingsCard icon={Palette} title="Couleurs" subtitle="Deux couleurs suffisent : toutes les nuances sont calculées">
                 <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-6">
                     <div className="space-y-5">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -375,7 +377,7 @@ export function BrandingPanel() {
                 </div>
             </SettingsCard>
 
-            <SettingsCard icon={Type} tone="slate" title="Police" subtitle="Familles déjà intégrées à l'application">
+            <SettingsCard icon={Type} title="Police" subtitle="Familles déjà intégrées à l'application">
                 <div role="radiogroup" aria-label="Police" className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {(Object.keys(FONT_PRESETS) as FontPresetId[]).map((id) => {
                         const preset = FONT_PRESETS[id];
@@ -392,21 +394,21 @@ export function BrandingPanel() {
                                     on ? "border-zinc-950 bg-slate-50 shadow-[inset_0_0_0_1px_rgba(9,9,11,1)]" : "border-slate-200 bg-white hover:border-slate-300",
                                 )}
                             >
-                                <span className="block text-xl font-bold text-zinc-900" style={{ fontFamily: `var(${preset.display})` }}>
+                                <span className="block text-xl font-medium text-zinc-900" style={{ fontFamily: `var(${preset.display})` }}>
                                     Prospection
                                 </span>
                                 <span className="block text-xs text-zinc-500 mt-1" style={{ fontFamily: `var(${preset.body})` }}>
                                     Rendez-vous confirmé avec le décideur.
                                 </span>
-                                <span className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mt-3">{preset.label}</span>
+                                <span className="block text-xs text-ink-3 mt-3">{preset.label}</span>
                             </button>
                         );
                     })}
                 </div>
-                {errors.fontPreset && <p className="text-xs font-bold text-rose-600 mt-2">{errors.fontPreset}</p>}
+                {errors.fontPreset && <p className="text-xs font-medium text-rose-600 mt-2">{errors.fontPreset}</p>}
             </SettingsCard>
 
-            <SettingsCard icon={ImageIcon} tone="emerald" title="Logos" subtitle="Envoyés immédiatement · PNG, WebP ou SVG, 2 Mo maximum">
+            <SettingsCard icon={ImageIcon} title="Logos" subtitle="Envoyés immédiatement · PNG, WebP ou SVG, 2 Mo maximum">
                 {!storageConfigured && (
                     <Notice tone="amber" icon={AlertTriangle} className="mb-4">
                         Le stockage des fichiers (MinIO) n&apos;est pas configuré sur ce serveur : les logos par défaut restent affichés.
@@ -430,7 +432,7 @@ export function BrandingPanel() {
                 </div>
             </SettingsCard>
 
-            <SettingsCard icon={RotateCcw} tone="rose" title="Réinitialiser" subtitle="Revenir à l'identité livrée avec l'application">
+            <SettingsCard icon={RotateCcw} title="Réinitialiser" subtitle="Revenir à l'identité livrée avec l'application">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-sm font-medium text-zinc-600 max-w-xl">
                         Noms, adresses, couleurs, police et logos reprennent leurs valeurs par défaut. Les fichiers envoyés sont conservés dans le stockage.
@@ -458,7 +460,7 @@ function ColorField({ label, hint, value, error, onChange }: {
 }) {
     const valid = isHexColor(value);
     return (
-        <Field label={label} hint={error ? <span className="text-rose-600 font-bold">{error}</span> : hint}>
+        <Field label={label} hint={error ? <span className="text-rose-600 font-medium">{error}</span> : hint}>
             {(id) => (
                 <div className="flex items-center gap-2">
                     <input
@@ -491,7 +493,7 @@ function normalizeHex(v: string): string {
 function RampRow({ label, ramp }: { label: string; ramp: Ramp }) {
     return (
         <div className="flex items-center gap-3">
-            <span className="w-20 flex-shrink-0 text-[11px] font-bold uppercase tracking-wider text-zinc-500">{label}</span>
+            <span className="w-20 flex-shrink-0 text-xs text-ink-3">{label}</span>
             <div className="flex flex-1 min-w-0 rounded-lg overflow-hidden border border-slate-200">
                 {SHADES.map((s) => (
                     <span key={s} title={`${s} · ${ramp[s]}`} className="h-7 flex-1" style={{ backgroundColor: ramp[s] }} />
@@ -513,7 +515,7 @@ function BrandPreview({ brand }: { brand: Brand }) {
                 {["Accueil", "Missions", "Agenda", "Stats"].map((item, i) => (
                     <span
                         key={item}
-                        className="text-[11px] font-bold rounded-lg px-2 py-1.5 truncate"
+                        className="text-[11px] font-medium rounded-lg px-2 py-1.5 truncate"
                         style={i === 0 ? { backgroundColor: p.accentSeed, color: p.onAccent } : { opacity: 0.75 }}
                     >
                         {item}
@@ -521,7 +523,7 @@ function BrandPreview({ brand }: { brand: Brand }) {
                 ))}
             </div>
             <div className="flex-1 min-w-0 p-3 flex flex-col gap-2.5" style={{ backgroundColor: p.neutral[50] }}>
-                <span className="text-sm font-bold truncate" style={{ color: p.neutral[900], fontFamily: `var(${font.display})` }}>
+                <span className="text-sm font-medium truncate" style={{ color: p.neutral[900], fontFamily: `var(${font.display})` }}>
                     {brand.name}
                 </span>
                 <div className="rounded-xl bg-white p-2.5 space-y-1.5" style={{ border: `1px solid ${p.neutral[200]}` }}>
@@ -532,7 +534,7 @@ function BrandPreview({ brand }: { brand: Brand }) {
                     </span>
                 </div>
                 <span
-                    className="mt-auto self-start text-[11px] font-black rounded-xl px-3 py-2"
+                    className="mt-auto self-start text-[11px] font-semibold rounded-xl px-3 py-2"
                     style={{ backgroundColor: p.primarySeed, color: p.onPrimary }}
                 >
                     Démarrer les appels
@@ -566,9 +568,9 @@ function LogoSlot({ slot, src, uploaded, inverseBg, busy, disabled, removeDisabl
                 <img src={src} alt={BRAND_ASSET_LABELS[slot]} className="max-h-full max-w-full object-contain" />
             </div>
             <div className="min-w-0">
-                <p className="flex items-center gap-2 text-sm font-extrabold text-zinc-900">
+                <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
                     <span className="truncate">{BRAND_ASSET_LABELS[slot]}</span>
-                    {uploaded && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Personnalisé</span>}
+                    {uploaded && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">Personnalisé</span>}
                 </p>
                 <p className="text-[11px] font-medium text-zinc-500 mt-0.5">{SLOT_HINTS[slot]}</p>
             </div>

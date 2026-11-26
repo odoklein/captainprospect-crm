@@ -1,7 +1,7 @@
 // ============================================
 // TELEPHONY — Twilio configuration (server-only).
 //
-// Credentials are integration keys (Paramètres → Intégrations, or container env).
+// Credentials are integration keys (Paramètres → Téléphonie → Lignes et fournisseurs, or container env).
 // Behaviour switches are container env, read at request time:
 //   TWILIO_RECORD_CALLS=1          record answered calls (off by default — the
 //                                   prospect then hears a recording notice first)

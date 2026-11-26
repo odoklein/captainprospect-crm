@@ -44,7 +44,7 @@ export function StateDot({ item }: { item: IntegrationKeyStatus }) {
               ? { dot: "bg-amber-500", text: "text-amber-700", label: "Valeur serveur" }
               : { dot: "bg-slate-300", text: "text-ink-3", label: "À connecter" };
     return (
-        <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-bold", look.text)}>
+        <span className={cn("inline-flex items-center gap-1.5 text-[11px] font-medium", look.text)}>
             <span className={cn("w-1.5 h-1.5 rounded-full", look.dot)} aria-hidden />
             {look.label}
         </span>
@@ -138,8 +138,8 @@ export function KeyEditor({
                 <div className="min-w-0 space-y-1">
                     <StateDot item={item} />
                     <p className="text-xs font-medium text-ink-3 truncate">
-                        {item.source === "stored" && <>Clé <code className="font-bold text-ink-2">{item.hint}</code>{(item.updatedBy || when) && ` · ${[item.updatedBy, when].filter(Boolean).join(" · ")}`}</>}
-                        {item.source === "env" && <>Écrite dans le serveur à la création du CRM · <code className="font-bold text-ink-2">{item.hint}</code></>}
+                        {item.source === "stored" && <>Clé <code className="font-medium text-ink-2">{item.hint}</code>{(item.updatedBy || when) && ` · ${[item.updatedBy, when].filter(Boolean).join(" · ")}`}</>}
+                        {item.source === "env" && <>Écrite dans le serveur à la création du CRM · <code className="font-medium text-ink-2">{item.hint}</code></>}
                         {item.source === "none" && "Sans clé, cette fonction est désactivée."}
                     </p>
                 </div>
@@ -159,7 +159,7 @@ export function KeyEditor({
                         if (value.trim()) void save();
                     }}
                 >
-                    <label className="text-[11px] font-bold text-ink-3" htmlFor={`key-${item.name}`}>
+                    <label className="text-[11px] font-medium text-ink-3" htmlFor={`key-${item.name}`}>
                         {item.source === "none" ? "Collez la clé" : "Nouvelle clé"}
                     </label>
                     <input
@@ -180,7 +180,7 @@ export function KeyEditor({
                     <FormStatus error={error} />
                     <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                         {item.docsUrl && !tool ? (
-                            <a href={item.docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-ink-3 hover:text-ink">
+                            <a href={item.docsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-ink-3 hover:text-ink">
                                 Où trouver cette clé <ExternalLink className="w-3 h-3" aria-hidden />
                             </a>
                         ) : <span />}
@@ -230,9 +230,9 @@ export function KeyLine({ item, keys, onSaved, defaultOpen }: { item: Integratio
     return (
         <div className="rounded-xl border border-line">
             <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={cn("w-full flex items-center gap-2 px-3 h-11 text-left rounded-xl", FOCUS)}>
-                <span className="text-xs font-bold text-ink flex-1 truncate">{item.label}</span>
+                <span className="text-xs font-medium text-ink flex-1 truncate">{item.label}</span>
                 <StateDot item={item} />
-                {item.source !== "none" && <code className="text-[11px] font-bold text-ink-3">{item.hint}</code>}
+                {item.source !== "none" && <code className="text-[11px] font-medium text-ink-3">{item.hint}</code>}
                 <ChevronDown className={cn("w-4 h-4 text-ink-3 transition-transform", open && "rotate-180")} aria-hidden />
             </button>
             {open && (

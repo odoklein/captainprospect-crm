@@ -106,7 +106,7 @@ export function callSourceAvailability(input?: { alloNumbers?: string[] }): Sour
   ];
 }
 
-// Providers are rebuilt when the Allo key changes (Paramètres → Intégrations), without a restart.
+// Providers are rebuilt when the Allo key changes (Paramètres → Téléphonie), without a restart.
 let cache: { alloKey: string | undefined; providers: Record<CallSourceKey, CallProvider | null> } | null = null;
 
 function providers(): Record<CallSourceKey, CallProvider | null> {

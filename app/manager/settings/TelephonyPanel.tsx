@@ -1,7 +1,8 @@
 "use client";
 
 // ============================================
-// Paramètres → Téléphonie: which number each person calls with.
+// Paramètres → Téléphonie: which number each person calls with (first: it is the
+// part a manager comes back to, each time someone joins), then the account's numbers.
 //
 // The numbers come from the agency's Twilio account (bought there, or existing
 // numbers verified as Caller ID). A person with a number calls from the
@@ -18,7 +19,6 @@ import { Shimmer, StatusPill } from "@/components/accueil/AccueilUI";
 import { Notice, SECONDARY_BUTTON, SettingsCard } from "@/components/settings/SettingsUI";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import type { AccountNumber, PhoneUserRow } from "@/lib/telephony/numbers";
-import { SalesEnginePanel } from "./SalesEnginePanel";
 
 type Payload = { configured: boolean; numbers: AccountNumber[]; users: PhoneUserRow[]; error: string | null };
 
@@ -35,6 +35,9 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 function initials(name: string) {
     return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
 }
+
+/** Where the line providers (Onoff, Twilio, Allo keys) sit on the Téléphonie section. */
+export const TELEPHONY_LINES_ANCHOR = "lignes";
 
 export function TelephonyPanel() {
     const { success, error: showError } = useToast();
@@ -108,100 +111,34 @@ export function TelephonyPanel() {
     if (!data.configured) {
         return (
             <Notice tone="amber" icon={PhoneCall}>
-                <p className="font-bold text-zinc-900">Twilio n&apos;est pas configuré.</p>
-                <p>Ajoutez les clés Twilio dans Paramètres → Intégrations : vos numéros apparaîtront ici pour être attribués à l&apos;équipe.</p>
+                <p className="font-medium text-ink">Twilio n&apos;est pas encore connecté.</p>
+                <p>
+                    Connectez-le dans{" "}
+                    <a href={`#${TELEPHONY_LINES_ANCHOR}`} className="font-medium text-ink underline underline-offset-2">Lignes et fournisseurs</a>
+                    , plus bas : vos numéros apparaîtront ici pour être attribués à l&apos;équipe.
+                </p>
             </Notice>
         );
     }
 
     return (
         <div className="space-y-6">
-            <Notice tone="slate" icon={PhoneCall}>
-                <p className="font-bold text-zinc-900">Un numéro par personne.</p>
-                <p>
-                    Une personne avec un numéro appelle depuis le CRM via Twilio, et le prospect voit toujours ce numéro. Sans numéro, ses liens
-                    d&apos;appel ouvrent Allo comme avant. Vous pouvez donc équiper l&apos;équipe une personne à la fois.
-                </p>
-            </Notice>
-
             <SettingsCard
-                icon={Phone}
-                tone="indigo"
-                title="Numéros du compte Twilio"
-                subtitle={`${data.numbers.length} numéro${data.numbers.length > 1 ? "s" : ""} · ${withNumber} attribué${withNumber > 1 ? "s" : ""}`}
-                right={
-                    <div className="flex items-center gap-2">
-                        <a href={TWILIO_BUY_URL} target="_blank" rel="noopener noreferrer" className={cn(SECONDARY_BUTTON, "gap-1.5")}>
-                            Acheter un numéro <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-                        <button type="button" onClick={() => void load(true)} disabled={refreshing} className={cn(SECONDARY_BUTTON, "gap-1.5")} aria-label="Actualiser depuis Twilio">
-                            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} /> Actualiser
-                        </button>
-                    </div>
-                }
+                icon={Users}
+                title="Qui appelle avec quel numéro"
+                subtitle="Avec un numéro, la personne appelle depuis le CRM et le prospect voit ce numéro. Sans numéro, ses liens d'appel ouvrent Allo. Le choix s'applique à son prochain chargement de page."
             >
-                {data.error && <Notice tone="rose" className="mb-3">{data.error}</Notice>}
-                {!data.error && data.numbers.length === 0 && (
-                    <p className="text-sm text-zinc-500">Aucun numéro sur ce compte Twilio. Achetez un numéro français (ou vérifiez un numéro existant), puis « Actualiser ».</p>
-                )}
-                {data.numbers.length > 0 && (
-                    <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
-                        {data.numbers.map((n) => {
-                            const holder = holderOf.get(n.number);
-                            return (
-                                <li key={n.number} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                                    <span className="font-mono text-[15px] font-semibold tabular-nums text-zinc-900">{formatPhone(n.number)}</span>
-                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-zinc-600">
-                                        {n.source === "twilio" ? "Acheté sur Twilio" : "Vérifié (Caller ID)"}
-                                    </span>
-                                    {n.label && n.label !== n.number && <span className="truncate text-xs text-zinc-500">{n.label}</span>}
-                                    <span className="ml-auto flex flex-wrap items-center gap-1.5">
-                                        <Capability on={n.voice} label="Appels sortants" />
-                                        {n.source === "twilio" &&
-                                            (n.inboundReady ? (
-                                                <Capability on label="Appels entrants" />
-                                            ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => void configure(n)}
-                                                    disabled={configuring === n.number}
-                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-60"
-                                                    title="Faire arriver les appels vers ce numéro dans le CRM"
-                                                >
-                                                    {configuring === n.number ? <Loader2 className="h-3 w-3 animate-spin" /> : <PhoneIncoming className="h-3 w-3" />}
-                                                    Configurer les appels entrants
-                                                </button>
-                                            ))}
-                                        <Capability on={n.sms} label="SMS" />
-                                    </span>
-                                    <span>
-                                        {!n.voice ? (
-                                            <StatusPill tone="amber">Sans voix</StatusPill>
-                                        ) : holder ? (
-                                            <StatusPill tone="emerald">{holder.name}</StatusPill>
-                                        ) : (
-                                            <StatusPill tone="slate">Libre</StatusPill>
-                                        )}
-                                    </span>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                )}
-            </SettingsCard>
-
-            <SettingsCard icon={Users} tone="emerald" title="Qui appelle avec quel numéro" subtitle="Le choix s'applique au prochain chargement de page de la personne.">
                 {data.users.length === 0 ? (
                     <p className="text-sm text-zinc-500">Aucun utilisateur actif ne peut appeler.</p>
                 ) : (
-                    <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-200">
+                    <ul className="-mx-6 divide-y divide-line-subtle">
                         {data.users.map((u) => {
                             const unknown = u.number && !data.numbers.some((n) => n.number === u.number);
                             return (
-                                <li key={u.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-zinc-600">{initials(u.name)}</span>
+                                <li key={u.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-medium text-zinc-600">{initials(u.name)}</span>
                                     <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-bold text-zinc-900">{u.name}</span>
+                                        <span className="block truncate text-sm font-medium text-ink">{u.name}</span>
                                         <span className="block truncate text-xs text-zinc-500">
                                             {ROLE_LABEL[u.role] ?? u.role} · {u.email}
                                         </span>
@@ -213,7 +150,7 @@ export function TelephonyPanel() {
                                             value={u.number ?? ""}
                                             disabled={savingFor === u.id || (data.numbers.length === 0 && !u.number)}
                                             onChange={(e) => void assign(u, e.target.value || null)}
-                                            className="h-10 min-w-[230px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-sm font-semibold text-zinc-900 hover:border-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-slate-50"
+                                            className="h-10 min-w-[230px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-3 pr-8 text-sm text-ink hover:border-slate-300 focus:outline-none focus:ring-4 focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-slate-50"
                                         >
                                             <option value="">Pas de numéro (Allo)</option>
                                             {unknown && (
@@ -245,7 +182,71 @@ export function TelephonyPanel() {
                 )}
             </SettingsCard>
 
-            {data.configured && <SalesEnginePanel />}
+            <SettingsCard
+                icon={Phone}
+                title="Numéros du compte Twilio"
+                subtitle={`${data.numbers.length} numéro${data.numbers.length > 1 ? "s" : ""} · ${withNumber} attribué${withNumber > 1 ? "s" : ""}`}
+                right={
+                    <div className="flex items-center gap-2">
+                        <a href={TWILIO_BUY_URL} target="_blank" rel="noopener noreferrer" className={cn(SECONDARY_BUTTON, "gap-1.5")}>
+                            Acheter un numéro <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                        <button type="button" onClick={() => void load(true)} disabled={refreshing} className={cn(SECONDARY_BUTTON, "gap-1.5")} aria-label="Actualiser depuis Twilio">
+                            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} /> Actualiser
+                        </button>
+                    </div>
+                }
+            >
+                {data.error && <Notice tone="rose" className="mb-3">{data.error}</Notice>}
+                {!data.error && data.numbers.length === 0 && (
+                    <p className="text-sm text-zinc-500">Aucun numéro sur ce compte Twilio. Achetez un numéro français (ou vérifiez un numéro existant), puis « Actualiser ».</p>
+                )}
+                {data.numbers.length > 0 && (
+                    <ul className="-mx-6 divide-y divide-line-subtle">
+                        {data.numbers.map((n) => {
+                            const holder = holderOf.get(n.number);
+                            return (
+                                <li key={n.number} className="flex flex-wrap items-center gap-3 px-6 py-3">
+                                    <span className="font-mono text-[15px] font-semibold tabular-nums text-zinc-900">{formatPhone(n.number)}</span>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                                        {n.source === "twilio" ? "Acheté sur Twilio" : "Vérifié (Caller ID)"}
+                                    </span>
+                                    {n.label && n.label !== n.number && <span className="truncate text-xs text-zinc-500">{n.label}</span>}
+                                    <span className="ml-auto flex flex-wrap items-center gap-1.5">
+                                        <Capability on={n.voice} label="Appels sortants" />
+                                        {n.source === "twilio" &&
+                                            (n.inboundReady ? (
+                                                <Capability on label="Appels entrants" />
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void configure(n)}
+                                                    disabled={configuring === n.number}
+                                                    className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-60"
+                                                    title="Faire arriver les appels vers ce numéro dans le CRM"
+                                                >
+                                                    {configuring === n.number ? <Loader2 className="h-3 w-3 animate-spin" /> : <PhoneIncoming className="h-3 w-3" />}
+                                                    Configurer les appels entrants
+                                                </button>
+                                            ))}
+                                        <Capability on={n.sms} label="SMS" />
+                                    </span>
+                                    <span>
+                                        {!n.voice ? (
+                                            <StatusPill tone="amber">Sans voix</StatusPill>
+                                        ) : holder ? (
+                                            <StatusPill tone="emerald">{holder.name}</StatusPill>
+                                        ) : (
+                                            <StatusPill tone="slate">Libre</StatusPill>
+                                        )}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </SettingsCard>
+
         </div>
     );
 }
@@ -255,7 +256,7 @@ function Capability({ on, label }: { on: boolean; label: string }) {
     return (
         <span
             className={cn(
-                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold",
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
                 on ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-zinc-400",
             )}
             title={on ? `${label} : oui` : `${label} : non`}

@@ -216,10 +216,10 @@ export const MANAGER_NAV: NavSection[] = [
       {
         href: "/manager/settings",
         icon: Settings2,
-        label: "Réglages",
+        label: "Paramètres",
         children: [
-          { href: "/manager/settings", icon: Mail, label: "Email", permission: "pages.sdrs", description: "Expéditeur et emails automatiques de la plateforme" },
-          { href: "/manager/api", icon: Key, label: "API & intégrations", permission: "pages.sdrs", description: "Clés d'API et connecteurs" },
+          { href: "/manager/settings", icon: Settings2, label: "Agence", permission: "pages.sdrs", description: "Équipe, téléphonie, messages, marque, intégrations" },
+          { href: "/manager/api", icon: Key, label: "API REST", permission: "pages.sdrs", description: "Clés de l'API publique" },
           { href: "/manager/acces", icon: ShieldCheck, label: "Coffre d'accès", permission: "pages.sdrs", description: "Identifiants partagés par mission" },
           { href: "/manager/audit", icon: ScrollText, label: "Journal d'audit", permission: "pages.sdrs", description: "Qui a fait quoi, et quand" },
         ],

@@ -68,6 +68,34 @@ export function resolveDevice(saved: DevicePick | null, devices: DeviceLike[], k
     return byLabel?.deviceId ?? null;
 }
 
+/**
+ * A headset just plugged in becomes the call audio, as a phone would do it: the
+ * real devices (named — labels are empty until the mic is allowed) that were not
+ * there before. Returns the new prefs, and the device's name for the notice, or
+ * null when nothing new appeared. A device that comes back keeps being chosen by
+ * resolveDevice, so this only matters for a new one.
+ */
+export function adoptPluggedDevices(
+    before: DeviceLike[],
+    after: DeviceLike[],
+    prefs: AudioPrefs,
+): { prefs: AudioPrefs; name: string } | null {
+    const real = (d: DeviceLike) => d.deviceId && d.deviceId !== "default" && d.deviceId !== "communications" && d.label;
+    const known = new Set(before.filter(real).map((d) => `${d.kind}:${cleanLabel(d.label).toLowerCase()}`));
+    const fresh = after.filter((d) => real(d) && !known.has(`${d.kind}:${cleanLabel(d.label).toLowerCase()}`));
+    const input = fresh.find((d) => d.kind === "audioinput");
+    const output = fresh.find((d) => d.kind === "audiooutput");
+    if (!input && !output) return null;
+    return {
+        prefs: {
+            ...prefs,
+            input: input ? { id: input.deviceId, label: input.label } : prefs.input,
+            output: output ? { id: output.deviceId, label: output.label } : prefs.output,
+        },
+        name: cleanLabel((input ?? output)!.label),
+    };
+}
+
 export interface DeviceOption {
     id: string;
     label: string;

@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-    AlertTriangle, Code2, Eye, Inbox, Key, Link2, ListOrdered, Loader2, Mail, Megaphone, PhoneCall, RotateCcw, Send,
+    AlertTriangle, Code2, Eye, Inbox, Key, Link2, Loader2, Mail, Megaphone, PhoneCall, RotateCcw,
     ShieldCheck, PenLine, Variable,
 } from "lucide-react";
 import { useToast } from "@/components/ui";
@@ -19,7 +19,6 @@ import { SegmentedControl, Shimmer, StatusPill } from "@/components/accueil/Accu
 import {
     DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SaveBar, SECONDARY_BUTTON, SettingsCard, SettingsLinkRow,
 } from "@/components/settings/SettingsUI";
-import { useBrand } from "@/lib/brand/client";
 import { NotetakerKeyHelp } from "@/components/notetakers/NotetakerKeyHelp";
 import { NotetakerLogo } from "@/components/notetakers/NotetakerLogo";
 
@@ -39,7 +38,7 @@ const jsonInit = (method: string, body: unknown): RequestInit => ({
 const errorText = (e: unknown) => (e instanceof Error && e.message ? e.message : "Erreur de connexion");
 
 // ════════════════════════════════════════════════════════════════════════════
-// Équipe & objectifs
+// Équipe
 // ════════════════════════════════════════════════════════════════════════════
 
 export function TeamGoalsPanel() {
@@ -100,20 +99,14 @@ export function TeamGoalsPanel() {
         <>
             <SettingsCard
                 icon={PhoneCall}
-                tone="emerald"
-                title="Objectif d'appels quotidien (SDR)"
-                subtitle="Appliqué à tous les SDR · pris en compte immédiatement"
+                title="Objectif d'appels quotidien"
+                subtitle="Le même pour tous les SDR, appliqué tout de suite. Il règle leur tableau de bord et leurs alertes de rythme ; le quota de paie RH ne change pas."
                 right={saved ? <StatusPill tone="emerald" pulse>{saved.dailyQuota} appels / {saved.targetHours} h</StatusPill> : undefined}
             >
                 {!loaded ? (
                     <Shimmer className="h-40" />
                 ) : (
                     <div className="space-y-5">
-                        <p className="text-sm font-medium text-zinc-600 leading-relaxed max-w-2xl">
-                            Il alimente le dashboard et les notifications de rythme des SDR (dans le rythme, à rattraper, en retard).
-                            Le quota de paie des profils RH n&apos;est pas modifié.
-                        </p>
-
                         <div className="flex flex-wrap items-end gap-3">
                             <Field label="Appels par jour" className="w-40">
                                 {(id) => (
@@ -163,19 +156,19 @@ export function TeamGoalsPanel() {
                             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-4 space-y-3">
                                 <p className="text-xs font-semibold text-zinc-500">
                                     Rythme théorique :{" "}
-                                    <strong className="text-zinc-900 font-black">
+                                    <strong className="text-zinc-900 font-semibold">
                                         {new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 }).format(q / h)} appels/heure
                                     </strong>
                                     {" "}· objectif cumulé attendu :
                                 </p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {checkpoints.map((c) => (
-                                        <span key={c.hours} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-zinc-700 tabular-nums shadow-2xs">
+                                        <span key={c.hours} className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-white border border-slate-200 text-[11px] font-medium text-zinc-700 tabular-nums shadow-2xs">
                                             <span className="text-zinc-400">{c.hours} h</span> {c.calls}
                                         </span>
                                     ))}
                                     {!Number.isInteger(h) && (
-                                        <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-50 border border-emerald-200/80 text-[11px] font-bold text-emerald-800 tabular-nums">
+                                        <span className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-50 border border-emerald-200/80 text-[11px] font-medium text-emerald-800 tabular-nums">
                                             <span className="text-emerald-600">{h} h</span> {q}
                                         </span>
                                     )}
@@ -191,14 +184,6 @@ export function TeamGoalsPanel() {
                     </div>
                 )}
             </SettingsCard>
-
-            <SettingsLinkRow
-                href="/manager/settings/statuses"
-                icon={ListOrdered}
-                tone="indigo"
-                title="Statuts et catégories de résultat"
-                description="Gérer les catégories (RDV, Rappel, Intéressé…) et associer chaque statut d'action à une catégorie pour les rapports et l'Activité client."
-            />
         </>
     );
 }
@@ -239,73 +224,107 @@ export function EmailsPanel() {
 
     return (
         <>
+            <SenderCard onLoaded={setSender} />
+            <RdvTemplateCard senderFrom={sender?.from || null} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <SettingsLinkRow
-                    href="/manager/emails/mailboxes"
-                    icon={Inbox}
-                    tone="emerald"
-                    title="Boîtes mail de prospection"
-                    description="Comptes Gmail, Outlook ou IMAP des missions : signatures, limites d'envoi et synchronisation (Email Hub)."
+                    href="/manager/settings/security-email"
+                    icon={ShieldCheck}
+                    title="Emails de sécurité"
+                    description="Récupération de mot de passe (lien) et codes de connexion."
                 />
                 <SettingsLinkRow
                     href="/manager/broadcasts"
                     icon={Megaphone}
-                    tone="indigo"
-                    title="Hub Broadcasts & Notifications"
-                    badge="Sans code"
-                    description="Notifications automatiques (RDV, sécurité) et campagnes, avec l'éditeur visuel et l'aperçu réel."
+                    title="Notifications automatiques"
+                    description="Les emails envoyés à chaque RDV ou alerte, avec l'éditeur visuel et l'aperçu réel."
                 />
                 <SettingsLinkRow
-                    href="/manager/broadcasts?tab=campaign"
-                    icon={Send}
-                    tone="teal"
-                    title="Campagnes & annonces"
-                    description="Messages ciblés aux clients, commerciaux ou équipes, avec historique et taux d'ouverture."
-                />
-                <SettingsLinkRow
-                    href="/manager/settings/security-email"
-                    icon={ShieldCheck}
-                    tone="violet"
-                    title="Emails de sécurité"
-                    description="Templates de récupération de mot de passe (lien) et OTP."
+                    href="/manager/emails/mailboxes"
+                    icon={Inbox}
+                    title="Boîtes mail de prospection"
+                    description="Comptes Gmail, Outlook ou IMAP des missions : signatures, limites d'envoi, synchronisation."
                 />
             </div>
-            <SenderCard onLoaded={setSender} />
-            <RdvTemplateCard senderFrom={sender?.from || null} />
         </>
     );
 }
 
-function SenderCard({ onLoaded }: { onLoaded: (v: { from: string; source: "settings" | "env" | "none" }) => void }) {
-    const brand = useBrand();
+type SenderSource = "settings" | "env" | "none";
+type BrandSender = { senderName: string; notificationsAddress: string };
+
+/**
+ * The one place that says who automatic emails come from. The name and the
+ * address are the brand's (also used by calendar invites and PDFs); a full
+ * « From » header can replace both for transactional emails. That override
+ * used to sit in its own card, apart from the brand fields: two senders that
+ * could disagree.
+ */
+function SenderCard({ onLoaded }: { onLoaded: (v: { from: string; source: SenderSource }) => void }) {
     const toast = useToast();
-    const [from, setFrom] = useState("");
-    const [source, setSource] = useState<"settings" | "env" | "none" | null>(null);
+    const [base, setBase] = useState<BrandSender | null>(null);
+    const [name, setName] = useState("");
+    const [address, setAddress] = useState("");
+    const [override, setOverride] = useState("");
+    const [savedOverride, setSavedOverride] = useState("");
+    const [source, setSource] = useState<SenderSource | null>(null);
+    const [envFrom, setEnvFrom] = useState("");
+    const [showOverride, setShowOverride] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        call<{ from: string; source: "settings" | "env" | "none" }>("/api/system-config/transactional-email")
+        call<{ settings: BrandSender }>("/api/manager/brand")
+            .then(({ settings }) => {
+                setBase({ senderName: settings.senderName, notificationsAddress: settings.notificationsAddress });
+                setName(settings.senderName);
+                setAddress(settings.notificationsAddress);
+            })
+            .catch((e) => setError(errorText(e)));
+        call<{ from: string; source: SenderSource }>("/api/system-config/transactional-email")
             .then((d) => {
-                setFrom(d.from || "");
+                const own = d.source === "settings" ? d.from || "" : "";
                 setSource(d.source);
+                setEnvFrom(d.source === "env" ? d.from : "");
+                setOverride(own);
+                setSavedOverride(own);
+                setShowOverride(Boolean(own));
                 onLoaded(d);
             })
             .catch(() => setSource("none"));
     }, [onLoaded]);
 
+    const baseDirty = !!base && (name.trim() !== base.senderName || address.trim() !== base.notificationsAddress);
+    const overrideDirty = override.trim() !== savedOverride;
+
     const save = async () => {
-        if (!from.trim()) {
-            setError("Renseignez une adresse expéditeur");
+        if (!name.trim() || !address.trim()) {
+            setError("Le nom et l'adresse de l'expéditeur sont nécessaires.");
             return;
         }
         setSaving(true);
         setError(null);
         try {
-            const d = await call<{ from: string }>("/api/system-config/transactional-email", jsonInit("PUT", { from }));
-            setSource("settings");
-            setFrom(d.from || from);
-            onLoaded({ from: d.from || from, source: "settings" });
+            if (baseDirty) {
+                const { settings } = await call<{ settings: BrandSender }>(
+                    "/api/manager/brand",
+                    jsonInit("PUT", { senderName: name.trim(), notificationsAddress: address.trim() }),
+                );
+                setBase({ senderName: settings.senderName, notificationsAddress: settings.notificationsAddress });
+                setName(settings.senderName);
+                setAddress(settings.notificationsAddress);
+            }
+            if (overrideDirty) {
+                const next: { from: string; source: SenderSource } = override.trim()
+                    ? { from: (await call<{ from: string }>("/api/system-config/transactional-email", jsonInit("PUT", { from: override.trim() }))).from || override.trim(), source: "settings" }
+                    : await call<{ from: string; source: SenderSource }>("/api/system-config/transactional-email", { method: "DELETE" });
+                const own = next.source === "settings" ? next.from : "";
+                setSource(next.source);
+                setEnvFrom(next.source === "env" ? next.from : "");
+                setOverride(own);
+                setSavedOverride(own);
+                onLoaded(next);
+            }
             toast.success("Expéditeur enregistré");
         } catch (e) {
             setError(errorText(e));
@@ -314,72 +333,70 @@ function SenderCard({ onLoaded }: { onLoaded: (v: { from: string; source: "setti
         }
     };
 
-    const reset = async () => {
-        if (!window.confirm("Réinitialiser l'expéditeur personnalisé et revenir à la variable d'environnement ?")) return;
-        setSaving(true);
-        setError(null);
-        try {
-            const d = await call<{ from: string; source: "settings" | "env" | "none" }>("/api/system-config/transactional-email", { method: "DELETE" });
-            setSource(d.source);
-            setFrom(d.from || "");
-            onLoaded(d);
-            toast.success("Expéditeur réinitialisé");
-        } catch (e) {
-            setError(errorText(e));
-        } finally {
-            setSaving(false);
+    const reset = () => {
+        if (base) {
+            setName(base.senderName);
+            setAddress(base.notificationsAddress);
         }
+        setOverride(savedOverride);
+        setShowOverride(Boolean(savedOverride));
+        setError(null);
     };
 
+    // What transactional emails really use: the override, else the server's SYSTEM_SMTP_FROM,
+    // else the name above with the SMTP account's address (lib/email/transactional).
+    const preview = override.trim()
+        ? <>Les emails automatiques partent de <span className="font-medium text-ink break-all">{override.trim()}</span>.</>
+        : source === "env"
+            ? <>Les emails automatiques partent de <span className="font-medium text-ink break-all">{envFrom}</span>, fixé par le serveur.</>
+            : <>Les emails automatiques partent au nom de <span className="font-medium text-ink">« {name.trim()} »</span>, avec l&apos;adresse du compte d&apos;envoi.</>;
+
     return (
-        <SettingsCard
-            icon={Mail}
-            tone="indigo"
-            title="Expéditeur des emails transactionnels"
-            subtitle="Champ « From » des emails automatiques, dont la confirmation de RDV"
-            right={
-                source === "settings" ? <StatusPill tone="emerald">Personnalisé</StatusPill>
-                    : source === "env" ? <StatusPill tone="amber">Via ENV</StatusPill>
-                    : source === "none" ? <StatusPill tone="slate">Non configuré</StatusPill>
-                    : undefined
-            }
-        >
-            {source === null ? (
-                <Shimmer className="h-20" />
-            ) : (
-                <div className="space-y-3">
-                    <div className="flex flex-col md:flex-row md:items-end gap-3">
-                        <Field
-                            label="Adresse expéditeur"
-                            icon={Mail}
-                            className="flex-1"
-                            hint={<>Si vide, la plateforme utilise <code className="font-mono text-zinc-600">SYSTEM_SMTP_FROM</code>.</>}
-                        >
-                            {(id) => (
-                                <input
-                                    id={id}
-                                    value={from}
-                                    onChange={(e) => { setFrom(e.target.value); setError(null); }}
-                                    placeholder={`Ex : "${brand.email.senderName}" <${brand.email.notificationsAddress}>`}
-                                    className={cn(INPUT, "pl-10")}
-                                />
-                            )}
-                        </Field>
-                        <div className="flex items-center gap-2 md:mb-[22px]">
-                            <button type="button" onClick={reset} disabled={saving || source !== "settings"} className={cn(DANGER_BUTTON, "h-11 rounded-2xl")}>
-                                <RotateCcw className="w-3.5 h-3.5" aria-hidden />
-                                Réinitialiser
-                            </button>
-                            <button type="button" onClick={save} disabled={saving || !from.trim()} className={PRIMARY_BUTTON}>
-                                {saving && <Loader2 className="w-4 h-4 motion-safe:animate-spin" aria-hidden />}
-                                Enregistrer
-                            </button>
+        <>
+            <SettingsCard
+                icon={Mail}
+                title="Expéditeur"
+                subtitle="Ce que vos clients et vos équipes lisent dans le champ « De » des emails automatiques, dont la confirmation de RDV."
+            >
+                {!base || source === null ? (
+                    <Shimmer className="h-24" />
+                ) : (
+                    <div className="space-y-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <Field label="Nom" hint="Le nom de l'agence, en général.">
+                                {(id) => <input id={id} value={name} onChange={(e) => { setName(e.target.value); setError(null); }} maxLength={120} className={INPUT} />}
+                            </Field>
+                            <Field label="Adresse des notifications" hint="Utilisée par les notifications et les invitations de RDV.">
+                                {(id) => <input id={id} type="email" value={address} onChange={(e) => { setAddress(e.target.value); setError(null); }} className={INPUT} />}
+                            </Field>
                         </div>
+                        {showOverride ? (
+                            <Field
+                                label="« De » complet, à la place du nom et de l'adresse"
+                                hint="Pour envoyer depuis un autre domaine. Videz le champ pour revenir au nom et à l'adresse."
+                            >
+                                {(id) => (
+                                    <input
+                                        id={id}
+                                        value={override}
+                                        onChange={(e) => { setOverride(e.target.value); setError(null); }}
+                                        placeholder={`"${name.trim()}" <${address.trim()}>`}
+                                        className={INPUT}
+                                    />
+                                )}
+                            </Field>
+                        ) : (
+                            <button type="button" onClick={() => setShowOverride(true)} className="text-[13px] font-medium text-ink-2 underline underline-offset-2 hover:text-ink">
+                                Utiliser un « De » complet à la place
+                            </button>
+                        )}
+                        <p className="text-[13px] text-ink-3">{preview}</p>
+                        <FormStatus error={error} />
                     </div>
-                    <FormStatus error={error} />
-                </div>
-            )}
-        </SettingsCard>
+                )}
+            </SettingsCard>
+            <SaveBar dirty={baseDirty || overrideDirty} saving={saving} onSave={() => void save()} onReset={reset} label="Enregistrer l'expéditeur" />
+        </>
     );
 }
 
@@ -484,7 +501,6 @@ function RdvTemplateCard({ senderFrom }: { senderFrom: string | null }) {
         <>
             <SettingsCard
                 icon={Mail}
-                tone="emerald"
                 title="Email de confirmation de RDV"
                 subtitle="Envoyé automatiquement au client à chaque nouveau rendez-vous confirmé"
                 right={
@@ -516,7 +532,7 @@ function RdvTemplateCard({ senderFrom }: { senderFrom: string | null }) {
 
                         <div>
                             <div className="flex items-center justify-between gap-2 mb-2">
-                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                                <span className="inline-flex items-center gap-1.5 text-xs text-ink-3">
                                     <Variable className="w-3.5 h-3.5" aria-hidden /> Variables
                                 </span>
                                 <span className="text-[11px] font-semibold text-zinc-400">Cliquez pour insérer au curseur</span>
@@ -565,9 +581,9 @@ function RdvTemplateCard({ senderFrom }: { senderFrom: string | null }) {
                             ) : (
                                 <div className="flex flex-col min-h-[380px]">
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 bg-white border-b border-slate-100 text-xs">
-                                        <span className="font-bold text-zinc-500">De :</span>
+                                        <span className="font-medium text-zinc-500">De :</span>
                                         <span className="font-semibold text-zinc-700">{senderFrom || "Expéditeur par défaut (SYSTEM_SMTP_FROM)"}</span>
-                                        <span className="font-bold text-zinc-500 ml-2">Objet :</span>
+                                        <span className="font-medium text-zinc-500 ml-2">Objet :</span>
                                         <span className="font-semibold italic text-zinc-800 truncate">{fillPreview(subject)}</span>
                                     </div>
                                     <iframe
@@ -585,7 +601,7 @@ function RdvTemplateCard({ senderFrom }: { senderFrom: string | null }) {
                                 type="button"
                                 onClick={restoreDefault}
                                 disabled={resetting}
-                                className="group inline-flex items-center gap-2 text-xs font-bold text-zinc-500 hover:text-rose-600 transition-colors disabled:opacity-40 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
+                                className="group inline-flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-rose-600 transition-colors disabled:opacity-40 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/45"
                             >
                                 <RotateCcw className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-rotate-45" aria-hidden />
                                 {resetting ? "Réinitialisation…" : "Restaurer le template par défaut"}
@@ -685,7 +701,6 @@ export function IntegrationsPanel() {
     return (
         <SettingsCard
             icon={Link2}
-            tone="teal"
             title="Leexi — CR & sessions"
             subtitle="Créez sessions et comptes-rendus directement depuis les transcriptions"
             right={
@@ -708,7 +723,7 @@ export function IntegrationsPanel() {
                     {!enabled && <NotetakerKeyHelp id="leexi" />}
                     {source === "env" && (
                         <Notice tone="amber" icon={AlertTriangle}>
-                            <p className="font-bold text-amber-900">Leexi est actuellement configuré via les variables d&apos;environnement.</p>
+                            <p className="font-medium text-amber-900">Leexi est actuellement configuré via les variables d&apos;environnement.</p>
                             <p>Vous pouvez surcharger cette configuration en enregistrant des clés ici.</p>
                         </Notice>
                     )}
@@ -729,7 +744,7 @@ export function IntegrationsPanel() {
                             {checks.length === 0 && <Notice tone="slate">Aucune clé Leexi configurée.</Notice>}
                             {checks.map((c) => (
                                 <Notice key={c.source} tone={c.ok ? "emerald" : "rose"} icon={c.ok ? ShieldCheck : AlertTriangle}>
-                                    <p className="font-bold">{c.source === "settings" ? "Clé enregistrée ici" : "Clé du serveur (variables d'environnement)"}</p>
+                                    <p className="font-medium">{c.source === "settings" ? "Clé enregistrée ici" : "Clé du serveur (variables d'environnement)"}</p>
                                     <p>{c.message}</p>
                                 </Notice>
                             ))}
@@ -812,7 +827,6 @@ export function MasterPasswordPanel() {
     return (
         <SettingsCard
             icon={Key}
-            tone="amber"
             title="Mot de passe maître"
             subtitle="Connexion à n'importe quel compte avec son email et ce mot de passe"
             right={

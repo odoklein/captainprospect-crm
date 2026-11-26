@@ -90,7 +90,7 @@ function CodeBlock({ title, code }: { title: string; code: string }) {
     return (
         <div>
             <div className="flex items-center justify-between gap-2 mb-1.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{title}</span>
+                <span className="text-xs text-ink-3">{title}</span>
                 <CopyButton text={code} label={title} />
             </div>
             <pre className="rounded-xl bg-zinc-950 text-zinc-100 text-xs font-mono p-3.5 overflow-x-auto whitespace-pre-wrap break-all">{code}</pre>
@@ -195,7 +195,6 @@ export function McpPanel() {
         <div className="space-y-6">
             <SettingsCard
                 icon={Plug}
-                tone="violet"
                 title="Connexion IA (MCP)"
                 subtitle="Laissez ChatGPT, Claude ou Cursor lire le CRM en lecture seule"
                 right={<StatusPill tone="emerald" icon={ShieldCheck}>Lecture seule</StatusPill>}
@@ -234,7 +233,7 @@ export function McpPanel() {
                     </div>
 
                     <div>
-                        <span className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">Données visibles</span>
+                        <span className="block text-xs text-ink-3 mb-1.5">Données visibles</span>
                         <SegmentedControl
                             ariaLabel="Données visibles"
                             value={access}
@@ -261,7 +260,7 @@ export function McpPanel() {
                     </div>
 
                     <details className="group rounded-xl border border-slate-200 px-4 py-3">
-                        <summary className="cursor-pointer text-xs font-bold text-zinc-700">
+                        <summary className="cursor-pointer text-xs font-medium text-zinc-700">
                             Permissions ({scopes.length}/{READ_SCOPES.length})
                         </summary>
                         <div className="grid gap-2 pt-3 sm:grid-cols-2">
@@ -285,7 +284,7 @@ export function McpPanel() {
             </SettingsCard>
 
             {created && (
-                <SettingsCard icon={Check} tone="emerald" title={`Clé « ${created.name} » créée`} subtitle="Ce secret ne sera plus jamais affiché">
+                <SettingsCard icon={Check} title={`Clé « ${created.name} » créée`} subtitle="Ce secret ne sera plus jamais affiché">
                     <div className="space-y-4">
                         <Notice tone="amber" icon={TriangleAlert}>
                             Copiez-la maintenant et gardez-la dans un gestionnaire de mots de passe. Ne la collez jamais dans un dépôt Git.
@@ -304,7 +303,7 @@ export function McpPanel() {
                 </SettingsCard>
             )}
 
-            <SettingsCard icon={Plug} tone="slate" title="Clés existantes" subtitle="Les clés de connexion IA que vous avez créées">
+            <SettingsCard icon={Plug} title="Clés existantes" subtitle="Les clés de connexion IA que vous avez créées">
                 {keys === null ? (
                     <Shimmer className="h-20" />
                 ) : keys.length === 0 ? (
@@ -317,7 +316,7 @@ export function McpPanel() {
                             return (
                                 <li key={k.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                                     <div className="min-w-0">
-                                        <p className="text-sm font-bold text-zinc-900 truncate">{k.name}</p>
+                                        <p className="text-sm font-medium text-zinc-900 truncate">{k.name}</p>
                                         <p className="text-xs font-medium text-zinc-500">
                                             <code className="font-mono">{k.keyPrefix}••••</code>
                                             {" · "}{hasAllClientsFlag(k.allowedEndpoints) ? "Tous les clients" : k.client?.name ?? "—"}

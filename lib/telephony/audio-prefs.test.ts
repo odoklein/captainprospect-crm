@@ -79,3 +79,18 @@ test("test chime is a valid, audible, click-free mono WAV", () => {
     assert.ok(Math.abs(last) < 1000, "fades out");
     assert.ok(peak > 5000 && peak < 32767 * 0.4, String(peak));
 });
+
+test("a headset plugged in becomes the call audio; nothing new, nothing changes", async () => {
+    const { adoptPluggedDevices } = await import("./audio-prefs");
+    const before = DEVICES.filter((d) => !/Jabra/.test(d.label));
+    const prefs = { input: { id: "mic-built-in", label: "Microphone MacBook Pro (Built-in)" }, output: null, ringtone: null };
+    const adopted = adoptPluggedDevices(before, DEVICES, prefs);
+    assert.ok(adopted);
+    assert.deepEqual(adopted.prefs.input, { id: "mic-jabra", label: "Jabra Evolve2 65 (0b0e:030c)" });
+    assert.deepEqual(adopted.prefs.output, { id: "out-jabra", label: "Jabra Evolve2 65 (0b0e:030c)" });
+    assert.equal(adopted.name, "Jabra Evolve2 65");
+    assert.equal(adoptPluggedDevices(DEVICES, DEVICES, prefs), null, "same devices");
+    assert.equal(adoptPluggedDevices(DEVICES, before, prefs), null, "unplugging adopts nothing");
+    const unnamed = DEVICES.map((d) => ({ ...d, label: "" }));
+    assert.equal(adoptPluggedDevices([], unnamed, prefs), null, "no labels yet (mic not allowed): nothing to adopt");
+});

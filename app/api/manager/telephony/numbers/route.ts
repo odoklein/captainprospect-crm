@@ -28,7 +28,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
             configured: true,
             numbers: [],
             users,
-            error: "Twilio n'a pas renvoyé la liste des numéros (clés API ou réseau). Réessayez, ou vérifiez Paramètres → Intégrations.",
+            error: "Twilio n'a pas renvoyé la liste des numéros (clés API ou réseau). Réessayez, ou vérifiez Paramètres → Téléphonie → Lignes et fournisseurs.",
         });
     }
 });
@@ -42,7 +42,7 @@ const putSchema = z.object({
 export const PUT = withErrorHandler(async (request: NextRequest) => {
     const session = await requireRole(["MANAGER"], request);
     const config = getTwilioConfig();
-    if (!config) return errorResponse("Twilio n'est pas configuré (Paramètres → Intégrations)", 409);
+    if (!config) return errorResponse("Twilio n'est pas configuré (Paramètres → Téléphonie → Lignes et fournisseurs)", 409);
     const { userId, number } = await validateRequest(request, putSchema);
 
     try {
@@ -69,7 +69,7 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
 export const POST = withErrorHandler(async (request: NextRequest) => {
     await requireRole(["MANAGER"], request);
     const config = getTwilioConfig();
-    if (!config) return errorResponse("Twilio n'est pas configuré (Paramètres → Intégrations)", 409);
+    if (!config) return errorResponse("Twilio n'est pas configuré (Paramètres → Téléphonie → Lignes et fournisseurs)", 409);
     const { sid } = await validateRequest(request, z.object({ sid: z.string().regex(/^PN[0-9a-f]{32}$/i) }));
     const sms = (await listAccountNumbers(config).catch(() => [])).find((n) => n.sid === sid)?.sms ?? false;
     const result = await configureInbound(config, sid, { sms });

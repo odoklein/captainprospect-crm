@@ -7,12 +7,12 @@
 // needs, so a page is just a list of sections.
 // ============================================
 
-import { useCallback, useState, useSyncExternalStore, type DragEvent, type FormEvent } from "react";
+import { useCallback, useState, type DragEvent, type FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     AlertTriangle, Bell, BellOff, BellRing, Building2, CalendarClock, Camera, Check, ClipboardCheck, Eye, EyeOff,
-    Globe, Key, KeyRound, Loader2, Lock, LogIn, LogOut, Mail, MapPin, Monitor, Phone, PhoneCall, ShieldCheck,
+    Globe, Key, KeyRound, Loader2, Lock, LogIn, LogOut, Mail, MapPin, Monitor, Phone, ShieldCheck,
     Smartphone, Target, Trash2, User,
 } from "lucide-react";
 import { useToast } from "@/components/ui";
@@ -25,9 +25,10 @@ import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
 import { UserAvatar, useAvatarMutations, useAvatarPicker, useMyAvatar } from "./Avatar";
 import { ROLE_LABEL } from "./roles";
 import {
-    DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SECONDARY_BUTTON, SaveBar, SettingRow, SettingsCard, Toggle,
+    DANGER_BUTTON, Field, FormStatus, INPUT, Notice, PRIMARY_BUTTON, SECONDARY_BUTTON, SaveBar, SettingRow, SettingsCard, SettingsList, Toggle,
 } from "./SettingsUI";
 import { useBrand } from "@/lib/brand/client";
+import { useNotificationPermission, type NotificationPermissionState } from "@/components/telephony/useNotificationPermission";
 
 // ── Profile data ────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ export function ProfileHero() {
                 aria-label={hasPhoto ? "Changer la photo de profil" : "Ajouter une photo de profil"}
                 className={cn("group relative self-start sm:self-center rounded-2xl flex-shrink-0", FOCUS_RING_CLASS)}
             >
-                <UserAvatar name={profile.name} src={avatar?.url} className="w-[72px] h-[72px] rounded-2xl text-xl ring-1 ring-line" />
+                <UserAvatar name={profile.name} src={avatar?.url} className="w-16 h-16 rounded-2xl text-lg ring-1 ring-line" />
                 <span
                     aria-hidden
                     className={cn(
@@ -132,7 +133,7 @@ export function ProfileHero() {
             </button>
 
             <div className="min-w-0 flex-1">
-                <p className="text-lg font-black tracking-tight text-ink truncate">{profile.name}</p>
+                <p className="text-lg font-semibold tracking-tight text-ink truncate">{profile.name}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-ink-3">
                     <span className="inline-flex items-center gap-1 h-6 px-2 rounded-lg bg-surface-2 text-ink-2">
                         <ShieldCheck className="w-3.5 h-3.5" aria-hidden />
@@ -246,7 +247,7 @@ function PersonalInfoForm({ profile }: { profile: ProfileData }) {
 
     return (
         <>
-            <SettingsCard icon={User} tone="indigo" title="Informations personnelles" subtitle="Visibles par votre équipe et vos interlocuteurs">
+            <SettingsCard icon={User} title="Informations personnelles" subtitle="Visibles par votre équipe et vos interlocuteurs">
                 <form onSubmit={save} className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-5">
                     <Field label="Nom complet" icon={User}>
                         {(id) => (
@@ -263,7 +264,7 @@ function PersonalInfoForm({ profile }: { profile: ProfileData }) {
                         icon={Mail}
                         hint="Identifiant de connexion — un manager peut la modifier si besoin."
                         trailing={
-                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full", BADGE.slate)}>
+                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full", BADGE.slate)}>
                                 <Lock className="w-2.5 h-2.5" aria-hidden /> Verrouillé
                             </span>
                         }
@@ -372,7 +373,7 @@ export function PasswordCard() {
     };
 
     return (
-        <SettingsCard icon={KeyRound} tone="violet" title="Mot de passe" subtitle="Changez-le régulièrement, et jamais le même qu'ailleurs">
+        <SettingsCard icon={KeyRound} title="Mot de passe" subtitle="Changez-le régulièrement, et jamais le même qu'ailleurs">
             <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-5">
                 <Field label="Mot de passe actuel" icon={Lock} className="md:col-span-2 md:max-w-[calc(50%-8px)]">
                     {(id) => <PasswordInput id={id} value={current} onChange={(v) => { setCurrent(v); setError(null); }} autoComplete="current-password" />}
@@ -384,7 +385,7 @@ export function PasswordCard() {
                         strength ? (
                             <span className="flex items-center gap-2">
                                 <ProgressBar percent={strength.score} tone={strength.tone} className="h-1.5 w-24" label="Robustesse du mot de passe" />
-                                <span className={cn("font-bold", strength.tone === "rose" ? "text-rose-600" : strength.tone === "amber" ? "text-amber-700" : strength.tone === "teal" ? "text-teal-600" : "text-emerald-600")}>
+                                <span className={cn("font-medium", strength.tone === "rose" ? "text-rose-600" : strength.tone === "amber" ? "text-amber-700" : strength.tone === "teal" ? "text-teal-600" : "text-emerald-600")}>
                                     {strength.label}
                                 </span>
                             </span>
@@ -400,9 +401,9 @@ export function PasswordCard() {
                     icon={Check}
                     hint={
                         mismatch ? (
-                            <span className="font-bold text-rose-600">Les deux mots de passe ne correspondent pas.</span>
+                            <span className="font-medium text-rose-600">Les deux mots de passe ne correspondent pas.</span>
                         ) : confirm && confirm === next ? (
-                            <span className="font-bold text-emerald-600">Les mots de passe correspondent.</span>
+                            <span className="font-medium text-emerald-600">Les mots de passe correspondent.</span>
                         ) : undefined
                     }
                 >
@@ -484,7 +485,6 @@ export function DevicesCard() {
     return (
         <SettingsCard
             icon={Monitor}
-            tone="teal"
             title="Appareils connectés"
             subtitle="Les sessions ouvertes sur votre compte ces 8 dernières heures"
             right={
@@ -501,28 +501,28 @@ export function DevicesCard() {
             ) : (data ?? []).length === 0 ? (
                 <EmptyBlock title="Aucune session active" hint="Les connexions récentes apparaîtront ici." icon={Monitor} tone="teal" compact />
             ) : (
-                <ul className="space-y-2.5">
+                <ul className="-mx-6 divide-y divide-line-subtle">
                     {(data ?? []).map((d) => {
                         const device = describeDevice(d.userAgent);
                         const Icon = device.mobile ? Smartphone : Monitor;
                         return (
-                            <li key={d.id} className={cn("flex items-center gap-3.5 p-3.5 rounded-2xl border", d.current ? "bg-emerald-50/60 border-emerald-200/80" : "bg-white border-slate-200/80")}>
-                                <span className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", d.current ? BADGE.emerald : BADGE.slate)}>
-                                    <Icon className="w-[18px] h-[18px]" aria-hidden />
+                            <li key={d.id} className="flex items-center gap-4 px-6 py-3 first:pt-0 last:pb-0">
+                                <span className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-surface-2 text-ink-2">
+                                    <Icon className="w-4 h-4" aria-hidden />
                                 </span>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <p className="text-sm font-extrabold text-zinc-900">{device.label}</p>
-                                        {d.current && <span className={cn("text-[10px] font-extrabold px-2 py-0.5 rounded-full", BADGE.emerald)}>Cet appareil</span>}
+                                        <p className="text-sm font-semibold text-zinc-900">{device.label}</p>
+                                        {d.current && <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-full", BADGE.emerald)}>Cet appareil</span>}
                                     </div>
-                                    <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-semibold text-zinc-500 mt-0.5">
+                                    <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-ink-3 mt-0.5">
                                         {(d.country || d.ip) && (
                                             <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" aria-hidden />{[d.country, d.ip].filter(Boolean).join(" · ")}</span>
                                         )}
                                         <span>Connecté {relativeTime(d.createdAt)}</span>
                                     </p>
                                 </div>
-                                <span className="text-[11px] font-bold text-zinc-400 whitespace-nowrap hidden sm:block">
+                                <span className="text-xs text-ink-3 whitespace-nowrap hidden sm:block">
                                     {d.current ? "Actif maintenant" : `Actif ${relativeTime(d.lastSeenAt)}`}
                                 </span>
                             </li>
@@ -570,7 +570,6 @@ export function SignInHistoryCard() {
     return (
         <SettingsCard
             icon={LogIn}
-            tone="indigo"
             title="Historique de connexion"
             subtitle="20 dernières tentatives · conservées 90 jours"
             right={
@@ -599,19 +598,19 @@ export function SignInHistoryCard() {
                                 </span>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className={cn("text-[13px] font-extrabold", ok ? "text-zinc-900" : "text-rose-700")}>{OUTCOME_LABEL[ev.outcome] ?? ev.outcome}</span>
+                                        <span className={cn("text-[13px] font-semibold", ok ? "text-zinc-900" : "text-rose-700")}>{OUTCOME_LABEL[ev.outcome] ?? ev.outcome}</span>
                                         {ev.usedMasterPassword && (
-                                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full", BADGE.amber)}>
+                                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full", BADGE.amber)}>
                                                 <Key className="w-2.5 h-2.5" aria-hidden /> Mot de passe maître
                                             </span>
                                         )}
                                     </div>
-                                    <p className="flex flex-wrap gap-x-3 text-[11px] font-semibold text-zinc-500 mt-0.5">
+                                    <p className="flex flex-wrap gap-x-3 text-xs text-ink-3 mt-0.5">
                                         <span>{describeDevice(ev.userAgent).label}</span>
                                         {ev.country && <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" aria-hidden />{ev.country}</span>}
                                     </p>
                                 </div>
-                                <time dateTime={ev.createdAt} className="text-[11px] font-bold text-zinc-400 whitespace-nowrap tabular-nums">{when}</time>
+                                <time dateTime={ev.createdAt} className="text-xs text-ink-3 whitespace-nowrap tabular-nums">{when}</time>
                             </li>
                         );
                     })}
@@ -636,40 +635,15 @@ export function SecuritySection() {
 
 // ── Desktop notifications (incoming calls) ──────────────────────────────────
 
-type Permission = NotificationPermission | "unsupported";
-
-function subscribePermission(onChange: () => void) {
-    let status: PermissionStatus | null = null;
-    navigator.permissions
-        ?.query({ name: "notifications" as PermissionName })
-        .then((s) => {
-            status = s;
-            s.onchange = onChange;
-        })
-        .catch(() => {});
-    return () => {
-        if (status) status.onchange = null;
-    };
-}
-
-function readPermission(): Permission {
-    return typeof window !== "undefined" && "Notification" in window ? Notification.permission : "unsupported";
-}
-
 export function DesktopNotificationsCard() {
     const brand = useBrand();
-    const [, bump] = useState(0);
-    const permission = useSyncExternalStore(subscribePermission, readPermission, () => "default" as Permission);
+    const [permission, request] = useNotificationPermission();
 
-    const request = async () => {
-        await Notification.requestPermission();
-        bump((n) => n + 1); // some browsers don't fire the permission change event
-    };
     const test = () => {
         new Notification(brand.name, { body: "Les notifications du bureau fonctionnent.", tag: "cp-notification-test" });
     };
 
-    const state: Record<Permission, { tone: AccueilTone; label: string; text: string }> = {
+    const state: Record<NotificationPermissionState, { tone: AccueilTone; label: string; text: string }> = {
         granted: { tone: "emerald", label: "Activées", text: "Un appel entrant sur votre ligne vous alerte même quand l'onglet est en arrière-plan." },
         default: { tone: "amber", label: "À activer", text: "Activez-les pour être prévenu d'un appel entrant quand vous êtes sur un autre onglet." },
         denied: { tone: "rose", label: "Bloquées", text: "Votre navigateur les bloque : autorisez-les via l'icône du cadenas dans la barre d'adresse, puis rechargez la page." },
@@ -680,7 +654,6 @@ export function DesktopNotificationsCard() {
     return (
         <SettingsCard
             icon={BellRing}
-            tone="amber"
             title="Notifications du bureau"
             subtitle="Alertes du navigateur pour les appels entrants"
             right={<StatusPill tone={s.tone} icon={permission === "granted" ? Bell : BellOff}>{s.label}</StatusPill>}
@@ -688,7 +661,7 @@ export function DesktopNotificationsCard() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <p className="text-sm font-medium text-zinc-600 leading-relaxed max-w-xl">{s.text}</p>
                 {permission === "default" && (
-                    <button type="button" onClick={request} className={PRIMARY_BUTTON}>
+                    <button type="button" onClick={() => void request()} className={PRIMARY_BUTTON}>
                         <BellRing className="w-4 h-4 text-amber-300" aria-hidden />
                         Activer les notifications
                     </button>
@@ -704,109 +677,52 @@ export function DesktopNotificationsCard() {
     );
 }
 
-// ── SDR: working day ────────────────────────────────────────────────────────
+// ── SDR: what the manager sets ──────────────────────────────────────────────
 
-/** What frames the SDR's day — all set by the manager, shown here read-only. */
-export function WorkdaySection() {
+/**
+ * The frame of the SDR's day — the call goal, the end-of-day report, the Allo
+ * line — all set by the manager. Facts, not settings: one quiet list in the
+ * profile instead of a tab of its own (the live progress is on the home page).
+ */
+export function ManagerSetCard() {
     const { pace, loading: paceLoading } = useSdrPace();
     const { data: profile } = useProfile();
-    const feedback = profile?.preferences.sdrFeedback;
-    const rhythm = pace ? pace.config.dailyQuota / pace.config.targetHours : null;
+    if (!profile || (paceLoading && !pace)) return <Shimmer className="h-40 rounded-3xl" />;
+    const feedback = profile.preferences.sdrFeedback;
+    const rows: { label: string; value: string }[] = [];
+    if (pace) {
+        const hours = pace.config.targetHours.toLocaleString("fr-FR");
+        rows.push({ label: "Objectif d'appels", value: `${pace.config.dailyQuota} par jour, sur ${hours} h d'appel` });
+    }
+    rows.push({
+        label: "Retour de fin de journée",
+        value: `${feedback?.requiredDaily === false ? "Facultatif" : "Obligatoire"}, rappel à ${feedback?.promptTime ?? "15:45"}`,
+    });
+    rows.push({ label: "Ligne Allo", value: profile.alloPhoneNumber ?? "Aucune ligne attribuée" });
 
     return (
-        <>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                <SettingsCard icon={Target} tone="emerald" title="Objectif d'appels" subtitle="Fixé par votre manager pour toute l'équipe">
-                    {pace ? (
-                        <div className="space-y-4">
-                            <div className="flex items-end justify-between gap-4">
-                                <div>
-                                    <p className="text-3xl font-black tracking-tight text-zinc-900 leading-none tabular-nums">
-                                        {pace.config.dailyQuota}
-                                        <span className="text-sm font-bold text-zinc-400"> appels / jour</span>
-                                    </p>
-                                    <p className="text-xs font-semibold text-zinc-500 mt-1.5">
-                                        Sur {pace.config.targetHours.toLocaleString("fr-FR")} h d&apos;appel effectif · {rhythm!.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} appels/heure
-                                    </p>
-                                </div>
-                                <IconBadge icon={PhoneCall} tone="emerald" />
-                            </div>
-                            <div className="space-y-1.5">
-                                <div className="flex items-center justify-between text-[11px] font-bold">
-                                    <span className="text-zinc-500">Aujourd&apos;hui</span>
-                                    <span className="text-zinc-900 tabular-nums">{pace.callsDone} / {pace.dayQuota}</span>
-                                </div>
-                                <ProgressBar percent={pace.dayQuota > 0 ? (pace.callsDone / pace.dayQuota) * 100 : 0} tone={pace.goalReached ? "emerald" : "teal"} label="Appels du jour" />
-                            </div>
-                        </div>
-                    ) : paceLoading ? (
-                        <Shimmer className="h-24" />
-                    ) : (
-                        <Notice tone="slate" icon={Target}>Objectif indisponible pour le moment.</Notice>
-                    )}
-                </SettingsCard>
-
-                <SettingsCard icon={ClipboardCheck} tone="violet" title="Retour de fin de journée" subtitle="Votre compte-rendu quotidien">
-                    {profile ? (
-                        <div className="grid grid-cols-2 gap-3">
-                            <MiniStat icon={CalendarClock} label="Rappel à" value={feedback?.promptTime ?? "15:45"} />
-                            <MiniStat icon={ClipboardCheck} label="Statut" value={feedback?.requiredDaily === false ? "Facultatif" : "Obligatoire"} />
-                            <p className="col-span-2 text-[11px] font-medium text-zinc-400">Réglé par votre manager — demandez-lui pour l&apos;ajuster.</p>
-                        </div>
-                    ) : (
-                        <Shimmer className="h-24" />
-                    )}
-                </SettingsCard>
-            </div>
-
-            <SettingsCard icon={Phone} tone="indigo" title="Ligne téléphonique" subtitle="Le numéro Allo attribué à votre poste">
-                {profile ? (
-                    profile.alloPhoneNumber ? (
-                        <div className="flex items-center gap-3">
-                            <span className="text-xl font-black tracking-tight text-zinc-900 tabular-nums">{profile.alloPhoneNumber}</span>
-                            <StatusPill tone="emerald" icon={Check}>Attribuée</StatusPill>
-                        </div>
-                    ) : (
-                        <Notice tone="slate" icon={Phone}>Aucune ligne n&apos;est encore attribuée à votre compte. Votre manager peut la renseigner dans votre fiche.</Notice>
-                    )
-                ) : (
-                    <Shimmer className="h-12" />
-                )}
-            </SettingsCard>
-
-            <DesktopNotificationsCard />
-        </>
-    );
-}
-
-function IconBadge({ icon: Icon, tone }: { icon: typeof Phone; tone: AccueilTone }) {
-    return (
-        <span className={cn("w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0", BADGE[tone])}>
-            <Icon className="w-5 h-5" aria-hidden />
-        </span>
-    );
-}
-
-function MiniStat({ icon: Icon, label, value }: { icon: typeof Phone; label: string; value: string }) {
-    return (
-        <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 min-w-0">
-            <span className="text-[10px] text-zinc-400 font-bold flex items-center gap-1 uppercase tracking-wider truncate">
-                <Icon className="w-3 h-3" aria-hidden /> {label}
-            </span>
-            <p className="text-lg font-black text-zinc-900 mt-0.5 leading-tight tabular-nums">{value}</p>
-        </div>
+        <SettingsCard title="Fixé par votre manager" subtitle="Pour changer l'un de ces réglages, demandez à votre manager.">
+            <dl className="-mx-6 divide-y divide-line-subtle">
+                {rows.map((r) => (
+                    <div key={r.label} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-6 py-3 first:pt-0 last:pb-0">
+                        <dt className="text-sm text-ink-2">{r.label}</dt>
+                        <dd className="text-sm font-medium text-ink tabular-nums">{r.value}</dd>
+                    </div>
+                ))}
+            </dl>
+        </SettingsCard>
     );
 }
 
 // ── Client: notification preferences ───────────────────────────────────────
 
-const CLIENT_NOTIFS: { key: string; icon: typeof Bell; tone: AccueilTone; title: string; description: string }[] = [
-    { key: "meetingAlerts", icon: CalendarClock, tone: "emerald", title: "Nouveau RDV planifié", description: "Lorsqu'un nouveau rendez-vous est réservé pour vous." },
-    { key: "meetingReminder", icon: Bell, tone: "teal", title: "Rappel avant un RDV", description: "24 h puis 1 h avant chaque rendez-vous." },
-    { key: "reportPublished", icon: ClipboardCheck, tone: "indigo", title: "Rapport mensuel disponible", description: "Quand le rapport du mois est prêt." },
-    { key: "milestones", icon: Target, tone: "amber", title: "Jalons et félicitations", description: "Records et anniversaires de mission." },
-    { key: "emailNotifs", icon: Mail, tone: "violet", title: "Résumé par email", description: "Recevoir un récapitulatif dans votre boîte mail." },
-    { key: "pushNotifs", icon: BellRing, tone: "slate", title: "Alertes dans le portail", description: "Notifications en temps réel dans l'application." },
+const CLIENT_NOTIFS: { key: string; icon: typeof Bell; title: string; description: string }[] = [
+    { key: "meetingAlerts", icon: CalendarClock, title: "Nouveau RDV planifié", description: "Lorsqu'un nouveau rendez-vous est réservé pour vous." },
+    { key: "meetingReminder", icon: Bell, title: "Rappel avant un RDV", description: "24 h puis 1 h avant chaque rendez-vous." },
+    { key: "reportPublished", icon: ClipboardCheck, title: "Rapport mensuel disponible", description: "Quand le rapport du mois est prêt." },
+    { key: "milestones", icon: Target, title: "Jalons et félicitations", description: "Records et anniversaires de mission." },
+    { key: "emailNotifs", icon: Mail, title: "Résumé par email", description: "Recevoir un récapitulatif dans votre boîte mail." },
+    { key: "pushNotifs", icon: BellRing, title: "Alertes dans le portail", description: "Notifications en temps réel dans l'application." },
 ];
 
 export function ClientNotificationsSection() {
@@ -820,56 +736,47 @@ function ClientNotificationsForm({ profile }: { profile: ProfileData }) {
     const { data: session } = useSession();
     const queryClient = useQueryClient();
     const initial = Object.fromEntries(CLIENT_NOTIFS.map((n) => [n.key, profile.preferences.notifications?.[n.key] ?? true])) as Record<string, boolean>;
-    const [baseline, setBaseline] = useState(initial);
     const [prefs, setPrefs] = useState(initial);
-    const [saving, setSaving] = useState(false);
-    const dirty = CLIENT_NOTIFS.some((n) => prefs[n.key] !== baseline[n.key]);
     const enabled = CLIENT_NOTIFS.filter((n) => prefs[n.key]).length;
 
-    const save = async () => {
-        setSaving(true);
+    // A switch is a decision, not a draft: it saves as soon as it flips (and flips back if that fails).
+    const flip = async (key: string, value: boolean) => {
+        const before = prefs;
+        const next = { ...prefs, [key]: value };
+        setPrefs(next);
         try {
             const res = await fetch("/api/users/me/profile", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ preferences: { notifications: prefs } }),
+                body: JSON.stringify({ preferences: { notifications: next } }),
             });
             const json = await res.json();
             if (!json.success) throw new Error(json.error ?? "Enregistrement impossible");
-            setBaseline(prefs);
             await queryClient.invalidateQueries({ queryKey: myProfileQueryKey(session?.user?.id) });
-            toast.success("Préférences enregistrées", "Vos choix de notifications sont à jour.");
         } catch (e) {
-            toast.error("Erreur", e instanceof Error ? e.message : "Enregistrement impossible");
-        } finally {
-            setSaving(false);
+            setPrefs(before);
+            toast.error("Notification non modifiée", e instanceof Error ? e.message : "Enregistrement impossible");
         }
     };
 
     return (
-        <>
-            <SettingsCard
-                icon={Bell}
-                tone="amber"
-                title="Préférences de notification"
-                subtitle="Choisissez les alertes que vous souhaitez recevoir"
-                right={<StatusPill tone={enabled > 0 ? "emerald" : "slate"}>{enabled} / {CLIENT_NOTIFS.length} actives</StatusPill>}
-            >
-                <div className="space-y-2.5">
-                    {CLIENT_NOTIFS.map((n) => (
-                        <SettingRow
-                            key={n.key}
-                            icon={n.icon}
-                            tone={n.tone}
-                            title={n.title}
-                            description={n.description}
-                            active={prefs[n.key]}
-                            control={<Toggle checked={prefs[n.key]} onChange={(v) => setPrefs((p) => ({ ...p, [n.key]: v }))} label={n.title} />}
-                        />
-                    ))}
-                </div>
-            </SettingsCard>
-            <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setPrefs(baseline)} label="Enregistrer les préférences" />
-        </>
+        <SettingsCard
+            icon={Bell}
+            title="Ce qui vous est envoyé"
+            subtitle="Chaque choix est enregistré dès que vous le changez."
+            right={<span className="text-[13px] text-ink-3 tabular-nums">{enabled} sur {CLIENT_NOTIFS.length}</span>}
+        >
+            <SettingsList>
+                {CLIENT_NOTIFS.map((n) => (
+                    <SettingRow
+                        key={n.key}
+                        icon={n.icon}
+                        title={n.title}
+                        description={n.description}
+                        control={<Toggle checked={prefs[n.key]} onChange={(v) => void flip(n.key, v)} label={n.title} />}
+                    />
+                ))}
+            </SettingsList>
+        </SettingsCard>
     );
 }

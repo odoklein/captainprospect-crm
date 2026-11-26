@@ -2,35 +2,51 @@
 
 // ============================================
 // SIDEBAR USER MENU — the profile button at the foot of the sidebar and its
-// popover: photo, name and role, shortcuts into the role's settings page, and
-// the sign-out actions. Self-contained (state, outside click, keyboard).
+// popover: photo, name and role, the phone line (components/telephony/LineRing:
+// the ring around the photo, press and hold to pause), shortcuts into the
+// role's settings page, and sign-out. Self-contained (state, outside click, keyboard).
 // ============================================
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { ChevronUp, LogOut, Settings2, ShieldCheck, ShieldOff, User } from "lucide-react";
+import { BellRing, ChevronUp, Headphones, LogOut, Settings2, ShieldCheck, User } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui";
 import { UserAvatar, useMyAvatar } from "@/components/settings/Avatar";
 import { ROLE_LABEL } from "@/components/settings/roles";
 import type { UserAiUsageSummary } from "@/lib/ai/usage";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { LineRing, lineCaption, useLineHold } from "@/components/telephony/LineRing";
+import { useNotificationPermission } from "@/components/telephony/useNotificationPermission";
+import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
+import { cleanLabel } from "@/lib/telephony/audio-prefs";
+import { describeLine, pauseLabel } from "@/lib/telephony/line-state";
 
-/** Personal settings page per role; `sections` = it understands ?section=. */
-const SETTINGS: Partial<Record<UserRole, { path: string; sections: boolean }>> = {
-    MANAGER: { path: "/manager/settings", sections: true },
-    SDR: { path: "/sdr/settings", sections: true },
-    BOOKER: { path: "/sdr/settings", sections: true },
-    BUSINESS_DEVELOPER: { path: "/bd/settings", sections: true },
-    CLIENT: { path: "/client/portal/settings", sections: true },
-    COMMERCIAL: { path: "/commercial/portal/settings", sections: false },
-    DEVELOPER: { path: "/developer/settings", sections: false },
+/**
+ * Personal settings page per role, and how a link opens one of its sections:
+ * "sections" — a section list that understands ?section= (the manager's);
+ * "page" — one page with #section-<id> anchors, scrolled to by the router;
+ * "none" — a plain page.
+ */
+const SETTINGS: Partial<Record<UserRole, { path: string; mode: "sections" | "page" | "none" }>> = {
+    MANAGER: { path: "/manager/settings", mode: "sections" },
+    SDR: { path: "/sdr/settings", mode: "page" },
+    BOOKER: { path: "/sdr/settings", mode: "page" },
+    BUSINESS_DEVELOPER: { path: "/bd/settings", mode: "page" },
+    CLIENT: { path: "/client/portal/settings", mode: "page" },
+    COMMERCIAL: { path: "/commercial/portal/settings", mode: "none" },
+    DEVELOPER: { path: "/developer/settings", mode: "none" },
 };
 
 const ITEM =
     "flex items-center gap-2.5 w-full h-9 px-2.5 rounded-lg text-[12.5px] font-medium text-slate-300 text-left transition-colors " +
     "hover:bg-white/[0.07] hover:text-white focus-visible:bg-white/[0.07] focus-visible:text-white outline-none disabled:opacity-50";
+
+const CHIP =
+    "h-7 px-2.5 rounded-md text-[12px] font-medium text-slate-200 bg-white/[0.06] border border-white/[0.08] transition-colors " +
+    "hover:bg-white/[0.12] hover:text-white focus-visible:bg-white/[0.12] focus-visible:text-white outline-none disabled:opacity-50";
 
 export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
     const { data: session } = useSession();
@@ -38,12 +54,29 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
     const { success: toastSuccess, error: toastError } = useToast();
     const [open, setOpen] = useState(false);
     const [usage, setUsage] = useState<UserAiUsageSummary | null>(null);
-    const [loggingOutOthers, setLoggingOutOthers] = useState(false);
     const rootRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const role = session?.user?.role as UserRole | undefined;
+    const softphone = useSoftphone();
+    const hold = useLineHold();
+    const [notifications, requestNotifications] = useNotificationPermission();
+    const hasLine = softphone.enabled;
+    // Incoming calls (Twilio or Allo) alert on the desktop: only these roles receive them.
+    const takesCalls = Boolean(role && (TELEPHONY_ROLES as readonly string[]).includes(role));
+    const [lineBusy, setLineBusy] = useState(false);
+    const lineAction = async (run: () => Promise<void>, done: string) => {
+        setLineBusy(true);
+        try {
+            await run();
+            toastSuccess(done);
+        } catch (e) {
+            toastError("Ligne non modifiée", e instanceof Error ? e.message : "Réessayez dans un instant.");
+        } finally {
+            setLineBusy(false);
+        }
+    };
     // AI token/cost figures are internal: managers only.
     const showAiUsage = role === "MANAGER";
 
@@ -71,7 +104,11 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
     const email = session?.user?.email ?? "";
     const roleLabel = role ? ROLE_LABEL[role] ?? role : "Utilisateur";
     const settings = role ? SETTINGS[role] : undefined;
-    const href = (section: string) => (settings?.sections ? `${settings.path}?section=${section}` : settings?.path ?? "/");
+    const href = (section: string) =>
+        !settings ? "/"
+        : settings.mode === "sections" ? `${settings.path}?section=${section}`
+        : settings.mode === "page" ? `${settings.path}#section-${section}`
+        : settings.path;
 
     const close = useCallback((refocus = false) => {
         setOpen(false);
@@ -112,21 +149,6 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
             e.preventDefault();
             items[items.length - 1]?.focus();
         } else if (e.key === "Tab") {
-            setOpen(false);
-        }
-    };
-
-    const logoutOtherDevices = async () => {
-        setLoggingOutOthers(true);
-        try {
-            const res = await fetch("/api/account/sessions/logout-others", { method: "POST" });
-            const j = await res.json();
-            if (j.success) toastSuccess("Appareils déconnectés", j.data?.message ?? "");
-            else toastError("Erreur", j.error ?? "Impossible de déconnecter les autres appareils");
-        } catch {
-            toastError("Erreur", "Impossible de déconnecter les autres appareils");
-        } finally {
-            setLoggingOutOthers(false);
             setOpen(false);
         }
     };
@@ -179,22 +201,107 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
 
                     <div className="h-px bg-white/[0.07] mx-1 my-1" role="separator" />
 
+                    {/* The line: what happens to a call now, and the same choices as press-and-hold */}
+                    {hasLine && (
+                        <>
+                            <div className="px-2.5 pt-1.5 pb-2">
+                                <p className="flex items-start gap-2 text-[12px] leading-snug text-slate-200">
+                                    <span
+                                        aria-hidden
+                                        className={cn("mt-[5px] w-1.5 h-1.5 rounded-full flex-shrink-0", softphone.line.mode === "on" ? "bg-emerald-400" : "bg-amber-400")}
+                                    />
+                                    {describeLine(softphone.line)}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                    {softphone.line.mode === "on" ? (
+                                        <>
+                                            {[15, 30, 60].map((m) => (
+                                                <button
+                                                    key={m}
+                                                    type="button"
+                                                    role="menuitem"
+                                                    disabled={lineBusy}
+                                                    onClick={() => void lineAction(() => softphone.pauseLine(m), `Ligne en pause ${pauseLabel(m)}`)}
+                                                    className={CHIP}
+                                                >
+                                                    Pause {pauseLabel(m)}
+                                                </button>
+                                            ))}
+                                            <button
+                                                type="button"
+                                                role="menuitem"
+                                                disabled={lineBusy}
+                                                onClick={() => void lineAction(() => softphone.setReceiveCalls(false), "Messagerie activée")}
+                                                className={CHIP}
+                                            >
+                                                Messagerie
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            role="menuitem"
+                                            disabled={lineBusy}
+                                            onClick={() => void lineAction(() => softphone.resumeLine(), "Les appels sonnent de nouveau ici")}
+                                            className={cn(CHIP, "text-emerald-200")}
+                                        >
+                                            Reprendre les appels
+                                        </button>
+                                    )}
+                                </div>
+                                {softphone.line.mode === "on" && (
+                                    <p className="mt-1.5 text-[10.5px] leading-snug text-slate-400">Ou maintenez votre photo : chaque quart de tour ajoute 15 min.</p>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                    setOpen(false);
+                                    softphone.openAudioSettings();
+                                }}
+                                className={ITEM}
+                            >
+                                <Headphones className="w-3.5 h-3.5 text-slate-400" aria-hidden />
+                                <span className="truncate">
+                                    Micro et écoute
+                                    <span className="text-slate-400"> · {softphone.audioPrefs.input?.label ? cleanLabel(softphone.audioPrefs.input.label) : "par défaut"}</span>
+                                </span>
+                            </button>
+                        </>
+                    )}
+                    {takesCalls && notifications === "default" && (
+                        <button type="button" role="menuitem" onClick={() => void requestNotifications()} className={cn(ITEM, "text-amber-200")}>
+                            <BellRing className="w-3.5 h-3.5 text-amber-300" aria-hidden />
+                            Activer les alertes d&apos;appel
+                        </button>
+                    )}
+                    {takesCalls && notifications === "denied" && settings && (
+                        <Link href={href("telephone")} role="menuitem" onClick={() => setOpen(false)} className={cn(ITEM, "text-rose-200")}>
+                            <BellRing className="w-3.5 h-3.5 text-rose-300" aria-hidden />
+                            Alertes d&apos;appel bloquées : les autoriser
+                        </Link>
+                    )}
+                    {(hasLine || (takesCalls && notifications !== "granted" && notifications !== "unsupported")) && (
+                        <div className="h-px bg-white/[0.07] mx-1 my-1" role="separator" />
+                    )}
+
                     {settings && (
                         <>
                             <Link href={href("profil")} role="menuitem" onClick={() => setOpen(false)} className={ITEM}>
                                 <User className="w-3.5 h-3.5 text-slate-400" aria-hidden />
                                 Mon profil
                             </Link>
-                            {settings.sections && (
+                            {settings.mode !== "none" && (
                                 <Link href={href("securite")} role="menuitem" onClick={() => setOpen(false)} className={ITEM}>
                                     <ShieldCheck className="w-3.5 h-3.5 text-slate-400" aria-hidden />
                                     Sécurité & appareils
                                 </Link>
                             )}
                             {role === "MANAGER" && (
-                                <Link href="/manager/settings?section=equipe" role="menuitem" onClick={() => setOpen(false)} className={ITEM}>
+                                <Link href="/manager/settings" role="menuitem" onClick={() => setOpen(false)} className={ITEM}>
                                     <Settings2 className="w-3.5 h-3.5 text-slate-400" aria-hidden />
-                                    Paramètres de la plateforme
+                                    Paramètres de l&apos;agence
                                 </Link>
                             )}
                             <div className="h-px bg-white/[0.07] mx-1 my-1" role="separator" />
@@ -223,10 +330,6 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
                     </div>
                     )}
 
-                    <button type="button" role="menuitem" onClick={logoutOtherDevices} disabled={loggingOutOthers} className={ITEM}>
-                        <ShieldOff className="w-3.5 h-3.5 text-slate-400" aria-hidden />
-                        {loggingOutOthers ? "Déconnexion…" : "Déconnecter les autres appareils"}
-                    </button>
                     <button
                         type="button"
                         role="menuitem"
@@ -242,29 +345,47 @@ export function SidebarUserMenu({ isExpanded }: { isExpanded: boolean }) {
             <button
                 ref={buttonRef}
                 type="button"
-                onClick={() => setOpen((o) => !o)}
+                {...hold.handlers}
+                onClick={() => {
+                    if (hold.consumeClick()) return; // that press was a hold: it paused the line
+                    setOpen((o) => !o);
+                }}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label={`Compte de ${name} — ${roleLabel}`}
+                aria-label={
+                    hasLine
+                        ? `Compte de ${name} — ${roleLabel}. ${describeLine(softphone.line)}. Maintenir pour mettre la ligne en pause.`
+                        : `Compte de ${name} — ${roleLabel}`
+                }
+                title={hasLine ? `${describeLine(softphone.line)} · maintenez pour une pause` : undefined}
                 className={cn(
-                    "group w-full flex items-center gap-2.5 rounded-xl border text-left transition-[background-color,border-color] duration-150 outline-none",
+                    "group w-full flex items-center gap-2.5 rounded-xl border text-left transition-[background-color,border-color] duration-150 outline-none select-none touch-manipulation",
                     "focus-visible:ring-2 focus-visible:ring-accent-400/60",
                     isExpanded ? "p-1.5 pr-2" : "p-1 justify-center",
                     // Today's AI usage lives in the menu (and beside Captain AI's history), not on the trigger.
                     open ? "bg-white/[0.08] border-white/[0.08]" : "border-transparent hover:bg-white/[0.06]",
                 )}
             >
-                <UserAvatar
-                    name={name}
-                    src={avatar?.url}
-                    className="w-8 h-8 flex-shrink-0 rounded-lg text-[11px] ring-1 ring-white/10"
-                    fallbackClassName="bg-primary text-white"
-                />
+                <LineRing heldMs={hold.heldMs} notifications={notifications} showNotch={takesCalls}>
+                    <UserAvatar
+                        name={name}
+                        src={avatar?.url}
+                        className="w-8 h-8 flex-shrink-0 rounded-lg text-[11px] ring-1 ring-white/10"
+                        fallbackClassName="bg-primary text-white"
+                    />
+                </LineRing>
                 {isExpanded && (
                     <>
                         <span className="min-w-0 flex-1">
                             <span className="block text-[12.5px] font-semibold text-white truncate leading-tight">{name}</span>
-                            <span className="block text-[11px] text-slate-400 truncate leading-tight mt-0.5">{roleLabel}</span>
+                            <span
+                                className={cn(
+                                    "block text-[11px] truncate leading-tight mt-0.5",
+                                    hold.pendingMinutes ? "text-white" : hasLine && softphone.line.mode !== "on" ? "text-amber-300" : "text-slate-400",
+                                )}
+                            >
+                                {hasLine ? lineCaption(softphone.line, hold.pendingMinutes) : roleLabel}
+                            </span>
                         </span>
                         <ChevronUp
                             className={cn("w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-transform duration-150 flex-shrink-0", !open && "rotate-180")}

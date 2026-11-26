@@ -1,41 +1,35 @@
 "use client";
 
 import { Suspense } from "react";
-import { BellRing, ShieldCheck, User } from "lucide-react";
-import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
-import {
-    DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
-} from "@/components/settings/AccountPanels";
+import { PhonePrefsPanel } from "@/components/settings/PhonePrefsPanel";
+import { SettingsPage } from "@/components/settings/SettingsUI";
+import { PersonalInfoCard, ProfileHero, SecuritySection } from "@/components/settings/AccountPanels";
 
 // ============================================
-// /bd/settings — "Mon profil" of the BD navigation (the link existed, the page didn't).
+// /bd/settings — the BD's personal settings, on one page (same as /sdr/settings,
+// without the SDR's call goal). ?section= scrolls to a section.
 // ============================================
-
-const SECTIONS: SettingsSectionDef[] = [
-    { id: "profil", label: "Profil", hint: "Photo et coordonnées", icon: User, tone: "indigo", group: "Mon compte" },
-    { id: "alertes", label: "Alertes", hint: "Notifications du bureau", icon: BellRing, tone: "amber", group: "Mon compte" },
-    { id: "securite", label: "Sécurité", hint: "Mot de passe et appareils", icon: ShieldCheck, tone: "violet", group: "Mon compte" },
-];
 
 function BdSettings() {
-    const [active, select] = useSettingsSection(SECTIONS);
     return (
-        <SettingsShell
-            title="Mon profil"
-            subtitle="Votre profil, vos alertes et la sécurité de votre compte."
-            sections={SECTIONS}
-            active={active}
-            onSelect={select}
-        >
-            {active === "profil" && (
-                <>
-                    <ProfileHero />
-                    <PersonalInfoCard />
-                </>
-            )}
-            {active === "alertes" && <DesktopNotificationsCard />}
-            {active === "securite" && <SecuritySection />}
-        </SettingsShell>
+        <SettingsPage
+            title="Paramètres"
+            sections={[
+                {
+                    id: "profil",
+                    label: "Profil",
+                    content: (
+                        <>
+                            <ProfileHero />
+                            <PersonalInfoCard />
+                        </>
+                    ),
+                },
+                { id: "telephone", label: "Ma ligne", description: "Votre numéro, votre messagerie et vos alertes d'appel.", content: <PhonePrefsPanel /> },
+                { id: "securite", label: "Sécurité", content: <SecuritySection /> },
+            ]}
+            aliases={{ alertes: "telephone" }}
+        />
     );
 }
 

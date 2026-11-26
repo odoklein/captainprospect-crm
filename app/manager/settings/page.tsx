@@ -1,84 +1,120 @@
 "use client";
 
 import { Suspense } from "react";
+import { Code2, Link2, ListOrdered, Mail, Palette, PhoneCall, ScrollText, ShieldCheck, Target, User, UserCog } from "lucide-react";
 import { PhonePrefsPanel } from "@/components/settings/PhonePrefsPanel";
-import { BellRing, Key, Phone, Link2, Mail, Palette, PhoneCall, Plug, ShieldCheck, Target, User } from "lucide-react";
-import { SettingsShell, useSettingsSection, type SettingsSectionDef } from "@/components/settings/SettingsUI";
-import { LEEXI_SETTINGS_ANCHOR } from "@/lib/notetakers/guide";
 import {
-    DesktopNotificationsCard, PersonalInfoCard, ProfileHero, SecuritySection,
-} from "@/components/settings/AccountPanels";
+    SettingsLinkRow, SettingsShell, useSettingsSection, type SectionAliases, type SettingsSectionDef,
+} from "@/components/settings/SettingsUI";
+import { LEEXI_SETTINGS_ANCHOR } from "@/lib/notetakers/guide";
+import { PersonalInfoCard, ProfileHero, SecuritySection } from "@/components/settings/AccountPanels";
 import { BrandingPanel } from "./BrandingPanel";
 import { IntegrationKeysPanel } from "./IntegrationKeysPanel";
 import { McpPanel } from "./McpPanel";
-import { TelephonyPanel } from "./TelephonyPanel";
+import { SalesEnginePanel } from "./SalesEnginePanel";
+import { TELEPHONY_LINES_ANCHOR, TelephonyPanel } from "./TelephonyPanel";
 import { EmailsPanel, IntegrationsPanel, MasterPasswordPanel, TeamGoalsPanel } from "./PlatformPanels";
 
 // ============================================
-// /manager/settings — the manager's own account (profile, alerts, security) and
-// the platform configuration (team objective, transactional emails, Leexi,
-// master password). Sub-pages (statuts, emails de sécurité) stay where they were.
+// /manager/settings — the agency's settings first, ordered by how often a manager
+// comes back to them (the team's goal, who calls with which number, how calls
+// are dialed and classified), then the set-once ones (messages, brand, tools),
+// then the manager's own account at the bottom.
+//
+// Each subject has one home: everything telephony is under Téléphonie (numbers,
+// dialing, after-call, statuses, the line providers' keys), the email sender is
+// only under Messages, every key that plugs a tool in is under Intégrations.
+// Old ?section= ids keep working through the aliases.
 // ============================================
 
 const SECTIONS: SettingsSectionDef[] = [
-    { id: "profil", label: "Profil", hint: "Photo, nom, téléphone", icon: User, tone: "indigo", group: "Mon compte",
-      description: "Votre photo et vos coordonnées.", keywords: "nom email photo avatar fuseau" },
-    { id: "alertes", label: "Notifications", hint: "Alertes du bureau", icon: BellRing, tone: "amber", group: "Mon compte",
-      description: "Ce qui vous prévient pendant la journée.", keywords: "alertes notifications bureau" },
-    { id: "telephone", label: "Mon téléphone", hint: "Appels entrants, messagerie", icon: Phone, tone: "teal", group: "Mon compte",
-      description: "Comment vos appels entrants vous arrivent.", keywords: "appels entrants messagerie sonnerie" },
-    { id: "securite", label: "Sécurité", hint: "Mot de passe, appareils", icon: ShieldCheck, tone: "violet", group: "Mon compte",
-      description: "Mot de passe, appareils connectés et historique de connexion.", keywords: "mot de passe appareils connexion" },
-    { id: "identite", label: "Identité de l'agence", hint: "Nom, couleurs, logos", icon: Palette, tone: "violet", group: "Agence",
-      description: "Le nom, les couleurs et les logos que voit toute l'équipe.", keywords: "marque logo couleurs branding" },
-    { id: "equipe", label: "Équipe & objectifs", hint: "Quota d'appels, statuts", icon: Target, tone: "emerald", group: "Agence",
-      description: "Les objectifs de l'équipe et les statuts d'appel.", keywords: "objectifs quota statuts" },
-    { id: "emails", label: "Emails", hint: "Expéditeur, modèles", icon: Mail, tone: "indigo", group: "Agence",
-      description: "L'expéditeur et les modèles des emails envoyés par la plateforme.", keywords: "smtp expediteur modeles rdv" },
-    { id: "integrations", label: "Intégrations", hint: "Onoff, OpenAI, Allo…", icon: Link2, tone: "teal", group: "Connexions",
-      description: "Les outils branchés au CRM : téléphonie, IA, enregistreurs, données.",
-      keywords: "cle api onoff openai allo mistral leexi fireflies gong serper historique appels enregistrements" },
-    { id: "telephonie", label: "Téléphone intégré", hint: "Numéros Twilio par personne", icon: PhoneCall, tone: "emerald", group: "Connexions",
-      description: "Les numéros Twilio attribués à chaque personne pour appeler depuis le CRM.", keywords: "twilio numeros softphone" },
-    { id: "mcp", label: "Connexion IA (MCP)", hint: "ChatGPT, Claude", icon: Plug, tone: "violet", group: "Connexions",
-      description: "Une clé pour brancher ChatGPT ou Claude sur vos données.", keywords: "mcp chatgpt claude cle" },
-    { id: "acces", label: "Accès maître", hint: "Mot de passe maître", icon: Key, tone: "amber", group: "Avancé",
-      description: "Le mot de passe qui ouvre n'importe quel compte, pour le support.", keywords: "master mot de passe support" },
+    { id: "equipe", label: "Équipe", hint: "Objectif d'appels et rythme", icon: Target, group: "Agence",
+      keywords: "objectif quota rythme appels par jour heures sdr" },
+    { id: "telephonie", label: "Téléphonie", hint: "Numéros, numérotation, statuts, lignes", icon: PhoneCall, group: "Agence",
+      keywords: "twilio numeros qui appelle parallele numerotation plages horaires abandons apres l'appel automatisation statuts categories resultat onoff allo lignes fournisseurs" },
+    { id: "emails", label: "Messages", hint: "Expéditeur et modèles d'emails", icon: Mail, group: "Agence",
+      keywords: "email expediteur from smtp modele confirmation rdv securite mot de passe otp notifications boites mail" },
+    { id: "identite", label: "Marque", hint: "Nom, couleurs, logos, langue", icon: Palette, group: "Agence",
+      keywords: "marque identite logo couleurs police langue region devise url site" },
+    { id: "integrations", label: "Intégrations", hint: "IA, enregistreurs, données, MCP", icon: Link2, group: "Agence",
+      keywords: "cle api openai mistral deepseek leexi fireflies gong serper mcp chatgpt claude cursor api rest" },
+    { id: "acces", label: "Sécurité de l'agence", hint: "Mot de passe maître, journal d'audit", icon: ShieldCheck, group: "Agence",
+      keywords: "master mot de passe maitre support audit journal" },
+    { id: "profil", label: "Profil", hint: "Photo, nom, téléphone", icon: User, group: "Mon compte",
+      keywords: "nom email photo avatar fuseau horaire" },
+    { id: "telephone", label: "Ma ligne", hint: "Messagerie, SMS, audio", icon: UserCog, group: "Mon compte",
+      keywords: "messagerie repondeur sms signature micro casque audio appels entrants notifications" },
+    { id: "securite", label: "Sécurité", hint: "Mot de passe, appareils", icon: ShieldCheck, group: "Mon compte",
+      keywords: "mot de passe appareils connexion historique" },
 ];
 
+const ALIASES: SectionAliases = {
+    mcp: "integrations#mcp",
+    alertes: "telephone",
+    statuts: "telephonie#statuts",
+    lignes: `telephonie#${TELEPHONY_LINES_ANCHOR}`,
+};
+
 function ManagerSettings() {
-    const [active, select] = useSettingsSection(SECTIONS);
+    const [active, select] = useSettingsSection(SECTIONS, ALIASES);
     return (
-        <SettingsShell
-            title="Paramètres"
-            subtitle="Votre compte et la configuration de l'agence."
-            sections={SECTIONS}
-            active={active}
-            onSelect={select}
-        >
+        <SettingsShell title="Paramètres" subtitle="L'agence, puis votre compte." sections={SECTIONS} active={active} onSelect={select}>
+            {active === "equipe" && <TeamGoalsPanel />}
+            {active === "telephonie" && (
+                <>
+                    <TelephonyPanel />
+                    <SalesEnginePanel />
+                    <div id="statuts" className="scroll-mt-6">
+                        <SettingsLinkRow
+                            href="/manager/settings/statuses"
+                            icon={ListOrdered}
+                            title="Statuts et catégories de résultat"
+                            description="Ce que le SDR choisit à la fin d'un appel (touches 1 à 9), et la catégorie de chaque statut dans les rapports."
+                        />
+                    </div>
+                    <div id={TELEPHONY_LINES_ANCHOR} className="scroll-mt-6 pt-4">
+                        <IntegrationKeysPanel groups={["telephony"]} title="Lignes et fournisseurs" />
+                    </div>
+                </>
+            )}
+            {active === "emails" && <EmailsPanel />}
+            {active === "identite" && <BrandingPanel />}
+            {active === "integrations" && (
+                <>
+                    <IntegrationKeysPanel groups={["ai", "meetings", "data"]} />
+                    <div id={LEEXI_SETTINGS_ANCHOR} className="scroll-mt-6">
+                        <IntegrationsPanel />
+                    </div>
+                    <div id="mcp" className="scroll-mt-6 space-y-6">
+                        <McpPanel />
+                    </div>
+                    <SettingsLinkRow
+                        href="/manager/api"
+                        icon={Code2}
+                        title="API REST"
+                        description="Les clés de l'API publique, pour relier le CRM à vos propres outils."
+                    />
+                </>
+            )}
+            {active === "acces" && (
+                <>
+                    <MasterPasswordPanel />
+                    <SettingsLinkRow
+                        href="/manager/audit"
+                        icon={ScrollText}
+                        title="Journal d'audit"
+                        description="Qui a fait quoi dans le CRM, et quand."
+                    />
+                </>
+            )}
             {active === "profil" && (
                 <>
                     <ProfileHero />
                     <PersonalInfoCard />
                 </>
             )}
-            {active === "alertes" && <DesktopNotificationsCard />}
             {active === "telephone" && <PhonePrefsPanel />}
             {active === "securite" && <SecuritySection />}
-            {active === "identite" && <BrandingPanel />}
-            {active === "equipe" && <TeamGoalsPanel />}
-            {active === "emails" && <EmailsPanel />}
-            {active === "telephonie" && <TelephonyPanel />}
-            {active === "integrations" && (
-                <>
-                    <IntegrationKeysPanel />
-                    <div id={LEEXI_SETTINGS_ANCHOR} className="scroll-mt-24">
-                        <IntegrationsPanel />
-                    </div>
-                </>
-            )}
-            {active === "mcp" && <McpPanel />}
-            {active === "acces" && <MasterPasswordPanel />}
         </SettingsShell>
     );
 }

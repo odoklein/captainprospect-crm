@@ -13,7 +13,7 @@ import { Activity, Bot, Clock, Gauge, PhoneOutgoing, Rows3, ShieldCheck } from "
 import { useToast } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { Shimmer } from "@/components/accueil/AccueilUI";
-import { Notice, SaveBar, SettingRow, SettingsCard, Toggle } from "@/components/settings/SettingsUI";
+import { Notice, SaveBar, SettingRow, SettingsCard, SettingsList, Toggle } from "@/components/settings/SettingsUI";
 import { formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import type { DialerPolicy } from "@/lib/dialer/policy";
 import type { AutomationMode, AutomationPolicy, ProposalKind } from "@/lib/post-call/policy";
@@ -88,7 +88,7 @@ export function SalesEnginePanel() {
         <div className="space-y-6">
             {(!data.flags.parallel || data.flags.smartQueue !== "on") && (
                 <Notice tone="slate" icon={ShieldCheck}>
-                    <p className="font-bold text-zinc-900">Déploiement progressif.</p>
+                    <p className="font-medium text-zinc-900">Déploiement progressif.</p>
                     <p>
                         {data.flags.parallel ? "Le mode parallèle est activé sur cette instance." : "Le mode parallèle n'est pas encore activé sur cette instance (DIALER_PARALLEL) : vos réglages s'appliqueront dès son activation."}{" "}
                         {data.flags.smartQueue === "on"
@@ -101,7 +101,7 @@ export function SalesEnginePanel() {
             )}
 
             {/* ── Measured ── */}
-            <SettingsCard icon={Activity} tone="indigo" title="Mesures des 7 derniers jours" subtitle="Comptées depuis les tentatives réelles, sans double comptage">
+            <SettingsCard icon={Activity} title="Mesures des 7 derniers jours" subtitle="Comptées depuis les tentatives réelles, sans double comptage">
                 <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <Kpi label="Appels" value={m.dialing.attempts} />
                     <Kpi label="Conversations" value={m.dialing.conversations} strong />
@@ -120,7 +120,7 @@ export function SalesEnginePanel() {
                 {m.bySdr.length > 0 && (
                     <table className="mt-4 w-full text-left text-xs">
                         <thead className="text-[11px] uppercase tracking-wider text-zinc-400">
-                            <tr><th className="py-1.5 font-bold">SDR</th><th className="font-bold">Appels</th><th className="font-bold">Conversations</th><th className="font-bold">Abandons</th></tr>
+                            <tr><th className="py-1.5 font-medium">SDR</th><th className="font-medium">Appels</th><th className="font-medium">Conversations</th><th className="font-medium">Abandons</th></tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {m.bySdr.map((r) => (
@@ -146,19 +146,16 @@ export function SalesEnginePanel() {
             </SettingsCard>
 
             {/* ── Dialing policy ── */}
-            <SettingsCard icon={Rows3} tone="violet" title="Numérotation parallèle" subtitle="Plusieurs lignes sonnent ; une seule conversation est transmise au SDR">
-                <div className="space-y-3">
+            <SettingsCard icon={Rows3} title="Numérotation parallèle" subtitle="Plusieurs lignes sonnent ; une seule conversation est transmise au SDR">
+                <SettingsList>
                     <SettingRow
                         icon={Rows3}
-                        tone="violet"
                         title="Autoriser le mode parallèle"
                         description="Les SDR choisissent « Parallèle » au lancement du Mode Focus. Sans cela, seuls Focus et Power sont proposés."
-                        active={dialer.parallelEnabled}
                         control={<Toggle checked={dialer.parallelEnabled} onChange={(v) => setDialer({ ...dialer, parallelEnabled: v })} label="Mode parallèle" />}
                     />
                     <SettingRow
                         icon={PhoneOutgoing}
-                        tone="indigo"
                         title="Lignes par SDR"
                         description={`Plafond ; le moteur s'adapte au taux de décroché réel. Maximum ${data.ceilings.dialer.maxLinesPerSdr}.`}
                         control={
@@ -169,7 +166,6 @@ export function SalesEnginePanel() {
                     />
                     <SettingRow
                         icon={Gauge}
-                        tone="amber"
                         title="Plafond d'abandons"
                         description="Part des personnes ayant décroché sans SDR disponible. Au-delà, la session repasse sur une ligne. À valider avec les règles applicables à votre marché."
                         control={
@@ -180,7 +176,6 @@ export function SalesEnginePanel() {
                     />
                     <SettingRow
                         icon={Bot}
-                        tone="teal"
                         title="Détection incertaine"
                         description="Quand la détection ne sait pas si c'est une personne ou une messagerie."
                         control={
@@ -192,7 +187,6 @@ export function SalesEnginePanel() {
                     />
                     <SettingRow
                         icon={Clock}
-                        tone="slate"
                         title="Plages d'appel"
                         description={`Heure de ${dialer.timezone.replace("Europe/", "")}. Aucune ligne ne sonne en dehors.`}
                         control={
@@ -205,7 +199,7 @@ export function SalesEnginePanel() {
                                             type="button"
                                             aria-pressed={on}
                                             onClick={() => setWindow({ days: on ? window0.days.filter((x) => x !== d) : [...window0.days, d].sort() })}
-                                            className={cn("h-8 w-8 rounded-lg text-xs font-bold", on ? "bg-zinc-900 text-white" : "bg-slate-100 text-zinc-500")}
+                                            className={cn("h-8 w-8 rounded-lg text-xs font-medium", on ? "bg-zinc-900 text-white" : "bg-slate-100 text-zinc-500")}
                                         >
                                             {l}
                                         </button>
@@ -218,12 +212,11 @@ export function SalesEnginePanel() {
                     />
                     <SettingRow
                         icon={ShieldCheck}
-                        tone="emerald"
                         title="Appels par numéro et par jour"
                         description="Protège la réputation de vos numéros (risque d'étiquette « spam » chez les opérateurs)."
                         control={<input type="number" min={10} max={400} className={cn(SELECT, "w-24")} value={dialer.maxDailyCallsPerNumber} onChange={(e) => setDialer({ ...dialer, maxDailyCallsPerNumber: Number(e.target.value) })} aria-label="Appels par numéro et par jour" />}
                     />
-                </div>
+                </SettingsList>
                 {m.callerIds.length > 0 && (
                     <p className="mt-3 text-xs font-medium text-zinc-500">
                         Aujourd&apos;hui : {m.callerIds.map((c) => `${formatPhone(c.number)} ${c.today}/${dialer.maxDailyCallsPerNumber} (décroché ${pct(c.answerRate)})`).join(" · ")}
@@ -232,15 +225,15 @@ export function SalesEnginePanel() {
             </SettingsCard>
 
             {/* ── Post-call automation ── */}
-            <SettingsCard icon={Bot} tone="teal" title="Après l'appel" subtitle="Ce que le CRM peut faire seul. Par défaut, tout est proposé et validé d'un clic.">
-                <ul className="divide-y divide-slate-100">
+            <SettingsCard icon={Bot} title="Après l'appel" subtitle="Ce que le CRM peut faire seul. Par défaut, tout est proposé et validé d'un clic.">
+                <ul className="-mx-6 divide-y divide-line-subtle">
                     {(Object.keys(data.kindLabels) as ProposalKind[]).map((kind) => {
                         const capped = data.ceilings.automation[kind] !== "auto";
                         return (
-                            <li key={kind} className="flex items-center gap-3 py-2.5">
+                            <li key={kind} className="flex items-center gap-3 px-6 py-3 first:pt-0">
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-bold text-zinc-900">{data.kindLabels[kind]}</p>
-                                    {capped && <p className="text-[11px] font-medium text-zinc-400">Toujours validé par un SDR</p>}
+                                    <p className="text-sm font-medium text-ink">{data.kindLabels[kind]}</p>
+                                    {capped && <p className="text-xs text-ink-3">Toujours validé par un SDR</p>}
                                 </div>
                                 <select
                                     className={SELECT}
@@ -256,7 +249,7 @@ export function SalesEnginePanel() {
                         );
                     })}
                 </ul>
-                <p className="mt-2 text-[11px] font-medium text-zinc-400">
+                <p className="mt-2 text-xs text-ink-3">
                     « Automatique » ne s&apos;applique que si l&apos;IA cite la conversation avec une confiance suffisante ; sinon la proposition attend le SDR.
                 </p>
             </SettingsCard>
@@ -269,9 +262,9 @@ export function SalesEnginePanel() {
 function Kpi({ label, value, hint, strong, warn }: { label: string; value: string | number; hint?: string; strong?: boolean; warn?: boolean }) {
     return (
         <div className="rounded-2xl border border-slate-200/80 bg-white p-3">
-            <dt className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">{label}</dt>
-            <dd className={cn("mt-1 text-xl font-extrabold tabular-nums", warn ? "text-amber-700" : strong ? "text-indigo-700" : "text-zinc-900")}>{value}</dd>
-            {hint && <p className="text-[11px] font-medium text-zinc-400">{hint}</p>}
+            <dt className="text-xs text-ink-3">{label}</dt>
+            <dd className={cn("mt-1 text-xl font-semibold tabular-nums", warn ? "text-amber-700" : strong ? "text-indigo-700" : "text-zinc-900")}>{value}</dd>
+            {hint && <p className="text-xs text-ink-3">{hint}</p>}
         </div>
     );
 }

@@ -9,7 +9,7 @@ import { isOnoffApiConfigured, latestOnoffImportRuns, previewOnoffMembers, start
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Paramètres → Intégrations → Onoff (lib/onoff/import.ts).
+// Paramètres → Téléphonie → Onoff (lib/onoff/import.ts).
 //   GET                → connection state, what the CRM holds, the last imports
 //   GET ?members=1     → « Tester la clé » : Onoff members and their CRM user
 //   POST { from, to }  → start « Récupérer l'historique » (runs in the background)
