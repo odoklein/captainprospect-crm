@@ -129,6 +129,45 @@ export function resolveStatus(code: string, defs: ReadonlyMap<string, StatusDef>
     };
 }
 
+// ── Recording, search tokens ────────────────────────────────────────────────
+
+/** Where a journal row's recording streams from (the call detail returns the same URL). */
+export function recordingPath(kind: "action" | "call", id: string): string {
+    return kind === "action" ? `/api/actions/${id}/recording` : `/api/telephony/calls/${id}/recording`;
+}
+
+const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/**
+ * « @camille #acme relance » → SDR Camille, mission Acme, search « relance ».
+ * A token matches a facet whose label starts with it (a word of it), else
+ * contains it; a token that matches nothing stays in the search text.
+ */
+export function resolveSearchTokens(
+    q: string,
+    sdrs: { id: string; label: string }[],
+    missions: { id: string; label: string }[],
+): { q: string; sdrId: string | null; missionId: string | null } {
+    let sdrId: string | null = null;
+    let missionId: string | null = null;
+    const find = (token: string, options: { id: string; label: string }[]) => {
+        const t = fold(token);
+        return (
+            options.find((o) => fold(o.label).split(/\s+/).some((w) => w.startsWith(t))) ??
+            options.find((o) => fold(o.label).includes(t)) ??
+            null
+        );
+    };
+    const rest = q.replace(/(^|\s)([@#])([^\s@#]+)/g, (whole, lead: string, sign: string, token: string) => {
+        const hit = find(token, sign === "@" ? sdrs : missions);
+        if (!hit) return whole;
+        if (sign === "@") sdrId = hit.id;
+        else missionId = hit.id;
+        return lead;
+    });
+    return { q: rest.replace(/\s+/g, " ").trim(), sdrId, missionId };
+}
+
 // ── Call source ─────────────────────────────────────────────────────────────
 
 export type CallSource = "crm" | "allo" | null;

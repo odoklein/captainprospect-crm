@@ -8,6 +8,8 @@ export interface JournalStatusRef {
     code: string;
     label: string;
     color: string | null;
+    /** Reporting category (Paramètres → Téléphonie → Statuts): decides how loud the status shows. */
+    category?: string | null;
 }
 
 export interface JournalRow {
@@ -50,6 +52,8 @@ export interface JournalKpis {
     talkSeconds: number;
     measuredCalls: number;
     withRecording: number;
+    /** The same numbers over the equal-length period right before (journal view only). */
+    previous?: { calls: number; meetings: number; talkSeconds: number; measuredCalls: number } | null;
 }
 
 export interface JournalResponse {

@@ -16,7 +16,7 @@ import { prisma } from "@/lib/prisma";
 import type { PeriodRange } from "@/lib/manager-home/rules";
 import { getTwilioConfig } from "@/lib/telephony/config";
 import { readSummaryState } from "@/lib/telephony/summary";
-import { QUALIFY_GRACE_MINUTES, callSource, resolveStatus, type JournalFilters, type StatusDef } from "./filters";
+import { QUALIFY_GRACE_MINUTES, callSource, recordingPath, resolveStatus, type JournalFilters, type StatusDef } from "./filters";
 import type { CallDetail, JournalFacet, JournalResponse, JournalRow } from "./types";
 
 type Defs = Map<string, StatusDef>;
@@ -50,12 +50,12 @@ function searchClause(q: string): Prisma.ActionWhereInput | null {
     };
 }
 
-/** Period + mission + search: what every facet shares. */
-function baseWhere(f: JournalFilters, range: PeriodRange): Prisma.ActionWhereInput {
+/** Period + mission + search: what every facet shares. `prev`: the period right before, for the comparison. */
+function baseWhere(f: JournalFilters, range: PeriodRange, prev = false): Prisma.ActionWhereInput {
     const search = searchClause(f.q);
     return {
         channel: "CALL",
-        createdAt: { gte: range.from, lt: range.to },
+        createdAt: prev ? { gte: range.prevFrom, lt: range.prevTo } : { gte: range.from, lt: range.to },
         ...(f.missionId ? { campaign: { missionId: f.missionId } } : {}),
         ...(search ?? {}),
     };
@@ -104,6 +104,7 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
     const resultClause: Prisma.ActionWhereInput = f.results.length ? { result: { in: f.results as never[] } } : {};
     const recordingClause: Prisma.ActionWhereInput = f.withRecording ? { callRecordingUrl: { not: null } } : {};
     const full: Prisma.ActionWhereInput = { AND: [base, sdrClause, resultClause, recordingClause] };
+    const prevFull: Prisma.ActionWhereInput = { AND: [baseWhere(f, range, true), sdrClause, resultClause, recordingClause] };
 
     // Facets ignore their own dimension so the other options stay visible.
     const statusFacetWhere: Prisma.ActionWhereInput = { AND: [base, sdrClause, recordingClause] };
@@ -120,7 +121,7 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
         ],
     };
 
-    const [defs, rows, total, agg, withRecording, meetings, statusGroups, sdrGroups, campaignGroups, unqualified] = await Promise.all([
+    const [defs, rows, total, agg, withRecording, meetings, statusGroups, sdrGroups, campaignGroups, unqualified, prevTotal, prevAgg, prevMeetings] = await Promise.all([
         loadStatusDefs(),
         prisma.action.findMany({
             where: full,
@@ -150,6 +151,9 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
         prisma.action.groupBy({ by: ["sdrId"], where: sdrFacetWhere, _count: { _all: true } }),
         prisma.action.groupBy({ by: ["campaignId"], where: missionFacetWhere, _count: { _all: true } }),
         prisma.telephonyCall.count({ where: unqualifiedWhere(f, range) }),
+        prisma.action.count({ where: prevFull }),
+        prisma.action.aggregate({ where: { AND: [prevFull, { duration: { not: null } }] }, _sum: { duration: true }, _count: { _all: true } }),
+        prisma.action.count({ where: { AND: [prevFull, { result: "MEETING_BOOKED" }] } }),
     ]);
 
     // Telephony data of the rows shown (Twilio status, talk time).
@@ -175,7 +179,7 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
             company: company ? { id: company.id, name: company.name, website: company.website } : null,
             phone: t?.toNumber ?? r.contact?.phone ?? company?.phone ?? null,
             mission: m ? { id: m.id, name: m.name, client: m.client?.name ?? null } : null,
-            status: { code: s.code, label: s.label, color: s.color },
+            status: { code: s.code, label: s.label, color: s.color, category: s.category },
             telephonyStatus: t?.status ?? null,
             durationSec: r.duration ?? t?.durationSec ?? null,
             hasRecording: Boolean(r.callRecordingUrl),
@@ -229,6 +233,7 @@ async function journalActions(f: JournalFilters, range: PeriodRange, telephonyEn
             talkSeconds: agg._sum.duration ?? 0,
             measuredCalls: agg._count._all,
             withRecording,
+            previous: { calls: prevTotal, meetings: prevMeetings, talkSeconds: prevAgg._sum.duration ?? 0, measuredCalls: prevAgg._count._all },
         },
         unqualified,
         facets: {
@@ -352,7 +357,7 @@ export async function getCallDetail(kind: "action" | "call", id: string): Promis
             callbackDate: null,
             durationSec: t.durationSec,
             source: "crm",
-            recordingUrl: t.recordingUrl ? `/api/telephony/calls/${t.id}/recording` : null,
+            recordingUrl: t.recordingUrl ? recordingPath("call", t.id) : null,
             summary: null,
             transcription: null,
             ai: readSummaryState(t),
@@ -396,13 +401,13 @@ export async function getCallDetail(kind: "action" | "call", id: string): Promis
         company: company ? { id: company.id, name: company.name, website: company.website } : null,
         phone: t?.toNumber ?? a.contact?.phone ?? company?.phone ?? null,
         mission: m ? { id: m.id, name: m.name, client: m.client?.name ?? null } : null,
-        status: { code: s.code, label: s.label, color: s.color },
+        status: { code: s.code, label: s.label, color: s.color, category: s.category },
         note: a.note,
         callbackDate: a.callbackDate?.toISOString() ?? null,
         durationSec: a.duration ?? t?.durationSec ?? null,
         source: callSource({ hasTelephonyCall: Boolean(t), hasRecording: Boolean(a.callRecordingUrl), enriched: Boolean(a.callEnrichmentAt) }),
         // Streamed (with the provider's credentials) by the existing action route.
-        recordingUrl: a.callRecordingUrl ? `/api/actions/${a.id}/recording` : null,
+        recordingUrl: a.callRecordingUrl ? recordingPath("action", a.id) : null,
         summary: a.callSummary,
         transcription: a.callTranscription,
         ai: t ? readSummaryState(t) : { status: "none" },
@@ -439,6 +444,6 @@ async function callHistory(contactId: string | null, companyId: string | null, d
     });
     return rows.map((r) => {
         const s = resolveStatus(r.result, defs);
-        return { id: r.id, at: r.createdAt.toISOString(), sdr: r.sdr.name, status: { code: s.code, label: s.label, color: s.color }, durationSec: r.duration, channel: r.channel, note: r.note, summary: r.callSummary };
+        return { id: r.id, at: r.createdAt.toISOString(), sdr: r.sdr.name, status: { code: s.code, label: s.label, color: s.color, category: s.category }, durationSec: r.duration, channel: r.channel, note: r.note, summary: r.callSummary };
     });
 }

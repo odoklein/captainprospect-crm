@@ -4,25 +4,39 @@
 // CALLS JOURNAL — every call of the team (manager) or of one SDR (« Mes appels»), with the status the SDR logged,
 // its duration, recording, AI summary and transcript.
 //
-// Filters live in the URL (bookmarkable, shareable). Facets come from the
-// API with the other filters applied, so counts always add up. Two views:
-// the journal, and integrated-phone calls nobody qualified (the process gap).
+// The shared workspace frame (components/workspace): header with the views,
+// toolbar, numbers compared with the previous period, the table, the call
+// beside it on wide screens. Filters live in the URL (bookmarkable,
+// shareable). Facets come from the API with the other filters applied, so
+// counts always add up. Two views: the journal, and integrated-phone calls
+// nobody qualified (the process gap) — where an SDR lands when they have some.
+//
+// Everything a review needs is on the row: Espace plays the recording in
+// place (←/→ 10 s), j/k walk the calls (and the pages), c calls back, q
+// qualifies; « @camille #acme » in the search picks the SDR and the mission.
 // ============================================
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Headphones, Mic, PhoneCall, PhoneIncoming, RefreshCw, RotateCcw, Search, Sparkles, Voicemail, X } from "lucide-react";
-import { Kbd } from "@/components/ui";
+import { ChevronRight, Headphones, Pause, Phone, PhoneIncoming, Play, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { activeFilterCount, journalQuery, parseJournalFilters, todayParis, type JournalFilters } from "@/lib/calls-journal/filters";
+import { activeFilterCount, journalQuery, parseJournalFilters, recordingPath, resolveSearchTokens, todayParis, type JournalFilters } from "@/lib/calls-journal/filters";
 import type { JournalResponse, JournalRow } from "@/lib/calls-journal/types";
 import { TELEPHONY_STATUS_LABELS, isFinalStatus } from "@/lib/telephony/status";
+import { statusFamily, type StatusFamily } from "@/lib/workspace/status-family";
 import { formatDuration, formatPhone } from "@/components/incoming-calls/useIncomingCalls";
 import { ProspectIdentity } from "@/components/sdr/workspace/ProspectIdentity";
-import { StatusLabel } from "@/components/calls/StatusLabel";
 import { StatusDistribution } from "@/components/calls/StatusDistribution";
 import { CallDetailDrawer, CallDetailPane } from "@/components/calls/CallDetailDrawer";
 import { useCountUp } from "@/components/calls/useCountUp";
+import { useSoftphone } from "@/components/telephony/SoftphoneProvider";
+import { StatusPill } from "@/components/workspace/StatusPill";
+import { useWorkspaceKeys } from "@/components/workspace/useWorkspaceKeys";
+import {
+    CONTROL, DateRangeButton, Delta, EmptyBlock, FacetSelect, FIRST_CELL, ICON_CONTROL, KeyHints, LAST_CELL, LoadingBar, Metric, MetricStrip,
+    PagerButton, ResetButton, SearchField, ShortcutsDialog, TableSkeleton, TD, TH, ToggleChip, ViewTabs, WorkspaceFooter,
+    WorkspaceFrame, WorkspaceHeader, WorkspaceMain, WorkspaceToolbar, useWide, type ShortcutGroup,
+} from "@/components/workspace/Workspace";
 
 // ── period presets (Paris days) ─────────────────────────────────────────────
 
@@ -48,18 +62,9 @@ function hms(sec: number): string {
     return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`;
 }
 
-/** Wide enough for the call to sit beside the list; null until known (SSR). */
-function useWide(): boolean | null {
-    return useSyncExternalStore<boolean | null>(
-        (onChange) => {
-            const mql = window.matchMedia("(min-width: 1024px)");
-            mql.addEventListener("change", onChange);
-            return () => mql.removeEventListener("change", onChange);
-        },
-        () => window.matchMedia("(min-width: 1024px)").matches,
-        () => null,
-    );
-}
+const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+/** A search token being typed (« @cam »): wait for Entrée instead of searching it. */
+const PENDING_TOKEN = /(^|\s)[@#][^\s]*$/;
 
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -85,9 +90,17 @@ export function CallsJournal(props: CallsJournalProps) {
     );
 }
 
+interface Playback {
+    id: string;
+    time: number;
+    duration: number;
+    playing: boolean;
+}
+
 function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, refreshKey = 0 }: CallsJournalProps) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const softphone = useSoftphone();
 
     const filters = useMemo<JournalFilters>(() => {
         const parsed = parseJournalFilters(new URLSearchParams(searchParams.toString()));
@@ -135,7 +148,15 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         return () => ctrl.abort();
     }, [query, apiBase, requestKey]);
 
-    // ── search (debounced into the URL) ────────────────────────────────────
+    // An SDR with calls left without a status lands on them: it is their work in arrears.
+    const autoView = useRef(false);
+    useEffect(() => {
+        if (autoView.current || scope !== "mine" || !data) return;
+        autoView.current = true;
+        if (!searchParams.has("view") && data.view === "journal" && data.unqualified > 0) setFilters({ view: "unqualified", results: [] });
+    }, [data, scope, searchParams, setFilters]);
+
+    // ── search (debounced into the URL; @sdr / #mission tokens on Entrée) ──
     const [q, setQ] = useState(filters.q);
     const [urlQ, setUrlQ] = useState(filters.q);
     const searchRef = useRef<HTMLInputElement>(null);
@@ -145,21 +166,36 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         setQ(filters.q);
     }
     useEffect(() => {
-        if (q === filters.q) return;
+        if (q === filters.q || PENDING_TOKEN.test(q)) return;
         const t = setTimeout(() => setFilters({ q: q.trim() }), 300);
         return () => clearTimeout(t);
     }, [q, filters.q, setFilters]);
 
+    const applyTokens = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key !== "Enter" || !data || !/[@#]/.test(q)) return;
+        const r = resolveSearchTokens(q, scope === "team" ? data.facets.sdrs : [], data.facets.missions);
+        if (!r.sdrId && !r.missionId) return;
+        e.preventDefault();
+        setQ(r.q);
+        setUrlQ(r.q);
+        setFilters({ q: r.q, ...(r.sdrId ? { sdrIds: [r.sdrId] } : {}), ...(r.missionId ? { missionId: r.missionId } : {}) });
+    };
+
     // ── selection & detail ─────────────────────────────────────────────────
     const [cursor, setCursor] = useState(0);
     const [cursorQuery, setCursorQuery] = useState(query);
+    // Walking back past the first row opens the previous page on its last row.
+    const [startAtEnd, setStartAtEnd] = useState(false);
     const [open, setOpen] = useState<{ id: string; kind: "action" | "call" } | null>(null);
+    const [help, setHelp] = useState(false);
     const rows = useMemo(() => data?.rows ?? [], [data]);
-    // A new filter set starts the keyboard cursor back on the first row.
+    // A new filter set (or page) starts the keyboard cursor on its first row.
     if (cursorQuery !== query) {
         setCursorQuery(query);
-        setCursor(0);
+        setCursor(startAtEnd ? -1 : 0);
+        if (startAtEnd) setStartAtEnd(false);
     }
+    const cur = rows.length ? (cursor < 0 ? rows.length - 1 : Math.min(cursor, rows.length - 1)) : 0;
 
     const statusMeta = useMemo(() => {
         const m = new Map<string, { label: string; color: string | null }>();
@@ -167,60 +203,103 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         return m;
     }, [data]);
 
-    const wide = useWide();
-    // Moves the cursor; with the pane open, the pane follows it.
-    const move = useCallback(
-        (delta: number) => {
-            if (!rows.length) return;
-            const next = Math.max(0, Math.min(rows.length - 1, cursor + delta));
-            setCursor(next);
-            if (open && wide) setOpen({ id: rows[next].id, kind: rows[next].kind });
-        },
-        [rows, cursor, open, wide],
-    );
-
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            const el = e.target as HTMLElement | null;
-            if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) {
-                if (e.key === "Escape") el.blur();
+    // ── inline playback: one audio element, the row shows its progress ─────
+    const audioRef = useRef<HTMLAudioElement>(null);
+    const [playback, setPlayback] = useState<Playback | null>(null);
+    const [audioError, setAudioError] = useState<string | null>(null);
+    const stopPlay = useCallback(() => {
+        const a = audioRef.current;
+        if (a && !a.paused) a.pause();
+        setPlayback(null);
+    }, []);
+    const togglePlay = useCallback(
+        (r: JournalRow) => {
+            const a = audioRef.current;
+            if (!a || !r.hasRecording) return;
+            if (playback?.id === r.id) {
+                if (a.paused) void a.play().catch(() => setAudioError(r.id));
+                else a.pause();
                 return;
             }
-            // The drawer (narrow screens) or another modal owns the keyboard.
-            if (loading || e.defaultPrevented || (e.key !== "Escape" && el?.closest("button, a, [role=button]")) || el?.closest("[data-call-keypad]") || (open && !wide) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('[aria-modal="true"]')) return;
-            if (e.key === "Escape" && open) {
-                setOpen(null);
-            } else if (e.key === "/") {
-                e.preventDefault();
-                searchRef.current?.focus();
-            } else if (e.key === "j" || e.key === "ArrowDown") {
-                e.preventDefault();
-                move(1);
-            } else if (e.key === "k" || e.key === "ArrowUp") {
-                e.preventDefault();
-                move(-1);
-            } else if (e.key === "Enter" && rows[cursor]) {
-                setOpen({ id: rows[cursor].id, kind: rows[cursor].kind });
-            }
-        };
-        window.addEventListener("keydown", onKey);
-        return () => window.removeEventListener("keydown", onKey);
-    }, [rows, cursor, open, wide, move, loading]);
+            setAudioError(null);
+            a.src = recordingPath(r.kind, r.id);
+            setPlayback({ id: r.id, time: 0, duration: r.durationSec ?? 0, playing: true });
+            void a.play().catch(() => {
+                setPlayback(null);
+                setAudioError(r.id);
+            });
+        },
+        [playback],
+    );
+    const seek = (delta: number) => {
+        const a = audioRef.current;
+        if (a && playback) a.currentTime = Math.max(0, Math.min(a.duration || Infinity, a.currentTime + delta));
+    };
 
-    useEffect(() => {
-        document.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" });
-    }, [cursor]);
+    const wide = useWide();
+    const lastRow = data ? Math.min(data.total, data.page * data.limit) : 0;
+    // Moves the cursor (and the pane with it); past either end, the next or previous page.
+    const move = (delta: number) => {
+        if (!rows.length || !data) return;
+        if (playback) stopPlay();
+        const next = cur + delta;
+        if (next >= rows.length) {
+            if (lastRow < data.total && !loading) setFilters({ page: data.page + 1 }, { keepPage: true });
+            return;
+        }
+        if (next < 0) {
+            if (data.page > 1 && !loading) {
+                setStartAtEnd(true);
+                setFilters({ page: data.page - 1 }, { keepPage: true });
+            }
+            return;
+        }
+        setCursor(next);
+        if (open && wide) setOpen({ id: rows[next].id, kind: rows[next].kind });
+        document.querySelector(`[data-row="${next}"]`)?.scrollIntoView({ block: "nearest" });
+    };
+
+    const canCall = scope === "mine";
+    const callBack = (r: JournalRow) => {
+        if (!r.phone) return;
+        const who = r.contact?.name ?? r.company?.name ?? formatPhone(r.phone);
+        if (!softphone.dial({ phone: r.phone, contactId: r.contact?.id ?? null, companyId: r.company?.id ?? null, label: who, sublabel: r.contact ? r.company?.name : null }))
+            window.location.assign(`tel:${r.phone}`);
+    };
+
+    const unqualified = filters.view === "unqualified";
+    const qualifyRow = !loading && unqualified && onQualify ? onQualify : undefined;
+    useWorkspaceKeys(
+        {
+            j: () => move(1),
+            ArrowDown: () => move(1),
+            k: () => move(-1),
+            ArrowUp: () => move(-1),
+            Enter: () => rows[cur] && !loading && setOpen({ id: rows[cur].id, kind: rows[cur].kind }),
+            Escape: () => (playback ? stopPlay() : setOpen(null)),
+            "/": () => searchRef.current?.focus(),
+            " ": () => rows[cur] && togglePlay(rows[cur]),
+            ArrowRight: playback ? () => seek(10) : null,
+            ArrowLeft: playback ? () => seek(-10) : null,
+            q: qualifyRow ? () => rows[cur]?.company && qualifyRow(rows[cur]) : null,
+            c: canCall ? () => rows[cur] && callBack(rows[cur]) : null,
+            "1": () => setFilters({ view: "journal", results: [] }),
+            "2": () => setFilters({ view: "unqualified", results: [] }),
+            "?": () => setHelp(true),
+        },
+        // The drawer (narrow screens) owns the keyboard.
+        !(open && wide === false),
+    );
 
     // ── derived ────────────────────────────────────────────────────────────
     const today = todayParis();
     const periodPresets = presets(today);
     const activePreset = periodPresets.find((p) => p.start === filters.start && p.end === filters.end)?.id ?? "custom";
     const multiDay = filters.start !== filters.end;
-    const unqualified = filters.view === "unqualified";
     const k = data?.kpis;
+    const prev = unqualified ? null : k?.previous ?? null;
     const filtered = activeFilterCount(filters) > 0;
     const firstRow = data ? (data.page - 1) * data.limit + 1 : 0;
-    const lastRow = data ? Math.min(data.total, data.page * data.limit) : 0;
 
     const showPane = Boolean(open) && wide === true;
     const resolveStatus = (code: string) => statusMeta.get(code) ?? null;
@@ -229,22 +308,30 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
         setFilters({ sdrIds: [], missionId: null, results: [], withRecording: false, q: "" });
     };
 
-    // A workspace, edge to edge: slim header and toolbar, the list scrolling
-    // under them, the call beside it (wide screens) instead of over it.
+    const shortcuts: ShortcutGroup[] = [
+        { title: "Se déplacer", keys: [[["j"], "Appel suivant (et page suivante)"], [["k"], "Appel précédent"], [["1", "2"], "Journal, Sans statut"], [["/"], "Rechercher (@sdr, #mission)"]] },
+        {
+            title: "Agir",
+            keys: [
+                [["Entrée"], "Ouvrir l'appel"],
+                [["Espace"], "Écouter, mettre en pause"],
+                [["←", "→"], "Reculer, avancer de 10 s"],
+                ...(onQualify ? ([[["q"], "Qualifier l'appel"]] as [string[], string][]) : []),
+                ...(canCall ? ([[["c"], "Rappeler le prospect"]] as [string[], string][]) : []),
+                [["Échap"], "Fermer, arrêter la lecture"],
+            ],
+        },
+    ];
+
     return (
-        <div className="cp-calling-workspace flex h-full min-h-0 w-full bg-canvas">
-            <div className="flex min-w-0 flex-1 flex-col">
-                {/* ── Header + views ── */}
-                <header className="shrink-0 border-b border-line bg-surface px-6">
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-4">
-                        <div className="min-w-0">
-                            <h1 className="text-[18px] font-semibold leading-tight tracking-[-0.015em] text-ink">{title}</h1>
-                            <p className="mt-0.5 truncate text-[12px] text-ink-3">{subtitle}</p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <button type="button" onClick={() => setReload((n) => n + 1)} disabled={loading}
-                                aria-label="Actualiser les appels" title="Actualiser les appels"
-                                className="flex h-8 w-8 items-center justify-center rounded-control border border-line text-ink-3 hover:bg-surface-2 disabled:opacity-50">
+        <WorkspaceFrame>
+            <WorkspaceMain>
+                <WorkspaceHeader
+                    title={title}
+                    subtitle={subtitle}
+                    actions={
+                        <>
+                            <button type="button" onClick={() => setReload((n) => n + 1)} disabled={loading} aria-label="Actualiser les appels" title="Actualiser les appels" className={ICON_CONTROL}>
                                 <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin motion-reduce:animate-none")} />
                             </button>
                             {headerActions}
@@ -265,182 +352,129 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                     </button>
                                 ))}
                             </div>
-                            <div className={cn("flex h-8 items-center gap-1 rounded-control border bg-surface px-2 text-[12px]", activePreset === "custom" ? "border-primary" : "border-line")}>
-                                <input
-                                    type="date"
-                                    aria-label="Du"
-                                    value={filters.start}
-                                    max={filters.end}
-                                    onChange={(e) => e.target.value && setFilters({ start: e.target.value })}
-                                    className="bg-transparent text-ink-2 outline-none"
-                                />
-                                <span className="text-ink-4">→</span>
-                                <input
-                                    type="date"
-                                    aria-label="Au"
-                                    value={filters.end}
-                                    min={filters.start}
-                                    max={today}
-                                    onChange={(e) => e.target.value && setFilters({ end: e.target.value })}
-                                    className="bg-transparent text-ink-2 outline-none"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <nav className="mt-3 flex items-center gap-5" aria-label="Vue">
-                        {(
-                            [
-                                ["journal", "Journal", data && !unqualified ? data.total : null],
-                                ["unqualified", "Sans statut", data?.unqualified ?? null],
-                            ] as const
-                        ).map(([id, label, count]) => (
-                            <button
-                                key={id}
-                                type="button"
-                                onClick={() => setFilters({ view: id, results: [] })}
-                                aria-current={filters.view === id ? "page" : undefined}
-                                className={cn(
-                                    "-mb-px flex items-center gap-2 border-b-2 pb-2.5 text-[13px] font-medium transition-colors",
-                                    filters.view === id ? "border-primary text-ink" : "border-transparent text-ink-3 hover:text-ink",
-                                )}
-                            >
-                                {label}
-                                {count !== null && count > 0 && (
-                                    <span
-                                        className={cn(
-                                            "rounded-full px-1.5 text-[11px] tabular-nums",
-                                            id === "unqualified" ? "bg-primary text-primary-fg" : "bg-surface-3 text-ink-3",
-                                        )}
-                                    >
-                                        {count}
-                                    </span>
-                                )}
-                            </button>
-                        ))}
-                    </nav>
-                </header>
-
-                {/* ── Toolbar ── */}
-                <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line-subtle bg-surface px-6 py-2.5">
-                    <label className="relative flex h-8 min-w-[220px] flex-1 items-center sm:max-w-[400px]">
-                        <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-ink-3" aria-hidden />
-                        <input
-                            ref={searchRef}
-                            value={q}
-                            onChange={(e) => setQ(e.target.value)}
-                            placeholder={unqualified ? "Numéro, ou un mot dit pendant l'appel…" : "Prospect, société, ou un mot dit pendant l'appel…"}
-                            className="h-full w-full rounded-control border border-line bg-surface-2/50 pl-8 pr-9 text-[13px] text-ink placeholder:text-ink-4 focus:border-primary focus:bg-surface focus:outline-none focus:ring-2 focus:ring-focus"
-                            aria-label="Rechercher"
+                            <DateRangeButton
+                                start={filters.start}
+                                end={filters.end}
+                                max={today}
+                                active={activePreset === "custom"}
+                                onChange={(start, end) => start && end && setFilters({ start, end })}
+                                note="Un an au plus. Les chiffres se comparent à la période de même durée juste avant."
+                            />
+                        </>
+                    }
+                    tabs={
+                        <ViewTabs
+                            label="Vue"
+                            value={filters.view}
+                            onChange={(id) => setFilters({ view: id, results: [] })}
+                            tabs={[
+                                { id: "journal", label: "Journal", count: data && !unqualified ? data.total : null, hotkey: "1" },
+                                { id: "unqualified", label: "Sans statut", count: data?.unqualified ?? null, tone: "primary", hotkey: "2" },
+                            ]}
                         />
-                        {q ? (
-                            <button type="button" onClick={() => setQ("")} className="absolute right-2 text-ink-3 hover:text-ink" aria-label="Effacer la recherche">
-                                <X className="h-4 w-4" />
-                            </button>
-                        ) : (
-                            <Kbd className="absolute right-2">/</Kbd>
-                        )}
-                    </label>
+                    }
+                />
 
+                <WorkspaceToolbar>
+                    <SearchField
+                        value={q}
+                        onChange={setQ}
+                        inputRef={searchRef}
+                        onKeyDown={applyTokens}
+                        placeholder={unqualified ? "Numéro, ou un mot dit pendant l'appel…" : scope === "team" ? "Prospect, mot dit pendant l'appel, @sdr, #mission…" : "Prospect, mot dit pendant l'appel, #mission…"}
+                    />
                     {scope === "team" && (
                         <FacetSelect label="SDR" value={filters.sdrIds[0] ?? ""} options={data?.facets.sdrs ?? []} onChange={(v) => setFilters({ sdrIds: v ? [v] : [] })} />
                     )}
                     {!unqualified && (
                         <FacetSelect label="Mission" value={filters.missionId ?? ""} options={data?.facets.missions ?? []} onChange={(v) => setFilters({ missionId: v || null })} />
                     )}
-                    <button
-                        type="button"
-                        onClick={() => setFilters({ withRecording: !filters.withRecording })}
-                        aria-pressed={filters.withRecording}
-                        className={cn(
-                            "cp-press flex h-8 items-center gap-1.5 rounded-control border px-2.5 text-[12.5px] transition-colors",
-                            filters.withRecording ? "border-primary bg-primary-soft font-medium text-primary-soft-ink" : "border-line bg-surface text-ink-2 hover:text-ink",
-                        )}
-                    >
+                    <ToggleChip pressed={filters.withRecording} onClick={() => setFilters({ withRecording: !filters.withRecording })}>
                         <Headphones className="h-3.5 w-3.5" /> Avec enregistrement
-                    </button>
-                    {filtered && (
-                        <button type="button" onClick={resetFilters} className="flex h-8 items-center gap-1.5 rounded-control px-2 text-[12.5px] text-ink-3 hover:bg-surface-2 hover:text-ink">
-                            <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
-                        </button>
-                    )}
-                </div>
+                    </ToggleChip>
+                    {filtered && <ResetButton onClick={resetFilters} />}
+                </WorkspaceToolbar>
 
                 {/* ── Numbers + list (one scroll; room at the end to clear the floating dock) ── */}
-                <div className="relative min-h-0 flex-1 overflow-auto pb-12" aria-busy={loading}>
-                    <div className={cn("sticky top-0 z-10 h-0.5 bg-primary transition-opacity motion-reduce:transition-none", loading ? "opacity-100" : "opacity-0")} />
+                <div className="@container relative min-h-0 flex-1 overflow-auto pb-12" aria-busy={loading}>
+                    <LoadingBar loading={loading} />
                     <span className="sr-only" role="status">{loading ? "Chargement des appels…" : error ? "Erreur de chargement" : `${data?.total ?? 0} appels`}</span>
-                    {data && (
-                        <section className={cn("border-b border-line-subtle px-6 py-4 transition-opacity", loading && "opacity-60")}>
-                            <dl className="flex flex-wrap gap-x-10 gap-y-3">
-                                <Metric label={unqualified ? "Sans statut" : "Appels"} value={<AnimatedNumber value={k!.calls} format={int} />} />
-                                {!unqualified && (
-                                    <Metric
-                                        label="RDV"
-                                        value={<AnimatedNumber value={k!.meetings} format={int} />}
-                                        hint={k!.calls ? `${((k!.meetings / k!.calls) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %` : undefined}
-                                    />
-                                )}
+                    {data && k && (
+                        <MetricStrip
+                            loading={loading}
+                            after={
+                                !unqualified && data.facets.statuses.length > 0 ? (
+                                    <div className="mt-4 hidden sm:block">
+                                        <StatusDistribution
+                                            items={data.facets.statuses}
+                                            selected={filters.results}
+                                            onToggle={(id) =>
+                                                setFilters({ results: filters.results.includes(id) ? filters.results.filter((r) => r !== id) : [...filters.results, id] })
+                                            }
+                                        />
+                                    </div>
+                                ) : unqualified ? (
+                                    <p className="mt-3 text-[12px] text-ink-3">
+                                        Appels passés avec le téléphone intégré depuis plus de 10 minutes, sans statut enregistré par le SDR.
+                                    </p>
+                                ) : null
+                            }
+                        >
+                            <Metric
+                                label={unqualified ? "Sans statut" : "Appels"}
+                                value={<AnimatedNumber value={k.calls} format={int} />}
+                                delta={prev && <Delta now={k.calls} before={prev.calls} />}
+                            />
+                            {!unqualified && (
                                 <Metric
-                                    label="Temps de parole"
-                                    value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds} format={(v) => hms(Math.round(v))} /> : "—"}
-                                    hint={k!.measuredCalls ? `${k!.measuredCalls} mesuré${k!.measuredCalls > 1 ? "s" : ""}` : undefined}
+                                    label="RDV"
+                                    value={<AnimatedNumber value={k.meetings} format={int} />}
+                                    hint={k.calls ? `${((k.meetings / k.calls) * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %` : undefined}
+                                    delta={prev && <Delta now={k.meetings} before={prev.meetings} />}
                                 />
-                                <Metric
-                                    label="Durée moyenne"
-                                    value={k!.measuredCalls ? <AnimatedNumber value={k!.talkSeconds / k!.measuredCalls} format={(v) => formatDuration(Math.round(v))} /> : "—"}
-                                />
-                                <Metric
-                                    label="Enregistrés"
-                                    value={<AnimatedNumber value={k!.withRecording} format={int} />}
-                                    hint={k!.calls ? `${Math.round((k!.withRecording / k!.calls) * 100)} %` : undefined}
-                                />
-                            </dl>
-                            {!unqualified && data.facets.statuses.length > 0 && (
-                                <div className="mt-4 hidden sm:block">
-                                    <StatusDistribution
-                                        items={data.facets.statuses}
-                                        selected={filters.results}
-                                        onToggle={(id) =>
-                                            setFilters({ results: filters.results.includes(id) ? filters.results.filter((r) => r !== id) : [...filters.results, id] })
-                                        }
-                                    />
-                                </div>
                             )}
-                            {unqualified && (
-                                <p className="mt-3 text-[12px] text-ink-3">
-                                    Appels passés avec le téléphone intégré depuis plus de 10 minutes, sans statut enregistré par le SDR.
-                                </p>
-                            )}
-                        </section>
+                            <Metric
+                                label="Temps de parole"
+                                value={k.measuredCalls ? <AnimatedNumber value={k.talkSeconds} format={(v) => hms(Math.round(v))} /> : "—"}
+                                hint={k.measuredCalls ? `${k.measuredCalls} mesuré${k.measuredCalls > 1 ? "s" : ""}` : undefined}
+                                delta={prev && k.measuredCalls > 0 && <Delta now={k.talkSeconds} before={prev.talkSeconds} />}
+                            />
+                            <Metric
+                                label="Durée moyenne"
+                                value={k.measuredCalls ? <AnimatedNumber value={k.talkSeconds / k.measuredCalls} format={(v) => formatDuration(Math.round(v))} /> : "—"}
+                            />
+                            <Metric
+                                label="Enregistrés"
+                                value={<AnimatedNumber value={k.withRecording} format={int} />}
+                                hint={k.calls ? `${Math.round((k.withRecording / k.calls) * 100)} %` : undefined}
+                            />
+                        </MetricStrip>
                     )}
 
-                    {error && <div role="alert" className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] text-danger-ink">
-                        <span>{error}{data ? " · Les derniers résultats restent affichés." : ""}</span>
-                        <button type="button" onClick={() => setReload((n) => n + 1)} className="rounded-lg border border-current px-3 py-1.5 font-semibold">Réessayer</button>
-                    </div>}
-                    {!data && !error && <TableSkeleton />}
-                    {data && rows.length === 0 && (
-                        <EmptyState unqualified={unqualified} filtered={filtered} telephonyEnabled={data.telephonyEnabled} onReset={resetFilters} />
+                    {error && (
+                        <div role="alert" className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-danger-line bg-danger-soft px-4 py-3 text-[13px] text-danger-ink">
+                            <span>
+                                {error}
+                                {data ? " · Les derniers résultats restent affichés." : ""}
+                            </span>
+                            <button type="button" onClick={() => setReload((n) => n + 1)} className="rounded-lg border border-current px-3 py-1.5 font-semibold">
+                                Réessayer
+                            </button>
+                        </div>
                     )}
+                    {!data && !error && <TableSkeleton />}
+                    {data && rows.length === 0 && <JournalEmpty unqualified={unqualified} filtered={filtered} telephonyEnabled={data.telephonyEnabled} onReset={resetFilters} />}
                     {data && rows.length > 0 && (
-                        <table
-                            className={cn(
-                                "w-full border-collapse bg-surface text-[13px] transition-opacity",
-                                // Beside the pane: fixed columns, the prospect and status truncate instead of scrolling sideways.
-                                showPane ? "table-fixed" : "table-fixed sm:table-auto",
-                                loading && "opacity-60",
-                            )}
-                        >
+                        <table className={cn("w-full table-fixed border-collapse bg-surface text-[13px] transition-opacity", loading && "opacity-60")}>
                             <thead className="sticky top-0 z-[1]">
-                                <tr className="bg-surface-2/95 text-left text-xs font-medium text-ink-3 shadow-[inset_0_-1px_0_var(--ds-line)] backdrop-blur">
-                                    <th className={cn("h-9 py-0 pl-4 pr-2 font-medium sm:pl-6 sm:pr-3", showPane ? (multiDay ? "w-[110px]" : "w-[76px]") : "w-[68px] sm:w-[92px]")}>{multiDay ? "Date" : "Heure"}</th>
-                                    <th className="px-3 h-9 py-0 font-medium">Prospect</th>
-                                    <th className={cn("w-[112px] px-2 h-9 py-0 font-medium sm:w-auto sm:px-3", showPane && "sm:w-[140px]")}>{unqualified ? "Issue" : "Statut"}</th>
-                                    <th className={cn("hidden h-9 px-3 py-0 text-right font-medium sm:table-cell", showPane ? "w-[76px]" : "w-[84px]")}>Durée</th>
-                                    {scope === "team" && <th className={cn("px-3 h-9 py-0 font-medium", showPane && "w-[52px]")}>SDR</th>}
-                                    {!unqualified && !showPane && <th className="hidden px-3 h-9 py-0 font-medium xl:table-cell">Mission</th>}
-                                    <th className={cn("hidden h-9 py-0 pl-3 pr-6 text-right font-medium sm:table-cell", onQualify && unqualified ? "w-[150px]" : showPane ? "w-[72px]" : "w-[80px]")} aria-label="Contenu" />
+                                <tr className="bg-surface-2/95 shadow-[inset_0_-1px_0_var(--ds-line)] backdrop-blur">
+                                    <th className={cn(TH, FIRST_CELL, multiDay ? "w-[104px]" : "w-[76px]")}>{multiDay ? "Date" : "Heure"}</th>
+                                    <th className={TH}>Prospect</th>
+                                    <th className={cn(TH, "w-[132px] @min-[720px]:w-[188px]")}>{unqualified ? "Issue" : "Statut"}</th>
+                                    <th className={cn(TH, "hidden w-[108px] @min-[560px]:table-cell")}>Durée</th>
+                                    {scope === "team" && <th className={cn(TH, "hidden @min-[720px]:table-cell", showPane ? "w-[52px]" : "w-[152px]")}>SDR</th>}
+                                    {!unqualified && !showPane && <th className={cn(TH, "hidden w-[18%] @min-[1100px]:table-cell")}>Mission</th>}
+                                    <th className={cn(TH, LAST_CELL, unqualified && onQualify ? (canCall ? "w-[144px]" : "w-[112px]") : canCall ? "w-[64px]" : "w-[48px]")} aria-label="Actions" />
                                 </tr>
                             </thead>
                             <tbody>
@@ -449,14 +483,18 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                         key={r.id}
                                         row={r}
                                         index={i}
-                                        active={i === cursor}
+                                        active={i === cur}
                                         opened={open?.id === r.id}
                                         multiDay={multiDay}
                                         unqualified={unqualified}
                                         showSdr={scope === "team"}
                                         showMission={!showPane}
                                         compact={showPane}
-                                        onQualify={!loading && unqualified && onQualify ? () => onQualify(r) : undefined}
+                                        playback={playback?.id === r.id ? playback : null}
+                                        audioError={audioError === r.id}
+                                        onPlay={() => togglePlay(r)}
+                                        onCall={canCall && r.phone ? () => callBack(r) : undefined}
+                                        onQualify={qualifyRow ? () => qualifyRow(r) : undefined}
                                         onOpen={() => {
                                             if (loading) return;
                                             setCursor(i);
@@ -467,14 +505,40 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                             </tbody>
                         </table>
                     )}
+                    <audio
+                        ref={audioRef}
+                        preload="none"
+                        className="hidden"
+                        onTimeUpdate={(e) => {
+                            const t = e.currentTarget.currentTime;
+                            setPlayback((p) => (p ? { ...p, time: t } : p));
+                        }}
+                        onLoadedMetadata={(e) => {
+                            const d = e.currentTarget.duration;
+                            setPlayback((p) => (p && Number.isFinite(d) ? { ...p, duration: d } : p));
+                        }}
+                        onPlay={() => setPlayback((p) => (p ? { ...p, playing: true } : p))}
+                        onPause={() => setPlayback((p) => (p ? { ...p, playing: false } : p))}
+                        onEnded={() => setPlayback(null)}
+                        onError={() => {
+                            if (playback) setAudioError(playback.id);
+                            setPlayback(null);
+                        }}
+                    />
                 </div>
 
                 {/* ── Footer: where you are, how to move. Right-aligned: the dock floats bottom left. ── */}
                 {data && rows.length > 0 && (
-                    <footer className="flex h-10 shrink-0 items-center justify-end gap-4 border-t border-line bg-surface px-6 text-[12px] text-ink-3">
-                        <span className="hidden items-center gap-1 text-[11px] text-ink-4 xl:flex">
-                            <Kbd>j</Kbd> <Kbd>k</Kbd> se déplacer · <Kbd>Entrée</Kbd> ouvrir · <Kbd>/</Kbd> rechercher
-                        </span>
+                    <WorkspaceFooter>
+                        <KeyHints
+                            hints={[
+                                [["j", "k"], "se déplacer"],
+                                [["Entrée"], "ouvrir"],
+                                [["Espace"], "écouter"],
+                                ...(qualifyRow ? ([[["q"], "qualifier"]] as [string[], string][]) : []),
+                            ]}
+                            onHelp={() => setHelp(true)}
+                        />
                         <span className="tabular-nums">
                             {firstRow}–{lastRow} sur {data.total.toLocaleString("fr-FR")}
                         </span>
@@ -488,9 +552,9 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                                 </PagerButton>
                             </div>
                         )}
-                    </footer>
+                    </WorkspaceFooter>
                 )}
-            </div>
+            </WorkspaceMain>
 
             {showPane && (
                 <CallDetailPane
@@ -498,8 +562,8 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                     target={open}
                     onClose={() => setOpen(null)}
                     onOpenCall={(id) => setOpen({ id, kind: "action" })}
-                    onPrev={cursor > 0 ? () => move(-1) : undefined}
-                    onNext={cursor < rows.length - 1 ? () => move(1) : undefined}
+                    onPrev={cur > 0 ? () => move(-1) : undefined}
+                    onNext={cur < rows.length - 1 ? () => move(1) : undefined}
                     highlight={filters.q}
                     resolveStatus={resolveStatus}
                 />
@@ -514,7 +578,8 @@ function Journal({ scope, apiBase, title, subtitle, headerActions, onQualify, re
                     resolveStatus={resolveStatus}
                 />
             )}
-        </div>
+            <ShortcutsDialog open={help} onClose={() => setHelp(false)} groups={shortcuts} />
+        </WorkspaceFrame>
     );
 }
 
@@ -527,50 +592,16 @@ function AnimatedNumber({ value, format }: { value: number; format: (v: number) 
 
 const int = (v: number) => Math.round(v).toLocaleString("fr-FR");
 
-function Metric({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
-    return (
-        <div>
-            <dt className="text-[11.5px] font-medium text-ink-3">{label}</dt>
-            <dd className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-[19px] font-semibold tabular-nums tracking-tight text-ink">{value}</span>
-                {hint && <span className="text-[11.5px] text-ink-3">{hint}</span>}
-            </dd>
-        </div>
-    );
-}
-
-function FacetSelect({
-    label,
-    value,
-    options,
-    onChange,
-}: {
-    label: string;
-    value: string;
-    options: { id: string; label: string; count: number }[];
-    onChange: (v: string) => void;
-}) {
-    return (
-        <label className={cn("relative flex h-8 items-center rounded-control border bg-surface text-[12.5px]", value ? "border-primary" : "border-line")}>
-            <span className="pointer-events-none pl-3 text-ink-3">{label}</span>
-            <select
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="h-full max-w-[220px] cursor-pointer appearance-none bg-transparent pl-1.5 pr-7 font-medium text-ink outline-none"
-                aria-label={label}
-            >
-                <option value="">Tous</option>
-                {options.map((o) => (
-                    <option key={o.id} value={o.id}>
-                        {o.label} ({o.count})
-                    </option>
-                ))}
-            </select>
-            <span className="pointer-events-none absolute right-2.5 text-[10px] text-ink-3" aria-hidden>
-                ▾
-            </span>
-        </label>
-    );
+/** The status cell: the SDR's status, else what the phone saw. */
+function rowStatus(r: JournalRow): { label: string; color: string | null; family: StatusFamily } | null {
+    if (r.status) return { label: r.status.label, color: r.status.color, family: statusFamily(r.status.code, r.status.category) };
+    if (!r.telephonyStatus) return null;
+    // Past the grace period, a non-final status means Twilio's last callback never arrived.
+    if (r.inbound && r.telephonyStatus !== "COMPLETED")
+        return r.voicemail ? { label: "Message vocal", color: null, family: "pending" } : { label: "Manqué", color: null, family: "alert" };
+    return isFinalStatus(r.telephonyStatus)
+        ? { label: TELEPHONY_STATUS_LABELS[r.telephonyStatus], color: null, family: "noreach" }
+        : { label: "Issue inconnue", color: null, family: "noreach" };
 }
 
 function Row({
@@ -583,6 +614,10 @@ function Row({
     showSdr,
     showMission,
     compact,
+    playback,
+    audioError,
+    onPlay,
+    onCall,
     onQualify,
     onOpen,
 }: {
@@ -597,72 +632,118 @@ function Row({
     showMission: boolean;
     /** The detail pane is open: the SDR shows as initials only. */
     compact: boolean;
+    /** This row's recording is the one playing. */
+    playback: Playback | null;
+    audioError: boolean;
+    onPlay: () => void;
+    onCall?: () => void;
     onQualify?: () => void;
     onOpen: () => void;
 }) {
     const at = new Date(r.at);
     const who = r.contact?.name ?? r.company?.name ?? (r.phone ? formatPhone(r.phone) : "—");
+    const status = rowStatus(r);
+    const progress = playback && playback.duration > 0 ? Math.min(100, (playback.time / playback.duration) * 100) : 0;
     return (
         <tr
             data-row={index}
             onClick={onOpen}
-            style={{ ["--i" as string]: index }}
             className={cn(
                 "cp-journal-row group cursor-pointer scroll-mt-9 border-b border-line-subtle transition-colors duration-150",
                 opened ? "bg-primary-soft" : active ? "bg-primary-soft/50" : "hover:bg-surface-2",
             )}
         >
-            <td className={cn("whitespace-nowrap py-2.5 pl-4 pr-2 text-[11px] tabular-nums text-ink-2 sm:pl-6 sm:pr-3 sm:text-[13px]", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
+            <td className={cn(TD, FIRST_CELL, "whitespace-nowrap text-[12px] tabular-nums text-ink-2", (active || opened) && "shadow-[inset_2px_0_0_var(--ds-primary)]")}>
                 {multiDay && <span className="mr-1.5 text-ink-3">{at.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</span>}
                 {at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
             </td>
-            <td className="max-w-[320px] px-3 py-2.5">
-                <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className="block w-full min-w-0 text-left" aria-label={`Ouvrir l’appel de ${who}`}><ProspectIdentity name={r.contact?.name} company={r.company?.name ?? who} role={r.contact?.title} website={r.company?.website} compact /></button>
+            <td className={cn(TD, "min-w-0")}>
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onOpen();
+                    }}
+                    className="block w-full min-w-0 text-left"
+                    aria-label={`Ouvrir l’appel de ${who}`}
+                >
+                    <ProspectIdentity name={r.contact?.name} company={r.company?.name ?? who} role={r.contact?.title} website={r.company?.website} compact />
+                </button>
                 {r.inbound && (
                     <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-success-ink sm:pl-[47px]">
                         <PhoneIncoming className="h-3 w-3" aria-hidden /> Appel entrant
                     </p>
                 )}
-                {r.note && !unqualified && <p className="mt-1 truncate text-[11px] text-ink-3 sm:pl-[47px]">{r.note}</p>}
-                {onQualify && <button type="button" disabled={!r.company} onClick={(e) => { e.stopPropagation(); onQualify(); }} className="mt-1.5 rounded-control bg-primary px-2.5 py-1 text-[12px] font-semibold text-primary-fg disabled:opacity-40 sm:hidden">Qualifier</button>}
+                {r.note && !unqualified && <p className="mt-1 truncate text-[12px] text-ink-3 sm:pl-[47px]">{r.note}</p>}
             </td>
-            <td className="max-w-[220px] px-2 py-2.5 text-[11px] sm:px-3 sm:text-[13px]">
-                {r.status ? (
-                    <StatusLabel label={r.status.label} color={r.status.color} />
-                ) : r.telephonyStatus ? (
-                    // Past the grace period, a non-final status means Twilio's last callback never arrived.
-                    r.inbound && r.telephonyStatus !== "COMPLETED" ? (
-                        <span className={r.voicemail ? "font-medium text-warning-ink" : "text-danger-ink"}>{r.voicemail ? "Message vocal" : "Manqué"}</span>
-                    ) : (
-                        <span className={isFinalStatus(r.telephonyStatus) ? "text-ink-2" : "text-ink-3"}>
-                            {isFinalStatus(r.telephonyStatus) ? TELEPHONY_STATUS_LABELS[r.telephonyStatus] : "Issue inconnue"}
-                        </span>
-                    )
-                ) : (
-                    <span className="text-ink-4">—</span>
-                )}
+            <td className={cn(TD, "min-w-0")}>
+                {status ? <StatusPill label={status.label} color={status.color} family={status.family} summary={r.hasSummary} /> : <span className="text-ink-4">—</span>}
             </td>
-            <td className="hidden whitespace-nowrap px-3 py-2.5 text-right sm:table-cell tabular-nums text-ink-2">
-                {r.durationSec === null ? (
+            <td className={cn(TD, "hidden whitespace-nowrap tabular-nums text-ink-2 @min-[560px]:table-cell")}>
+                {r.hasRecording ? (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onPlay();
+                        }}
+                        aria-label={playback?.playing ? "Mettre en pause" : "Écouter l'enregistrement (Espace)"}
+                        title={audioError ? "Enregistrement indisponible" : playback ? "←/→ : 10 s" : "Écouter (Espace)"}
+                        className={cn(
+                            "-ml-1.5 inline-flex h-7 items-center gap-1.5 rounded-control px-1.5 transition-colors hover:bg-surface-3",
+                            playback && "bg-surface-3 text-ink",
+                            audioError && "text-danger-ink",
+                        )}
+                    >
+                        {playback?.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                        {playback ? (
+                            <>
+                                <span className="relative h-1 w-10 overflow-hidden rounded-full bg-line" aria-hidden>
+                                    <span className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${progress}%` }} />
+                                </span>
+                                <span className="text-[12px]">{clock(playback.time)}</span>
+                            </>
+                        ) : (
+                            <span>{audioError ? "Indisponible" : r.durationSec ? formatDuration(r.durationSec) : "Écouter"}</span>
+                        )}
+                    </button>
+                ) : r.durationSec === null ? (
                     <span className="text-ink-4">—</span>
                 ) : (
                     <span className={r.durationSec === 0 ? "text-ink-4" : undefined}>{formatDuration(r.durationSec)}</span>
                 )}
             </td>
             {showSdr && (
-                <td className="whitespace-nowrap px-3 py-2.5">
-                    <span className="flex items-center gap-2" title={r.sdr.name}>
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-surface-3 text-[10px] font-semibold text-ink-2">
+                <td className={cn(TD, "hidden whitespace-nowrap @min-[720px]:table-cell")}>
+                    <span className="flex min-w-0 items-center gap-2" title={r.sdr.name}>
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-3 text-[9.5px] font-semibold text-ink-2">
                             {r.sdr.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
                         </span>
-                        {!compact && <span className="text-ink-2">{r.sdr.name}</span>}
+                        {!compact && <span className="truncate text-ink-2">{r.sdr.name}</span>}
                     </span>
                 </td>
             )}
-            {!unqualified && showMission && <td className="max-w-[200px] truncate px-3 py-2.5 text-ink-3">{r.mission?.name ?? "—"}</td>}
-            <td className="hidden py-2.5 pl-3 pr-6 sm:table-cell">
-                <span className="flex items-center justify-end gap-1.5 text-ink-3">
-                  {onQualify && (
+            {!unqualified && showMission && <td className={cn(TD, "hidden truncate text-ink-3 @min-[1100px]:table-cell")}>{r.mission?.name ?? "—"}</td>}
+            <td className={cn(TD, LAST_CELL, "relative")}>
+                <span className="absolute inset-y-0 right-0 flex items-center gap-1 pr-4 sm:pr-6">
+                    {onCall && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onCall();
+                            }}
+                            title="Rappeler (c)"
+                            aria-label={`Rappeler ${who}`}
+                            className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-control border border-line bg-surface text-ink-2 transition hover:text-ink",
+                                active ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100",
+                            )}
+                        >
+                            <Phone className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+                    {onQualify && (
                         <button
                             type="button"
                             onClick={(e) => {
@@ -670,54 +751,20 @@ function Row({
                                 onQualify();
                             }}
                             disabled={!r.company}
-                            title={r.company ? "Enregistrer le résultat de cet appel" : "Numéro hors CRM : rien à qualifier"}
-                            className="cp-press mr-1 h-7 rounded-control bg-primary px-2.5 text-[12px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
+                            title={r.company ? "Enregistrer le résultat de cet appel (q)" : "Numéro hors CRM : rien à qualifier"}
+                            className="cp-press h-7 rounded-control bg-primary px-2.5 text-[12px] font-semibold text-primary-fg hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
                         >
                             Qualifier
                         </button>
                     )}
-                    {r.source === "crm" && <PhoneCall className="h-3.5 w-3.5" aria-label="Téléphone intégré" />}
-                    {r.hasSummary && <Sparkles className="h-3.5 w-3.5" aria-label="Résumé disponible" />}
-                    {r.voicemail ? (
-                        <Voicemail className="h-3.5 w-3.5 text-warning-ink" aria-label="Message vocal" />
-                    ) : (
-                        r.hasRecording && <Mic className="h-3.5 w-3.5 text-ink-2" aria-label="Enregistrement" />
-                    )}
+                    {!onQualify && <ChevronRight className={cn("h-4 w-4 text-ink-4 transition-opacity", active ? "opacity-100" : "opacity-0 group-hover:opacity-100")} aria-hidden />}
                 </span>
             </td>
         </tr>
     );
 }
 
-function PagerButton({ disabled, onClick, children }: { disabled: boolean; onClick: () => void; children: React.ReactNode }) {
-    return (
-        <button
-            type="button"
-            disabled={disabled}
-            onClick={onClick}
-            className="h-7 rounded-control border border-line px-2.5 text-[12px] font-medium text-ink-2 hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-            {children}
-        </button>
-    );
-}
-
-function TableSkeleton() {
-    return (
-        <div className="divide-y divide-line-subtle" aria-busy="true">
-            {Array.from({ length: 8 }, (_, i) => (
-                <div key={i} className="flex items-center gap-6 px-6 py-3.5">
-                    <div className="cp-shimmer h-3 w-12 rounded" />
-                    <div className="cp-shimmer h-3 w-48 rounded" />
-                    <div className="cp-shimmer h-3 w-28 rounded" />
-                    <div className="cp-shimmer ml-auto h-3 w-16 rounded" />
-                </div>
-            ))}
-        </div>
-    );
-}
-
-function EmptyState({
+function JournalEmpty({
     unqualified,
     filtered,
     telephonyEnabled,
@@ -728,29 +775,26 @@ function EmptyState({
     telephonyEnabled: boolean;
     onReset: () => void;
 }) {
-    let title: string;
-    let body: string;
-    if (filtered) {
-        title = "Aucun appel ne correspond";
-        body = "Élargissez la période ou retirez un filtre.";
-    } else if (unqualified) {
-        title = telephonyEnabled ? "Tous les appels ont un statut" : "Téléphone intégré non configuré";
-        body = telephonyEnabled
-            ? "Chaque appel passé avec le téléphone intégré sur la période a été qualifié par son SDR."
-            : "Cette vue liste les appels passés depuis le CRM sans statut. Configurez Twilio dans Paramètres → Intégrations.";
-    } else {
-        title = "Aucun appel sur la période";
-        body = "Les appels apparaissent ici dès qu'un SDR enregistre un résultat d'appel.";
-    }
-    return (
-        <div className="px-6 py-16 text-center">
-            <p className="text-[14px] font-semibold text-ink">{title}</p>
-            <p className="mx-auto mt-1 max-w-md text-[13px] text-ink-3">{body}</p>
-            {filtered && (
-                <button type="button" onClick={onReset} className="mt-4 h-8 rounded-control border border-line px-3 text-[13px] font-medium text-ink-2 hover:bg-surface-2">
-                    Réinitialiser les filtres
-                </button>
-            )}
-        </div>
-    );
+    if (filtered)
+        return (
+            <EmptyBlock
+                title="Aucun appel ne correspond"
+                body="Élargissez la période ou retirez un filtre."
+                action={
+                    <button type="button" onClick={onReset} className={CONTROL}>
+                        Réinitialiser les filtres
+                    </button>
+                }
+            />
+        );
+    if (unqualified)
+        return telephonyEnabled ? (
+            <EmptyBlock title="Tous les appels ont un statut" body="Chaque appel passé avec le téléphone intégré sur la période a été qualifié par son SDR." />
+        ) : (
+            <EmptyBlock
+                title="Téléphone intégré non configuré"
+                body="Cette vue liste les appels passés depuis le CRM sans statut. Configurez Twilio dans Paramètres → Téléphonie."
+            />
+        );
+    return <EmptyBlock title="Aucun appel sur la période" body="Les appels apparaissent ici dès qu'un SDR enregistre un résultat d'appel." />;
 }

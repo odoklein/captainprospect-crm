@@ -189,7 +189,9 @@ function InnerLayout({
     // Calling workspaces: panes edge to edge, each scrolling on its own.
     const isCallWorkspace =
         pathname === "/sdr/focus" || pathname === "/sdr/appels" || pathname === "/manager/appels" ||
-        pathname === "/sdr/messages" || pathname === "/manager/messages";
+        pathname === "/sdr/messages" || pathname === "/manager/messages" ||
+        // The manager's working views share the same frame (components/workspace).
+        pathname === "/manager/prospection" || pathname === "/manager/lists";
 
     const pathParts = pathname.split("/").filter(Boolean);
     const rawPage = pathParts[pathParts.length - 1]?.replace(/-/g, " ") || "Dashboard";

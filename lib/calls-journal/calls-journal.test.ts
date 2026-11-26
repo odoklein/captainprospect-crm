@@ -5,7 +5,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { activeFilterCount, callSource, journalQuery, parseJournalFilters, resolveStatus, todayParis, type StatusDef } from "./filters";
+import { activeFilterCount, callSource, journalQuery, parseJournalFilters, recordingPath, resolveSearchTokens, resolveStatus, todayParis, type StatusDef } from "./filters";
 
 const NOW = new Date("2026-11-05T22:30:00Z"); // 23:30 in Paris, still the 5th
 
@@ -69,4 +69,18 @@ test("call source is only claimed when there is evidence", () => {
     assert.equal(callSource({ hasTelephonyCall: false, hasRecording: true, enriched: false }), "allo");
     assert.equal(callSource({ hasTelephonyCall: false, hasRecording: false, enriched: true }), "allo");
     assert.equal(callSource({ hasTelephonyCall: false, hasRecording: false, enriched: false }), null);
+});
+
+test("search tokens pick the SDR and the mission, the rest stays a search", () => {
+    const sdrs = [{ id: "s1", label: "Camille Morel" }, { id: "s2", label: "Élodie Petit" }];
+    const missions = [{ id: "m1", label: "Acme Cloud Q4" }];
+    assert.deepEqual(resolveSearchTokens("@camille #acme relance", sdrs, missions), { q: "relance", sdrId: "s1", missionId: "m1" });
+    assert.deepEqual(resolveSearchTokens("@elodie", sdrs, missions), { q: "", sdrId: "s2", missionId: null });
+    // Unknown tokens are left alone: maybe the manager searches an email.
+    assert.deepEqual(resolveSearchTokens("jean@acme.fr #inconnu", sdrs, missions), { q: "jean@acme.fr #inconnu", sdrId: null, missionId: null });
+});
+
+test("recordings stream from the action or the integrated-phone call", () => {
+    assert.equal(recordingPath("action", "a1"), "/api/actions/a1/recording");
+    assert.equal(recordingPath("call", "c1"), "/api/telephony/calls/c1/recording");
 });
