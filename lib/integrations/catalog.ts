@@ -30,7 +30,7 @@ export interface IntegrationKeyDef {
 
 export const INTEGRATION_GROUPS: Record<IntegrationGroup, { label: string; hint: string }> = {
     ai: { label: "Intelligence artificielle", hint: "Assistant, fiches, analyses et rédaction" },
-    telephony: { label: "Téléphonie", hint: "Téléphone intégré (Twilio), lignes Allo et Onoff, statistiques d'appels et enregistrements" },
+    telephony: { label: "Téléphonie", hint: "Téléphone intégré (Twilio, Kavkom), lignes Allo et Onoff, statistiques d'appels et enregistrements" },
     meetings: { label: "Enregistreurs de réunions", hint: "Importer un appel de closing dans « Nouveau client »" },
     data: { label: "Données & prospection", hint: "Sourcing, enrichissement, recherche d'entreprises" },
 };
@@ -153,6 +153,49 @@ export const INTEGRATION_KEYS = [
         placeholder: "+33…",
         docsUrl: "https://console.twilio.com/us1/develop/phone-numbers/manage/incoming",
     },
+    // Kavkom (lib/kavkom): French cloud PBX. With the token and the domain, « Appeler » in the CRM
+    // rings the SDR's Kavkom app (or desk phone), then the prospect; every Kavkom call, recording and
+    // transcript is pushed to /api/webhooks/kavkom with KAVKOM_WEBHOOK_SECRET in its headers.
+    {
+        name: "KAVKOM_API_TOKEN",
+        label: "Kavkom — jeton API",
+        group: "telephony",
+        usedFor: "Appeler depuis le CRM via Kavkom (click-to-call), raccrocher, lister les extensions et lire les enregistrements. Kavkom → Réglages avancés → API",
+        placeholder: "Jeton X-API-TOKEN",
+        docsUrl: "https://help.kavkom.com/en/api-integration/kavkom-api/",
+    },
+    {
+        name: "KAVKOM_DOMAIN_UUID",
+        label: "Kavkom — domaine (domain_uuid)",
+        group: "telephony",
+        usedFor: "Identifie votre standard Kavkom dans chaque appel API",
+        placeholder: "xxxxxxxx-xxxx-4xxx-xxxx-xxxxxxxxxxxx",
+        docsUrl: "https://help.kavkom.com/en/api-integration/kavkom-api/",
+    },
+    {
+        name: "KAVKOM_SIP_WSS_URL",
+        label: "Kavkom — adresse WebRTC (téléphone dans le CRM)",
+        group: "telephony",
+        usedFor:
+            "Le téléphone Kavkom dans l'onglet du CRM (plus besoin de l'application Kavkom). Adresse wss:// fournie par le support Kavkom. Vide = les appels sonnent dans l'application Kavkom du SDR",
+        placeholder: "wss://votre-domaine.kavkom.com:7443",
+    },
+    {
+        name: "KAVKOM_SIP_DOMAIN",
+        label: "Kavkom — domaine SIP (facultatif)",
+        group: "telephony",
+        usedFor: "Domaine sur lequel les extensions s'enregistrent, si Kavkom vous en donne un autre que celui de l'extension",
+        placeholder: "votre-domaine.kavkom.com",
+    },
+    {
+        name: "KAVKOM_WEBHOOK_SECRET",
+        label: "Kavkom — secret du webhook",
+        group: "telephony",
+        usedFor:
+            "Recevoir les appels Kavkom en direct (sonnerie, décroché, fin d'appel, enregistrement, transcription). Dans Kavkom → Intégrations → Webhook, ajoutez l'en-tête Authorization = « Bearer <ce secret> »",
+        placeholder: "24 caractères minimum",
+        docsUrl: "https://help.kavkom.com/en/integration-api/webhook-phone-system/",
+    },
     // Note-takers (lib/notetakers): the « Appel enregistré » source of the « Nouveau client » wizard.
     {
         name: "MODJO_API_KEY",
@@ -269,12 +312,12 @@ export function checkIntegrationValue(name: IntegrationKeyName, raw: string): { 
     if (value.length > 512) return { ok: false, message: "Valeur trop longue (512 caractères maximum)" };
     if (/\s/.test(value)) return { ok: false, message: "Une clé ne contient pas d'espace ni de retour à la ligne" };
     // A key we invent ourselves guards a public URL: it must not be guessable.
-    if (name === "ONOFF_WEBHOOK_KEY" && value.length < 24) return { ok: false, message: "24 caractères minimum : cette clé protège l'adresse publique du webhook" };
+    if ((name === "ONOFF_WEBHOOK_KEY" || name === "KAVKOM_WEBHOOK_SECRET") && value.length < 24) return { ok: false, message: "24 caractères minimum : cette clé protège l'adresse publique du webhook" };
     return { ok: true, value };
 }
 
 /** Settings that are not secrets: shown in full, so you can see which one is active. */
-export const PLAIN_SETTINGS: ReadonlySet<string> = new Set(["CALL_AI_MODEL"]);
+export const PLAIN_SETTINGS: ReadonlySet<string> = new Set(["CALL_AI_MODEL", "KAVKOM_DOMAIN_UUID", "KAVKOM_SIP_WSS_URL", "KAVKOM_SIP_DOMAIN"]);
 
 /** "••••a1b2" — enough to recognise a key, never enough to use it. Plain settings show their value. */
 export function keyHint(value: string, name?: string): string {

@@ -53,7 +53,7 @@ function liveText(call: SoftphoneCall, now: number): string {
         case "connecting":
             return "Connexion…";
         case "ringing":
-            return "Ça sonne…";
+            return call.via === "kavkom" ? "Kavkom compose…" : "Ça sonne…";
         case "live":
             return formatClock((now - (call.answeredAt ?? now)) / 1000);
         default:
@@ -197,6 +197,9 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
 
     const ended = Boolean(call && !active);
     const live = call?.phase === "live";
+    /** Kavkom without the in-CRM phone: the audio is in the SDR's Kavkom app; mute and keypad live there. */
+    const remote = Boolean(call && !call.inApp);
+    const kavkom = call?.via === "kavkom";
     const summaryReady = summary.status === "done";
 
     useEffect(() => {
@@ -436,13 +439,16 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{name}</span>
                 {call.muted && <MicOff className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-label="Micro coupé" />}
+                {kavkom && <span className="shrink-0 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white/70" title={remote ? "L'appel passe par votre application Kavkom" : "L'appel passe par Kavkom, dans le CRM"}>Kavkom</span>}
                 <span className={cn("shrink-0 text-[12px] tabular-nums", live ? "text-emerald-300" : "text-white/60")}>{liveText(call, now)}</span>
-                {live ? <LevelBars /> : <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-300" aria-hidden />}
-                <button type="button" onClick={toggleMute} disabled={!live} aria-pressed={call.muted}
-                    aria-label={call.muted ? "Réactiver le microphone" : "Couper le microphone"}
-                    className="relative z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40">
-                    {call.muted ? <MicOff className="h-3.5 w-3.5 text-amber-300" /> : <Mic className="h-3.5 w-3.5" />}
-                </button>
+                {live && !remote ? <LevelBars /> : live ? <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-400" aria-hidden /> : <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-300" aria-hidden />}
+                {!remote && (
+                    <button type="button" onClick={toggleMute} disabled={!live} aria-pressed={call.muted}
+                        aria-label={call.muted ? "Réactiver le microphone" : "Couper le microphone"}
+                        className="relative z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-40">
+                        {call.muted ? <MicOff className="h-3.5 w-3.5 text-amber-300" /> : <Mic className="h-3.5 w-3.5" />}
+                    </button>
+                )}
                 <button type="button" onClick={hangup} aria-label="Raccrocher"
                     className="relative z-20 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600">
                     <PhoneOff className="h-3.5 w-3.5" />
@@ -463,7 +469,14 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
             <div inert={!open} className={cn("cp-island-reveal", open ? "max-h-[420px] opacity-100" : "max-h-0 opacity-0")}>
                 <div className="border-t border-white/10 px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     {call.target.sublabel && <p className="mb-2 truncate text-[11px] text-white/50">{call.target.sublabel}</p>}
-                    {keypad ? (
+                    {remote && (
+                        <p className="mb-2 text-[12px] text-white/60">
+                            {live
+                                ? "Le son passe par votre application Kavkom (micro, clavier). L'enregistrement et le résumé arrivent ici après l'appel."
+                                : "Votre poste Kavkom sonne en premier, puis le prospect. Décrochez sur Kavkom si l'application ne répond pas toute seule."}
+                        </p>
+                    )}
+                    {keypad && !remote ? (
                         <div className="mx-auto w-[220px]">
                             <div className="mb-2 h-7 truncate rounded-lg bg-white/10 px-2 text-center font-mono text-[15px] leading-7 tracking-[0.2em] tabular-nums" aria-live="polite">
                                 {typed || <span className="font-sans text-[12px] tracking-normal text-white/40">Touches envoyées</span>}
@@ -502,6 +515,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                         <p className="text-[12px] text-white/50">{insights ? "Le résumé de l'appel arrive après avoir raccroché." : "Transcription désactivée."}</p>
                     )}
                     <div className="mt-3 flex items-center justify-end gap-1.5">
+                        {!remote && <>
                         <button
                             type="button"
                             onClick={toggleMute}
@@ -536,6 +550,7 @@ export function CallIsland({ extra }: { extra: IslandExtra | null }) {
                         >
                             <Headphones className="h-3.5 w-3.5" />
                         </button>
+                        </>}
                         <button
                             type="button"
                             onClick={hangup}

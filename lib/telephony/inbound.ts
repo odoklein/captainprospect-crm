@@ -49,7 +49,7 @@ async function ownerOf(number: string) {
 }
 
 /** The campaign the caller belongs to: their list's strategy, else the mission's first active campaign. */
-async function campaignFor(companyId: string | null, missionId: string | null): Promise<string | null> {
+export async function campaignFor(companyId: string | null, missionId: string | null): Promise<string | null> {
     if (companyId) {
         const company = await prisma.company.findUnique({ where: { id: companyId }, select: { list: { select: { campaignId: true, missionId: true } } } });
         if (company?.list?.campaignId) return company.list.campaignId;

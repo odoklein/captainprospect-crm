@@ -25,6 +25,7 @@ import { notetakerForKey, type NotetakerDef } from "@/lib/notetakers/catalog";
 import { LEEXI_SETTINGS_ANCHOR, NOTETAKER_GUIDES } from "@/lib/notetakers/guide";
 import type { IntegrationKeyStatus } from "@/lib/integrations/store";
 import { OnoffPanel } from "./OnoffPanel";
+import { KavkomPanel } from "./KavkomPanel";
 import { KeyEditor, KeyLine, StateDot, callIntegrations, isOn } from "./KeyEditor";
 
 const GROUP_LOOK: Record<IntegrationGroup, { icon: LucideIcon; label: string }> = {
@@ -39,6 +40,8 @@ type Filter = IntegrationGroup | "all";
 
 /** Onoff has its own card above the tiles. */
 const ONOFF_KEYS = new Set(["ONOFF_WEBHOOK_KEY", "ONOFF_API_KEY"]);
+/** Shown in their own card (KavkomPanel), like Onoff's. */
+const KAVKOM_KEYS = new Set(["KAVKOM_API_TOKEN", "KAVKOM_DOMAIN_UUID", "KAVKOM_WEBHOOK_SECRET", "KAVKOM_SIP_WSS_URL", "KAVKOM_SIP_DOMAIN"]);
 
 /** One tool = the keys that share a name before « — » (Twilio has six, Allo two) or one note-taker. */
 interface Tool {
@@ -107,14 +110,19 @@ export function IntegrationKeysPanel({ onlyGroup, initialTool, groups: shownGrou
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [keys === null, focusTool]);
 
-    const tools = useMemo(() => toTools((keys ?? []).filter((k) => !ONOFF_KEYS.has(k.name))), [keys]);
+    const tools = useMemo(() => toTools((keys ?? []).filter((k) => !ONOFF_KEYS.has(k.name) && !KAVKOM_KEYS.has(k.name))), [keys]);
     // Counted in tools, Onoff included: « 3/9 connectés », not 28 keys.
     const counts = useMemo(() => {
         const c: Record<Filter, { on: number; all: number }> = {
             all: { on: 0, all: 0 }, telephony: { on: 0, all: 0 }, ai: { on: 0, all: 0 }, meetings: { on: 0, all: 0 }, data: { on: 0, all: 0 },
         };
         const onoff = (keys ?? []).filter((k) => ONOFF_KEYS.has(k.name));
-        const all = [...tools, ...(onoff.length ? [{ group: "telephony" as IntegrationGroup, keys: onoff }] : [])];
+        const kavkom = (keys ?? []).filter((k) => KAVKOM_KEYS.has(k.name));
+        const all = [
+            ...tools,
+            ...(onoff.length ? [{ group: "telephony" as IntegrationGroup, keys: onoff }] : []),
+            ...(kavkom.length ? [{ group: "telephony" as IntegrationGroup, keys: kavkom }] : []),
+        ];
         for (const t of all) {
             for (const f of ["all", t.group] as Filter[]) {
                 c[f].all++;
@@ -186,6 +194,7 @@ export function IntegrationKeysPanel({ onlyGroup, initialTool, groups: shownGrou
                 </div>
             )}
 
+            {showOnoff && <KavkomPanel keys={keys} onKeysChanged={setKeys} />}
             {showOnoff && <OnoffPanel keys={keys} onKeysChanged={setKeys} />}
 
             {groups.map(({ group, items }) => {

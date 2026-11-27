@@ -7,6 +7,7 @@
 //   applyDialResult()      POST /api/webhooks/twilio/status?leg=dial
 //   applyRecording()       POST /api/webhooks/twilio/recording
 //   linkCallToAction()     POST /api/actions                (the SDR saves the qualification)
+// Kavkom calls (lib/kavkom/service.ts) use the same rows, with provider "kavkom".
 // ============================================
 
 import type { Prisma, TelephonyCall } from "@prisma/client";
@@ -30,6 +31,7 @@ export class TelephonyError extends Error {
 
 export interface CallView {
     id: string;
+    provider: string;
     status: TelephonyStatus;
     toNumber: string;
     fromNumber: string;
@@ -46,6 +48,7 @@ export interface CallView {
 export function presentCall(call: TelephonyCall): CallView {
     return {
         id: call.id,
+        provider: call.provider,
         status: call.status,
         toNumber: call.toNumber,
         fromNumber: call.fromNumber,
@@ -61,6 +64,22 @@ export function presentCall(call: TelephonyCall): CallView {
 }
 
 // ── Create ──────────────────────────────────────────────────────────────────
+
+/** Resolves the record ids so a call is never attached to a contact of another company. */
+export async function resolveCallTarget(input: { contactId?: string | null; companyId?: string | null }): Promise<{ contactId: string | null; companyId: string | null }> {
+    const contactId = input.contactId ?? null;
+    let companyId = input.companyId ?? null;
+    if (contactId) {
+        const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { companyId: true } });
+        if (!contact) throw new TelephonyError("Contact introuvable", 404);
+        if (companyId && contact.companyId !== companyId) throw new TelephonyError("Contact et société incohérents", 400);
+        companyId = contact.companyId;
+    } else if (companyId) {
+        const exists = await prisma.company.count({ where: { id: companyId } });
+        if (!exists) throw new TelephonyError("Société introuvable", 404);
+    }
+    return { contactId, companyId };
+}
 
 export async function createOutboundCall(
     config: TwilioConfig,
@@ -79,19 +98,7 @@ export async function createOutboundCall(
 
     const check = checkDialNumber(input.to, { allowedCountries: config.allowedCountries });
     if (!check.ok) throw new TelephonyError(check.message, 422);
-
-    // Resolve the record ids so a call is never attached to a contact of another company.
-    const contactId = input.contactId ?? null;
-    let companyId = input.companyId ?? null;
-    if (contactId) {
-        const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { companyId: true } });
-        if (!contact) throw new TelephonyError("Contact introuvable", 404);
-        if (companyId && contact.companyId !== companyId) throw new TelephonyError("Contact et société incohérents", 400);
-        companyId = contact.companyId;
-    } else if (companyId) {
-        const exists = await prisma.company.count({ where: { id: companyId } });
-        if (!exists) throw new TelephonyError("Société introuvable", 404);
-    }
+    const { contactId, companyId } = await resolveCallTarget(input);
 
     return prisma.telephonyCall.create({
         data: {
@@ -222,7 +229,7 @@ export async function applyRecording(config: TwilioConfig, callId: string, param
 // ── Link to the qualification ───────────────────────────────────────────────
 
 /** Copies what the call knows onto its Action, without overwriting what the SDR typed. */
-async function syncLinkedAction(call: TelephonyCall): Promise<void> {
+export async function syncLinkedAction(call: TelephonyCall): Promise<void> {
     if (!call.actionId) return;
     const action = await prisma.action.findUnique({
         where: { id: call.actionId },

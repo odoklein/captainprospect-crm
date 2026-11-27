@@ -19,6 +19,8 @@ import { integrationKey } from "@/lib/integrations/keys";
 import { getTwilioConfig } from "./config";
 import { isTwilioRecordingUrl } from "./twilio";
 import { fillRdvFicheIfEmpty } from "@/lib/call-enrichment/rdv-fiche";
+import { KAVKOM_PROVIDER, parseKavkomRecordingRef } from "@/lib/kavkom/webhook";
+import { kavkomAudioUrl } from "@/lib/kavkom/audio";
 
 /** How long an answered call may wait for Twilio's recording before we give up on it. */
 const RECORDING_WAIT_MS = 5 * 60_000;
@@ -30,13 +32,41 @@ type RecordingTranscript = { status: "done" } | { status: "waiting" } | { status
  * call's Twilio recording (both voices mixed) and store it as one line,
  * speaker "mixed". Needs TWILIO_RECORD_CALLS=1.
  */
+/** Kavkom: the audio behind "kavkom:<cdr>", through a link Kavkom signs now. */
+async function kavkomRecordingAudio(call: {
+    childCallSid: string | null;
+    answeredAt: Date | null;
+    endedAt: Date | null;
+    recordingUrl: string | null;
+}): Promise<RecordingTranscript | { status: "audio"; audio: Buffer }> {
+    if (!call.recordingUrl) {
+        // The CDR (which carries the recording) follows the hang-up by a few seconds.
+        const recent = call.endedAt && Date.now() - call.endedAt.getTime() < RECORDING_WAIT_MS;
+        if (call.answeredAt && !call.childCallSid && recent) return { status: "waiting" };
+        return { status: "unavailable", reason: "Aucun enregistrement Kavkom pour cet appel" };
+    }
+    const cdr = parseKavkomRecordingRef(call.recordingUrl);
+    const link = cdr ? await kavkomAudioUrl(cdr) : null;
+    if (!link) return { status: "unavailable", reason: "Enregistrement Kavkom indisponible" };
+    const res = await fetch(link);
+    if (!res.ok) return { status: "unavailable", reason: `Enregistrement indisponible (HTTP ${res.status})` };
+    return { status: "audio", audio: Buffer.from(await res.arrayBuffer()) };
+}
+
 async function transcriptFromRecording(call: {
     id: string;
+    provider: string;
+    childCallSid: string | null;
     answeredAt: Date | null;
     startedAt: Date;
     endedAt: Date | null;
     recordingUrl: string | null;
 }): Promise<RecordingTranscript> {
+    if (call.provider === KAVKOM_PROVIDER) {
+        const got = await kavkomRecordingAudio(call);
+        if (got.status !== "audio") return got;
+        return storeRecordingTranscript(call, got.audio);
+    }
     const config = getTwilioConfig();
     if (!call.recordingUrl) {
         const recent = call.endedAt && Date.now() - call.endedAt.getTime() < RECORDING_WAIT_MS;
@@ -55,7 +85,10 @@ async function transcriptFromRecording(call: {
 
     const res = await fetch(url, { headers: { Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}` } });
     if (!res.ok) return { status: "unavailable", reason: `Enregistrement indisponible (HTTP ${res.status})` };
-    const audio = Buffer.from(await res.arrayBuffer());
+    return storeRecordingTranscript(call, Buffer.from(await res.arrayBuffer()));
+}
+
+async function storeRecordingTranscript(call: { id: string; answeredAt: Date | null; startedAt: Date }, audio: Buffer): Promise<RecordingTranscript> {
     const result = await transcribeAudioFr(audio, "appel.mp3", "audio/mpeg");
     if (!result.ok) return { status: "unavailable", reason: result.message };
     const text = result.text.trim();

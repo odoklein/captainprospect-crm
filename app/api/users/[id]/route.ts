@@ -35,6 +35,8 @@ export const GET = withErrorHandler(async (
             alloPhoneNumber: true,
             onoffPhoneNumber: true,
             twilioCallerId: true,
+            kavkomExtension: true,
+            kavkomCallerId: true,
             createdAt: true,
             updatedAt: true,
             lastSignInAt: true,
@@ -99,6 +101,19 @@ const updateUserSchema = z.object({
         .refine((v) => v === '' || /^\+[1-9]\d{6,14}$/.test(v), 'Numéro Twilio au format international (+33…)')
         .nullable()
         .optional(),
+    // Kavkom (lib/kavkom): the extension « Appeler » rings first, and the number shown to prospects.
+    kavkomExtension: z
+        .string()
+        .transform((v) => v.trim())
+        .refine((v) => v === '' || /^\d{2,7}$/.test(v), 'Extension Kavkom : 2 à 7 chiffres (ex. 1001)')
+        .nullable()
+        .optional(),
+    kavkomCallerId: z
+        .string()
+        .transform((v) => v.replace(/[\s.-]/g, ''))
+        .refine((v) => v === '' || /^\+[1-9]\d{6,14}$/.test(v), 'Numéro présenté au format international (+33…)')
+        .nullable()
+        .optional(),
     preferences: z
         .object({
             sdrFeedback: z
@@ -132,6 +147,8 @@ export const PUT = withErrorHandler(async (
             alloPhoneNumber: true,
             onoffPhoneNumber: true,
             twilioCallerId: true,
+            kavkomExtension: true,
+            kavkomCallerId: true,
             preferences: true,
         },
     });
@@ -171,6 +188,17 @@ export const PUT = withErrorHandler(async (
     if (data.twilioCallerId !== undefined) {
         updateData.twilioCallerId = data.twilioCallerId || null;
     }
+    if (data.kavkomExtension !== undefined) {
+        const ext = data.kavkomExtension || null;
+        if (ext) {
+            const holder = await prisma.user.findFirst({ where: { kavkomExtension: ext, NOT: { id } }, select: { name: true } });
+            if (holder) return errorResponse(`L'extension Kavkom ${ext} est déjà attribuée à ${holder.name}`, 409);
+        }
+        updateData.kavkomExtension = ext;
+    }
+    if (data.kavkomCallerId !== undefined) {
+        updateData.kavkomCallerId = data.kavkomCallerId || null;
+    }
     if (data.password) {
         updateData.password = await bcrypt.hash(data.password, 10);
     }
@@ -199,6 +227,8 @@ export const PUT = withErrorHandler(async (
             alloPhoneNumber: true,
             onoffPhoneNumber: true,
             twilioCallerId: true,
+            kavkomExtension: true,
+            kavkomCallerId: true,
             preferences: true,
             clientId: true,
             createdAt: true,
@@ -241,6 +271,12 @@ export const PUT = withErrorHandler(async (
     if (data.onoffPhoneNumber !== undefined && updatedUser.onoffPhoneNumber !== existingUser.onoffPhoneNumber) {
         before.onoffPhoneNumber = existingUser.onoffPhoneNumber;
         after.onoffPhoneNumber = updatedUser.onoffPhoneNumber;
+    }
+    for (const field of ['kavkomExtension', 'kavkomCallerId'] as const) {
+        if (data[field] !== undefined && updatedUser[field] !== existingUser[field]) {
+            before[field] = existingUser[field];
+            after[field] = updatedUser[field];
+        }
     }
     const passwordChanged = !!data.password;
     // The profile form re-sends preferences on every save — only count a real change.

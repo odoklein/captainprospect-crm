@@ -1,7 +1,13 @@
 "use client";
 
 // ============================================
-// SOFTPHONE — in-app Twilio dialer, mounted once in the app shell.
+// SOFTPHONE — in-app dialer, mounted once in the app shell. Two lines behind one API:
+//   twilio  the browser is the phone (microphone, headset, inbound ringing here)
+//   kavkom  the server asks Kavkom to ring the SDR's extension, then the prospect; the call
+//           bar follows the call from Kavkom's webhooks (lib/kavkom). With `webphone`, THIS TAB
+//           is the extension (SIP over WebRTC, ./kavkom-phone): it picks up that leg by itself,
+//           rings for inbound calls, and owns mute / keypad / headset. Without it, the audio is
+//           in the SDR's Kavkom app.
 //
 //   const { dial } = useSoftphone();
 //   if (!dial({ phone, contactId, companyId, label })) window.location.href = `tel:${phone}`;
@@ -20,6 +26,8 @@ import { TELEPHONY_ROLES } from "@/lib/telephony/roles";
 import { isFinalStatus, type TelephonyStatus } from "@/lib/telephony/status";
 import { isCurrentAttempt } from "@/lib/telephony/client-state";
 import { CallIsland } from "./CallIsland";
+import type { Invitation, Session } from "sip.js";
+import { startRingtone, type IncomingSipCall, type KavkomPhone, type SipLogin } from "./kavkom-phone";
 import { AudioSettingsDialog } from "./AudioSettingsDialog";
 import { AUDIO_PREFS_KEY, EMPTY_AUDIO_PREFS, adoptPluggedDevices, parseAudioPrefs, resolveDevice, type AudioPrefs, type DeviceLike } from "@/lib/telephony/audio-prefs";
 import {
@@ -44,8 +52,14 @@ export interface DialTarget {
 /** "incoming": a prospect is calling the user's Twilio number, ringing in the browser. */
 export type CallPhase = "preparing" | "connecting" | "ringing" | "incoming" | "live" | "ended" | "failed";
 
+export type CallVia = "twilio" | "kavkom";
+
 export interface SoftphoneCall {
     key: number;
+    /** Which line carries it. */
+    via: CallVia;
+    /** The audio is in the CRM (Twilio, or Kavkom's in-CRM phone): mute, keypad and headset work here. */
+    inApp: boolean;
     /** outbound: placed from the CRM; inbound: the prospect called the user's number. */
     direction: "outbound" | "inbound";
     target: DialTarget;
@@ -67,7 +81,15 @@ export interface SoftphoneCall {
 
 interface SoftphoneConfig {
     softphone: boolean;
-    callerId?: string;
+    provider?: CallVia;
+    /** Kavkom: the user's extension, and whether their app picks up by itself. */
+    extension?: string;
+    autoAnswer?: boolean;
+    /** A Twilio line is also there (parallel dialer, inbound in the browser). */
+    twilio?: boolean;
+    /** Kavkom: the CRM tab is the phone (SIP over WebRTC). */
+    webphone?: boolean;
+    callerId?: string | null;
     edge?: string;
     recording?: boolean;
     transcription?: boolean;
@@ -78,8 +100,14 @@ interface SoftphoneConfig {
 }
 
 interface SoftphoneContextValue {
-    /** True when phone links dial from the browser. */
+    /** True when phone links dial from the CRM. */
     enabled: boolean;
+    /** The line « Appeler » uses. */
+    provider: CallVia | null;
+    /** Kavkom: the extension that rings first. */
+    extension: string | null;
+    /** Kavkom's in-CRM phone: null when not used, else whether it is registered (and why not). */
+    kavkomLine: { registered: boolean; error: string | null } | null;
     recording: boolean;
     /** Live transcription + AI summary are on for this agency. */
     transcription: boolean;
@@ -316,6 +344,24 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const enabled = Boolean(config?.softphone);
+    const via: CallVia = config?.provider === "kavkom" ? "kavkom" : "twilio";
+    /** The browser has a Twilio line: inbound ringing here, parallel dialer. */
+    const twilioOn = enabled && (via === "twilio" || Boolean(config?.twilio));
+    const viaRef = useRef<CallVia>(via);
+    viaRef.current = via;
+    /** Kavkom's in-CRM phone is used for this user. */
+    const webphone = enabled && via === "kavkom" && Boolean(config?.webphone);
+    const webphoneRef = useRef(webphone);
+    webphoneRef.current = webphone;
+    const kavkomPhoneRef = useRef<KavkomPhone | null>(null);
+    /** The SIP call in progress (in the tab that holds the phone). */
+    const sipSessionRef = useRef<Session | null>(null);
+    /** An inbound SIP call ringing here, until answered or declined. */
+    const sipRingingRef = useRef<Invitation | null>(null);
+    /** « Appeler » was just clicked: the next INVITE from Kavkom is that call's own leg. */
+    const expectRef = useRef<{ key: number | null; until: number } | null>(null);
+    const kavkomChannelRef = useRef<BroadcastChannel | null>(null);
+    const [kavkomLine, setKavkomLine] = useState<{ registered: boolean; error: string | null } | null>(null);
 
     // ── line: on / paused / voicemail ──────────────────────────────────────
     const toast = useToast();
@@ -474,9 +520,54 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         if (callId) settleOutcome(key, callId);
     }, [patch, settleOutcome]);
 
+    /**
+     * Kavkom calls: the audio is in the Kavkom app, the state comes from Kavkom's webhooks
+     * onto the call row. The bar reads that row every 1.5 s while the call is on.
+     */
+    const followRemote = useCallback((key: number, callId: string) => {
+        const startedAt = Date.now();
+        let failures = 0;
+        const tick = () => {
+            if (key !== keyRef.current || cancelledRef.current.has(key)) return;
+            const current = callRef.current;
+            if (!current || current.key !== key || !LIVE_PHASES.has(current.phase)) return;
+            fetchJson<{ status: TelephonyStatus; answeredAt: string | null; durationSec: number | null }>(`/api/telephony/calls/${callId}`)
+                .then((view) => {
+                    failures = 0;
+                    if (key !== keyRef.current) return;
+                    if (isFinalStatus(view.status)) {
+                        const answeredAt = view.answeredAt ? Date.parse(view.answeredAt) : null;
+                        patch(key, (c) => ({ answeredAt: c.answeredAt ?? answeredAt, outcome: view.status, durationSec: view.durationSec }));
+                        finish(key, "ended", null, null);
+                        return;
+                    }
+                    if (view.status === "IN_PROGRESS") {
+                        const answeredAt = view.answeredAt ? Date.parse(view.answeredAt) : Date.now();
+                        patch(key, (c) => (c.phase !== "live" ? { phase: "live", answeredAt: c.answeredAt ?? answeredAt } : {}));
+                    }
+                    // No word from Kavkom for 3 minutes of ringing: its webhook is not set up. Stop waiting.
+                    if (view.status !== "IN_PROGRESS" && !sipSessionRef.current && Date.now() - startedAt > 180_000) {
+                        finish(key, "ended", null, callId);
+                        return;
+                    }
+                    setTimeout(tick, 1_500);
+                })
+                .catch(() => {
+                    if (++failures < 6) setTimeout(tick, 3_000);
+                });
+        };
+        setTimeout(tick, 1_200);
+    }, [finish, patch]);
+
     // ── actions ────────────────────────────────────────────────────────────
     const start = useCallback(async (key: number, target: DialTarget) => {
         let callId: string;
+        // Kavkom rings the extension while the request below is still running: be ready first.
+        if (callRef.current?.key === key && callRef.current.via === "kavkom" && webphoneRef.current) {
+            const until = Date.now() + 45_000;
+            expectRef.current = { key, until };
+            kavkomChannelRef.current?.postMessage({ type: "expect", until });
+        }
         try {
             const created = await fetchJson<{ id: string }>("/api/telephony/calls", {
                 method: "POST",
@@ -501,6 +592,12 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             return;
         }
         if (!isCurrentAttempt(key, keyRef.current, cancelledRef.current)) return;
+        if (callRef.current?.key === key && callRef.current.via === "kavkom") {
+            // Kavkom placed it: the SDR's Kavkom app rings (or answers by itself), then the prospect.
+            patch(key, { callId, phase: "ringing" });
+            followRemote(key, callId);
+            return;
+        }
         patch(key, { callId, phase: "connecting" });
 
         // A Device failure while this call is being placed ends it with a readable
@@ -553,7 +650,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             const e = err as { code?: number; message?: string };
             finish(key, "failed", softphoneErrorMessage(e?.code, e?.message), callId);
         }
-    }, [finish, getDevice, patch]);
+    }, [finish, followRemote, getDevice, patch]);
 
     // ── parallel dialer leg ────────────────────────────────────────────────
     // One browser call into the session's conference for the whole session: the
@@ -573,7 +670,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const joinDialer = useCallback(async (sessionId: string): Promise<boolean> => {
-        if (!enabled || isCallActive(callRef.current)) return false;
+        // The parallel dialer bridges calls in a Twilio conference: it needs the browser line.
+        if (!twilioOn || isCallActive(callRef.current)) return false;
         if (dialerCallRef.current && dialerLegRef.current.sessionId === sessionId) return true;
         dialerCallRef.current?.disconnect();
         resumeIfPaused();
@@ -605,7 +703,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             setDialerLeg({ state: "failed", sessionId, muted: false, error: softphoneErrorMessage(e?.code, e?.message) });
             return false;
         }
-    }, [enabled, getDevice, resumeIfPaused]);
+    }, [twilioOn, getDevice, resumeIfPaused]);
 
     const toggleDialerMute = useCallback(() => {
         const c = dialerCallRef.current;
@@ -625,6 +723,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         cancelledRef.current.clear();
         const next: SoftphoneCall = {
             key,
+            via: viaRef.current,
+            inApp: viaRef.current === "twilio" || webphoneRef.current,
             direction: "outbound",
             target,
             phase: "preparing",
@@ -649,6 +749,201 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         ringNoticeRef.current?.close();
         ringNoticeRef.current = null;
     }, []);
+
+    // ── Kavkom in the CRM (SIP over WebRTC) ────────────────────────────────
+    // One tab holds the phone (Web Locks): two registered tabs would both ring and
+    // both pick up the click-to-call leg. Other tabs send it their commands.
+    const stopRingRef = useRef<(() => void) | null>(null);
+    const stopRing = useCallback(() => {
+        stopRingRef.current?.();
+        stopRingRef.current = null;
+    }, []);
+
+    const sipHandlers = useCallback((key: number | null, callId: string | null) => ({
+        onEstablished: () => {
+            if (key === null) return;
+            // Inbound: picked up here. Outbound: our leg is up; the prospect may still be ringing (the webhook says when they answer).
+            patch(key, (c) => (c.direction === "inbound" && c.phase !== "live" ? { phase: "live", answeredAt: Date.now() } : {}));
+        },
+        onEnded: () => {
+            sipSessionRef.current = null;
+            pushLevels(ZERO_LEVELS);
+            if (key === null) return;
+            const current = callRef.current;
+            if (current?.key === key && LIVE_PHASES.has(current.phase)) {
+                cancelledRef.current.add(key);
+                finish(key, "ended", null, null);
+                const id = callId ?? current.callId;
+                if (id) settleOutcome(key, id);
+            }
+        },
+        onLevels: (input: number, output: number) => pushLevels({ input, output }),
+    }), [finish, patch, settleOutcome]);
+
+    const devicesForCall = useCallback(async () => {
+        const devices = await listAudioDevices();
+        return {
+            input: resolveDevice(audioPrefsRef.current.input, devices, "audioinput"),
+            output: resolveDevice(audioPrefsRef.current.output, devices, "audiooutput"),
+            ringtone: resolveDevice(audioPrefsRef.current.ringtone, devices, "audiooutput"),
+        };
+    }, []);
+
+    const onSipIncoming = useCallback(async (sip: IncomingSipCall) => {
+        const phone = kavkomPhoneRef.current;
+        if (!phone) return;
+        const expect = expectRef.current;
+        // 1. The leg of a call the SDR just placed (here or in another tab): pick up at once.
+        if (expect && Date.now() < expect.until) {
+            expectRef.current = null;
+            sipSessionRef.current = sip.invitation;
+            const local = expect.key !== null && callRef.current?.key === expect.key ? expect.key : null;
+            await phone.accept(sip.invitation, sipHandlers(local, local !== null ? callRef.current?.callId ?? null : null), await devicesForCall()).catch(() => {
+                sipSessionRef.current = null;
+            });
+            return;
+        }
+        // 2. Busy, or the line is paused: Kavkom sends the caller on (voicemail, another agent).
+        if (isCallActive(callRef.current) || dialerCallRef.current || sipSessionRef.current || !rings(lineRef.current, Date.now())) {
+            void phone.decline(sip.invitation);
+            return;
+        }
+        // 3. A prospect calling in: ring here, with their name from the CRM as soon as the webhook has it.
+        const key = ++keyRef.current;
+        cancelledRef.current.clear();
+        const phoneNumber = /^\d{2,7}$/.test(sip.from) ? sip.from : sip.from.startsWith("+") || sip.from.startsWith("0") ? sip.from : `+${sip.from}`;
+        const next: SoftphoneCall = {
+            key,
+            via: "kavkom",
+            inApp: true,
+            direction: "inbound",
+            target: { phone: phoneNumber, label: sip.fromName },
+            phase: "incoming",
+            callId: null,
+            startedAt: Date.now(),
+            answeredAt: null,
+            endedAt: null,
+            muted: false,
+            outcome: null,
+            durationSec: null,
+            error: null,
+            retryable: true,
+            pinned: false,
+        };
+        callRef.current = next;
+        setCall(next);
+        sipRingingRef.current = sip.invitation;
+        phone.watchRinging(sip.invitation, () => {
+            if (sipRingingRef.current !== sip.invitation) return;
+            sipRingingRef.current = null;
+            stopRing();
+            closeRingNotice();
+            // The caller hung up first (or Kavkom moved on): a missed call; the webhook notifies it.
+            patch(key, (c) => (c.phase === "incoming" ? { phase: "ended", endedAt: Date.now() } : {}));
+        });
+        stopRing();
+        void devicesForCall().then((d) => {
+            if (sipRingingRef.current === sip.invitation) stopRingRef.current = startRingtone(d.ringtone ?? d.output);
+        });
+        if (typeof document !== "undefined" && document.hidden && typeof Notification !== "undefined" && Notification.permission === "granted") {
+            const n = new Notification("Appel entrant", { body: sip.fromName ?? phoneNumber, tag: "cp-incoming-call", requireInteraction: true });
+            n.onclick = () => {
+                window.focus();
+                n.close();
+            };
+            ringNoticeRef.current = n;
+        }
+        fetchJson<{ callId: string; contactId: string | null; companyId: string | null; campaignId: string | null; callerName: string | null; companyName: string | null } | null>(
+            `/api/telephony/kavkom/inbound?from=${encodeURIComponent(phoneNumber)}`,
+        )
+            .then((who) => {
+                if (!who) return;
+                patch(key, (c) => ({
+                    callId: c.callId ?? who.callId,
+                    target: { ...c.target, label: who.callerName ?? c.target.label, sublabel: who.companyName, contactId: who.contactId, companyId: who.companyId, campaignId: who.campaignId },
+                }));
+            })
+            .catch(() => undefined);
+    }, [closeRingNotice, devicesForCall, patch, sipHandlers, stopRing]);
+    const onSipIncomingRef = useRef(onSipIncoming);
+    onSipIncomingRef.current = onSipIncoming;
+
+    /** Commands from a tab that does not hold the phone. */
+    const sipCommand = useCallback((cmd: { type: string; until?: number; muted?: boolean; digit?: string }) => {
+        const phone = kavkomPhoneRef.current;
+        if (cmd.type === "expect" && typeof cmd.until === "number") expectRef.current = { key: null, until: cmd.until };
+        const session = sipSessionRef.current;
+        if (!phone || !session) return;
+        if (cmd.type === "hangup") void phone.hangup(session);
+        if (cmd.type === "mute") phone.setMuted(session, Boolean(cmd.muted));
+        if (cmd.type === "dtmf" && cmd.digit) phone.sendDigit(session, cmd.digit);
+    }, []);
+
+    useEffect(() => {
+        if (!webphone) {
+            setKavkomLine(null);
+            return;
+        }
+        let stopped = false;
+        let release: (() => void) | null = null;
+        const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("cp-kavkom-phone") : null;
+        kavkomChannelRef.current = channel;
+        if (channel) channel.onmessage = (e: MessageEvent) => sipCommand(e.data ?? {});
+
+        const run = async () => {
+            setKavkomLine({ registered: false, error: null });
+            try {
+                const [{ KavkomPhone }, login] = await Promise.all([
+                    import("./kavkom-phone"),
+                    fetchJson<SipLogin>("/api/telephony/kavkom/sip", { method: "POST" }),
+                ]);
+                if (stopped) return;
+                const phone = await KavkomPhone.start(login, {
+                    onIncoming: (sip) => void onSipIncomingRef.current(sip),
+                    onLine: (state) => !stopped && setKavkomLine(state),
+                });
+                if (stopped) {
+                    void phone.stop();
+                    return;
+                }
+                kavkomPhoneRef.current = phone;
+            } catch (err) {
+                if (!stopped) setKavkomLine({ registered: false, error: err instanceof Error ? err.message : "Téléphone Kavkom indisponible" });
+            }
+        };
+
+        const locks = typeof navigator !== "undefined" ? (navigator as Navigator & { locks?: LockManager }).locks : undefined;
+        if (locks) {
+            // Held for the life of this tab's phone; the next tab takes over when this one closes.
+            void locks.request("cp-kavkom-phone", () => new Promise<void>((resolve) => {
+                release = resolve;
+                if (stopped) return resolve();
+                void run();
+            })).catch(() => undefined);
+        } else {
+            void run();
+        }
+
+        return () => {
+            stopped = true;
+            channel?.close();
+            kavkomChannelRef.current = null;
+            const phone = kavkomPhoneRef.current;
+            kavkomPhoneRef.current = null;
+            sipSessionRef.current = null;
+            sipRingingRef.current = null;
+            void phone?.stop().finally(() => release?.());
+            if (!phone) release?.();
+        };
+    }, [webphone, sipCommand]);
+
+    // A registration that fails says so once, not on every retry.
+    const lastLineErrorRef = useRef<string | null>(null);
+    useEffect(() => {
+        const err = kavkomLine?.error ?? null;
+        if (err && err !== lastLineErrorRef.current) toast.error("Téléphone Kavkom", `${err}. Vos appels sonnent sur l'application Kavkom en attendant.`);
+        lastLineErrorRef.current = err;
+    }, [kavkomLine?.error, toast]);
 
     // ── inbound ────────────────────────────────────────────────────────────
     // A prospect calls the user's number: the webhook rings this browser with
@@ -675,6 +970,8 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             };
             const next: SoftphoneCall = {
                 key,
+                via: "twilio",
+                inApp: true,
                 direction: "inbound",
                 target,
                 phase: "incoming",
@@ -749,7 +1046,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
     // Registered while the user receives calls; re-registers after a Device was
     // dropped (network error) or the token was refreshed into a new Device.
-    const receive = enabled && rings(lineSettings, Date.now());
+    const receive = twilioOn && rings(lineSettings, Date.now());
     useEffect(() => {
         if (!receive) return;
         let stopped = false;
@@ -774,6 +1071,20 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const answer = useCallback(() => {
         const current = callRef.current;
         if (current?.phase !== "incoming") return;
+        if (current.via === "kavkom") {
+            const invitation = sipRingingRef.current;
+            const phone = kavkomPhoneRef.current;
+            if (!invitation || !phone) return;
+            sipRingingRef.current = null;
+            sipSessionRef.current = invitation;
+            stopRing();
+            closeRingNotice();
+            void devicesForCall().then((d) => phone.accept(invitation, sipHandlers(current.key, current.callId), d)).catch(() => {
+                sipSessionRef.current = null;
+                finish(current.key, "failed", "Impossible de décrocher (micro refusé ?)", current.callId);
+            });
+            return;
+        }
         const incoming = twilioCallRef.current;
         const device = deviceRef.current;
         if (!incoming) return;
@@ -783,37 +1094,81 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
             inputHeldRef.current = held || inputHeldRef.current;
             incoming.accept();
         });
-    }, []);
+    }, [closeRingNotice, devicesForCall, finish, sipHandlers, stopRing]);
 
     const decline = useCallback(() => {
         const current = callRef.current;
         if (current?.phase !== "incoming") return;
+        if (current.via === "kavkom") {
+            const invitation = sipRingingRef.current;
+            sipRingingRef.current = null;
+            stopRing();
+            closeRingNotice();
+            if (invitation) void kavkomPhoneRef.current?.decline(invitation); // → Kavkom's next step (voicemail)
+            patch(current.key, { phase: "ended", endedAt: Date.now() });
+            return;
+        }
         twilioCallRef.current?.reject(); // → the caller hears the voicemail greeting
-    }, []);
+    }, [closeRingNotice, patch, stopRing]);
 
     const hangup = useCallback(() => {
         const current = callRef.current;
         if (!current) return;
         if (current.phase === "incoming") {
+            if (current.via === "kavkom") return decline();
             twilioCallRef.current?.reject();
             return;
         }
         if (!LIVE_PHASES.has(current.phase)) return;
         cancelledRef.current.add(current.key);
+        if (current.via === "kavkom") {
+            // In-CRM phone: hang up our leg (here, or in the tab that holds the phone).
+            const session = sipSessionRef.current;
+            if (session && kavkomPhoneRef.current) void kavkomPhoneRef.current.hangup(session);
+            else if (webphoneRef.current) kavkomChannelRef.current?.postMessage({ type: "hangup" });
+            expectRef.current = null;
+            // And end the call on Kavkom (the prospect's leg too), then read the final outcome.
+            const callId = current.callId;
+            finish(current.key, "ended", null, null);
+            if (callId && current.direction === "outbound") {
+                void fetch(`/api/telephony/calls/${callId}/hangup`, { method: "POST" })
+                    .catch(() => undefined)
+                    .finally(() => settleOutcome(current.key, callId));
+            }
+            return;
+        }
         const twilioCall = twilioCallRef.current;
         finish(current.key, "ended", null, current.callId);
         twilioCall?.disconnect();
-    }, [finish]);
+    }, [decline, finish, settleOutcome]);
 
     const toggleMute = useCallback(() => {
+        const current = callRef.current;
+        if (current?.via === "kavkom") {
+            if (!current.inApp || !LIVE_PHASES.has(current.phase)) return;
+            const muted = !current.muted;
+            const session = sipSessionRef.current;
+            if (session && kavkomPhoneRef.current) kavkomPhoneRef.current.setMuted(session, muted);
+            else kavkomChannelRef.current?.postMessage({ type: "mute", muted });
+            patch(current.key, { muted });
+            return;
+        }
         const twilioCall = twilioCallRef.current;
-        if (twilioCall && callRef.current?.phase === "live") twilioCall.mute(!twilioCall.isMuted());
-    }, []);
+        if (twilioCall && current?.phase === "live") twilioCall.mute(!twilioCall.isMuted());
+    }, [patch]);
 
     const sendDigit = useCallback((digit: string) => {
         if (!/^[0-9*#]$/.test(digit)) return;
+        const current = callRef.current;
+        if (current?.via === "kavkom") {
+            if (!current.inApp || current.phase !== "live") return;
+            const session = sipSessionRef.current;
+            if (session && kavkomPhoneRef.current) kavkomPhoneRef.current.sendDigit(session, digit);
+            else kavkomChannelRef.current?.postMessage({ type: "dtmf", digit });
+            return;
+        }
         const twilioCall = twilioCallRef.current;
-        if (twilioCall && callRef.current?.phase === "live") twilioCall.sendDigits(digit);
+        if (twilioCall && current?.phase === "live") twilioCall.sendDigits(digit);
     }, []);
 
     const dismiss = useCallback(() => {
@@ -867,6 +1222,9 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         } catch {
             /* private mode: applies for this tab only */
         }
+        if (kavkomPhoneRef.current) {
+            void listAudioDevices().then((devices) => kavkomPhoneRef.current?.setOutput(resolveDevice(next.output, devices, "audiooutput")));
+        }
         const device = deviceRef.current;
         if (!device) return;
         void applyOutputs(device, next);
@@ -910,6 +1268,9 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
     const value = useMemo<SoftphoneContextValue>(
         () => ({
             enabled,
+            provider: enabled ? via : null,
+            extension: config?.extension ?? null,
+            kavkomLine,
             recording: Boolean(config?.recording),
             transcription: Boolean(config?.transcription),
             insights: Boolean(config?.transcription || config?.recording),
@@ -937,7 +1298,7 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
         }),
         // `line` is derived from lineSettings and the clock (the pause timer re-renders when it runs out).
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [lineSettings, setReceiveCalls, pauseLine, resumeLine, openAudioSettings, audioPrefs, enabled, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
+        [lineSettings, setReceiveCalls, pauseLine, resumeLine, openAudioSettings, audioPrefs, enabled, via, config?.extension, kavkomLine, config?.recording, config?.transcription, config?.callerId, call, dial, hangup, answer, decline, toggleMute, sendDigit, dismiss, pin, dialerLeg, joinDialer, leaveDialer, toggleDialerMute],
     );
 
     return (
@@ -961,6 +1322,9 @@ export function SoftphoneProvider({ children }: { children: ReactNode }) {
 
 const DISABLED: SoftphoneContextValue = {
     enabled: false,
+    provider: null,
+    extension: null,
+    kavkomLine: null,
     recording: false,
     transcription: false,
     insights: false,

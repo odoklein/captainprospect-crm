@@ -14,7 +14,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { PeriodRange } from "@/lib/manager-home/rules";
-import { getTwilioConfig } from "@/lib/telephony/config";
+import { anyCallProviderConfigured } from "@/lib/telephony/provider";
 import { readSummaryState } from "@/lib/telephony/summary";
 import { QUALIFY_GRACE_MINUTES, callSource, recordingPath, resolveStatus, type JournalFilters, type StatusDef } from "./filters";
 import type { CallDetail, JournalFacet, JournalResponse, JournalRow } from "./types";
@@ -68,7 +68,7 @@ function unqualifiedWhere(f: JournalFilters, range: PeriodRange, withSdr = true)
         ? { transcript: { some: { text: { contains: f.q, mode: "insensitive" as const } } } }
         : phoneSearchClause(f.q);
     return {
-        parentCallSid: { not: null }, // Twilio actually placed it
+        parentCallSid: { not: null }, // Twilio or Kavkom actually placed it
         actionId: null,
         startedAt: { gte: range.from, lt: range.to, lte: graceCutoff() },
         ...(withSdr && f.sdrIds.length ? { sdrId: { in: f.sdrIds } } : {}),
@@ -92,7 +92,7 @@ export function phoneSearchClause(q: string): Prisma.TelephonyCallWhereInput | n
 // ── list ────────────────────────────────────────────────────────────────────
 
 export async function getJournal(f: JournalFilters, range: PeriodRange): Promise<JournalResponse> {
-    const telephonyEnabled = getTwilioConfig() !== null;
+    const telephonyEnabled = anyCallProviderConfigured();
     return f.view === "unqualified"
         ? journalUnqualified(f, range, telephonyEnabled)
         : journalActions(f, range, telephonyEnabled);

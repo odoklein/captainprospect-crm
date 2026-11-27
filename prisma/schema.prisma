@@ -480,6 +480,8 @@ model User {
   onoffPhoneNumber   String? // Onoff Business line: matches the calls Onoff pushes (/api/webhooks/onoff) to this user
   twilioCallerId     String? // E.164 Twilio number assigned in Paramètres → Téléphonie; null = no integrated phone (Allo)
   twilioReceiveCalls Boolean @default(true) // inbound calls ring in the browser; false = straight to voicemail
+  kavkomExtension    String? @unique // Kavkom extension (« 1001 »): click-to-call rings it first; its calls (webhooks) land on this user
+  kavkomCallerId     String? // number shown to prospects on Kavkom calls (E.164); null = the extension's own caller id
   voicemailGreeting  String? // spoken to callers when unavailable; null = default greeting
   smsSignature       String? // appended to the SMS the user sends; null = none
   timezone           String? @default("Europe/Paris")

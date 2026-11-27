@@ -13,6 +13,8 @@ import { integrationKey } from "@/lib/integrations/keys";
 import { isTwilioRecordingUrl } from "@/lib/telephony/twilio";
 import { parseOnoffRecordingRef } from "@/lib/onoff/webhook";
 import { onoffAudioUrl } from "@/lib/onoff/service";
+import { parseKavkomRecordingRef } from "@/lib/kavkom/webhook";
+import { kavkomAudioUrl } from "@/lib/kavkom/audio";
 
 const ALLO_HOST = "api.withallo.com";
 const ALLO_RECORDINGS_PATH_PREFIX = "/v1/assets/recordings/";
@@ -133,6 +135,18 @@ async function resolveOnoff(stored: string): Promise<Upstream | null> {
     return { url: u, authHeader: null };
 }
 
+/**
+ * Kavkom calls are stored as "kavkom:<xml_cdr_uuid>" (lib/kavkom): Kavkom signs a fresh
+ * link at playback time (cdr/get_file_link); the API token stays server-side.
+ */
+async function resolveKavkom(stored: string): Promise<Upstream | null> {
+    const cdrUuid = parseKavkomRecordingRef(stored);
+    if (!cdrUuid) return null;
+    const link = await kavkomAudioUrl(cdrUuid);
+    if (!link) throw new NotFoundError("Enregistrement introuvable");
+    return { url: new URL(link), authHeader: null };
+}
+
 async function assertCanStreamRecording(
     userId: string,
     role: string,
@@ -147,7 +161,7 @@ async function assertCanStreamRecording(
     throw new NotFoundError("Enregistrement introuvable");
 }
 
-// GET /api/actions/[id]/recording — stream the recording (Allo, Twilio, Onoff, call-vault) with a server-side
+// GET /api/actions/[id]/recording — stream the recording (Allo, Twilio, Onoff, Kavkom, call-vault) with a server-side
 // key the browser can't send itself.
 export const GET = withErrorHandler(
     async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -177,7 +191,7 @@ export const GET = withErrorHandler(
             return serveUploadedRecording(request, uploadedKey);
         }
 
-        const { url: targetUrl, authHeader } = await resolveOnoff(action.callRecordingUrl) ?? resolveUpstream(action.callRecordingUrl);
+        const { url: targetUrl, authHeader } = await resolveOnoff(action.callRecordingUrl) ?? await resolveKavkom(action.callRecordingUrl) ?? resolveUpstream(action.callRecordingUrl);
 
         const range = request.headers.get("Range") ?? undefined;
         let upstream: Response;
