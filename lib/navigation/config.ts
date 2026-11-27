@@ -97,6 +97,13 @@ export const MANAGER_NAV: NavSection[] = [
         permission: "pages.dashboard",
       },
       {
+        href: "/manager/pilotage",
+        icon: Activity,
+        label: "Pilotage",
+        permission: "pages.dashboard",
+        description: "Atterrissage du mois, décisions à prendre et équipe en direct",
+      },
+      {
         href: "/manager/tasks",
         icon: ListChecks,
         label: "Tâches",
