@@ -1,201 +1,124 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+// Client portal home: « La lettre de la semaine » (components/accueil/ClientHomeView).
+// Confirmed RDV are live, so the letter is refetched while the tab is visible;
+// every other figure is as of the last Monday 06:00 and does not move in between.
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useToast } from "@/components/ui";
-import { BreakdownCharts } from "@/components/client/BreakdownCharts";
 import { LaunchWarmupScreen, type PortalLaunchMission } from "@/components/portal/LaunchWarmupScreen";
 import { DailyReportLauncher } from "@/components/client/DailyReportLauncher";
-import { ClientHomeSkeleton, ClientHomeView, type ClientHomeMeeting } from "@/components/accueil/ClientHomeView";
-import type { ClientTeamData } from "@/components/accueil/ClientMissionTeamCard";
-
-interface DashboardStats {
-    totalActions: number;
-    meetingsBooked: number;
-    meetingsConfirmed?: number;
-    monthlyObjective: number | null;
-    activeMissions: number;
-}
-
-type ClientMeeting = ClientHomeMeeting;
-
-interface Mission {
-    id: string;
-    name: string;
-    isActive: boolean;
-}
+import { ClientHomeSkeleton, ClientHomeView } from "@/components/accueil/ClientHomeView";
+import type { ClientLetter } from "@/lib/client-portal/letter";
 
 interface PortalSettings {
     portalShowCallHistory: boolean;
     portalShowDatabase: boolean;
 }
 
-const MONTH_NAMES = [
-    "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-    "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
-];
-
-function getGreeting(): string {
-    const h = new Date().getHours();
-    if (h >= 18) return "Bonsoir";
-    if (h >= 12) return "Bon après-midi";
-    return "Bonjour";
-}
+/** Confirmed RDV are the live part of the letter: refreshed this often while the tab is visible. */
+const LIVE_REFRESH_MS = 90_000;
 
 export default function ClientPortal() {
     const { data: session } = useSession();
     const toast = useToast();
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [upcomingMeetings, setUpcomingMeetings] = useState<ClientMeeting[]>([]);
-    const [missionName, setMissionName] = useState<string>("");
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [letter, setLetter] = useState<ClientLetter | null>(null);
     const [portalSettings, setPortalSettings] = useState<PortalSettings | null>(null);
-    const [totalMeetingsCount, setTotalMeetingsCount] = useState<number>(0);
-    const [callsCountForMonth, setCallsCountForMonth] = useState<number>(0);
     const [launchMissions, setLaunchMissions] = useState<PortalLaunchMission[]>([]);
-    const [team, setTeam] = useState<ClientTeamData | null>(null);
-    const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-    // Month selector for calls stats: 0 = current month, -1 = previous, etc.
-    const [callsMonthOffset, setCallsMonthOffset] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
+    const [failed, setFailed] = useState(false);
+    const loaded = useRef(false);
 
-    const clientId = (session?.user as { clientId?: string })?.clientId;
-    const userName = session?.user?.name?.split(" ")[0] ?? "Client";
+    const userName = session?.user?.name?.split(" ")[0] ?? "";
 
-    const now = new Date();
-    const currentMonth = MONTH_NAMES[now.getMonth()];
-    const currentYear = now.getFullYear();
+    const fetchLetter = useCallback(async () => {
+        const res = await fetch("/api/client/letter", { cache: "no-store" });
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) throw new Error(json?.error ?? "Lettre indisponible");
+        setLetter(json.data as ClientLetter);
+    }, []);
 
-    const fetchData = useCallback(async (refresh = false) => {
-        if (refresh) setIsRefreshing(true);
-        else setIsLoading(true);
-        try {
-            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-            const startDate = monthStart.toISOString().split("T")[0];
-            const endDate = monthEnd.toISOString().split("T")[0];
-
-            // For calls stats: selected month from offset
-            const callsMonthDate = new Date(now.getFullYear(), now.getMonth() + callsMonthOffset, 1);
-            const callsStart = new Date(callsMonthDate.getFullYear(), callsMonthDate.getMonth(), 1);
-            const callsEnd = new Date(callsMonthDate.getFullYear(), callsMonthDate.getMonth() + 1, 0, 23, 59, 59, 999);
-            const callsStartStr = callsStart.toISOString().split("T")[0];
-            const callsEndStr = callsEnd.toISOString().split("T")[0];
-
-            const [statsRes, missionsRes, meetingsRes, settingsRes, callsRes, launchRes, teamRes] = await Promise.all([
-                fetch(`/api/stats?startDate=${startDate}&endDate=${endDate}`),
-                fetch("/api/missions?isActive=true"),
-                clientId ? fetch(`/api/clients/${clientId}/meetings`) : Promise.resolve(null),
-                fetch("/api/client/portal/settings"),
-                fetch(`/api/client/calls?startDate=${callsStartStr}&endDate=${callsEndStr}`),
-                fetch("/api/portal/launch-state", { cache: "no-store" }),
-                fetch("/api/client/team", { cache: "no-store" }),
-            ]);
-
-            const [statsJson, missionsJson, meetingsJson, settingsJson, callsJson, launchJson, teamJson] = await Promise.all([
-                statsRes.json(),
-                missionsRes.json(),
-                meetingsRes?.ok ? meetingsRes.json() : Promise.resolve(null),
-                settingsRes.json(),
-                callsRes.ok ? callsRes.json() : Promise.resolve({ success: false }),
-                launchRes.json(),
-                // The team card is an extra: if it fails, the rest of the home still loads.
-                teamRes.ok ? teamRes.json().catch(() => null) : Promise.resolve(null),
-            ]);
-
-            if (statsJson.success) setStats(statsJson.data);
-            if (missionsJson.success) {
-                const missions = Array.isArray(missionsJson.data) ? missionsJson.data as Mission[] : [];
-                setMissionName(missions[0]?.name ?? "");
-            }
-            if (meetingsJson?.success) {
-                const allMeetings: ClientMeeting[] = meetingsJson.data?.allMeetings ?? [];
-                const upcoming = allMeetings
-                    .filter((m) => {
-                        if (!m.callbackDate) return true;
-                        return new Date(m.callbackDate) >= new Date();
-                    })
-                    .sort((a, b) => {
-                        const da = a.callbackDate ? new Date(a.callbackDate).getTime() : 0;
-                        const db = b.callbackDate ? new Date(b.callbackDate).getTime() : 0;
-                        return da - db;
-                    })
-                    .slice(0, 5);
-                setUpcomingMeetings(upcoming);
-                // The hero counts a RDV only once it is confirmed and still booked:
-                // a cancelled one is not a meeting the client got.
-                const confirmedCount = allMeetings.filter(
-                    (m) => m.result !== "MEETING_CANCELLED" && m.confirmationStatus !== "CANCELLED"
-                ).length;
-                setTotalMeetingsCount(confirmedCount);
-            }
-            if (settingsJson?.success) {
-                setPortalSettings(settingsJson.data);
-            }
-            if (callsJson?.success) {
-                setCallsCountForMonth(callsJson.data?.total ?? 0);
-            }
-            if (launchJson?.success) {
-                setLaunchMissions(launchJson.data?.missions ?? []);
-            }
-            // On failure, show the card's empty state rather than a skeleton that never resolves.
-            setTeam(teamJson?.success ? teamJson.data : { missions: [], members: [], lastActivityAt: null, actionsLast7Days: 0 });
-            setUpdatedAt(new Date());
-        } catch (error) {
-            console.error("Failed to fetch data:", error);
-            setTeam((prev) => prev ?? { missions: [], members: [], lastActivityAt: null, actionsLast7Days: 0 });
-            toast.error("Erreur de chargement", "Impossible de charger les données");
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
+    const load = useCallback(async () => {
+        setIsLoading(true);
+        setFailed(false);
+        const readJson = (res: Response) => res.json().catch(() => null);
+        const [settings, launch, letterResult] = await Promise.allSettled([
+            fetch("/api/client/portal/settings").then(readJson),
+            fetch("/api/portal/launch-state", { cache: "no-store" }).then(readJson),
+            fetchLetter(),
+        ]);
+        if (settings.status === "fulfilled" && settings.value?.success) setPortalSettings(settings.value.data);
+        if (launch.status === "fulfilled" && launch.value?.success) setLaunchMissions(launch.value.data?.missions ?? []);
+        if (letterResult.status === "rejected") {
+            console.error("Failed to load the client letter:", letterResult.reason);
+            setFailed(true);
+            toast.error("Erreur de chargement", "Impossible de charger la lettre de la semaine");
+        } else {
+            loaded.current = true;
         }
+        setIsLoading(false);
+        // toast only exposes setters; re-creating load on its identity would refetch for nothing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [clientId, callsMonthOffset]);
+    }, [fetchLetter]);
 
+    useEffect(() => { load(); }, [load]);
+
+    // Live part: refetch while visible, and as soon as the tab comes back.
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        const refresh = () => {
+            if (loaded.current && document.visibilityState === "visible") fetchLetter().catch(() => undefined);
+        };
+        const timer = window.setInterval(refresh, LIVE_REFRESH_MS);
+        document.addEventListener("visibilitychange", refresh);
+        return () => {
+            window.clearInterval(timer);
+            document.removeEventListener("visibilitychange", refresh);
+        };
+    }, [fetchLetter]);
 
-    if (isLoading && !stats) {
-        return <ClientHomeSkeleton />;
-    }
+    if (isLoading && !letter) return <ClientHomeSkeleton />;
 
     if (launchMissions.length > 0) {
-        return <LaunchWarmupScreen missions={launchMissions} userName={userName} />;
+        return <LaunchWarmupScreen missions={launchMissions} userName={userName || "Client"} />;
     }
 
-    // No fallback to stats.meetingsBooked: that number is all booked RDV (pending and
-    // cancelled included) and would silently contradict the confirmed count.
-    const meetingsBooked = totalMeetingsCount;
+    if (!letter && failed) {
+        return (
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-surface p-5">
+                <div>
+                    <h2 className="font-semibold text-ink">La lettre de la semaine n’a pas pu être chargée</h2>
+                    <p className="mt-1 text-sm text-ink-3">Réessayez dans un instant.</p>
+                </div>
+                <button type="button" onClick={() => load()} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg">Réessayer</button>
+            </div>
+        );
+    }
 
-    const callsMonth = new Date(now.getFullYear(), now.getMonth() + callsMonthOffset, 1);
+    if (!letter || !letter.hasMission) {
+        return (
+            <>
+                <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-surface p-5">
+                    <div>
+                        <h2 className="font-semibold text-ink">Préparons votre prochaine mission</h2>
+                        <p className="mt-1 text-sm text-ink-3">Partagez vos objectifs et votre cible avec l’agence. Votre lettre de la semaine démarrera avec la mission.</p>
+                    </div>
+                    <Link href="/client/missions" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg">Mes missions</Link>
+                </div>
+                <DailyReportLauncher />
+            </>
+        );
+    }
 
     return (
         <>
-            {!missionName && <div className="mx-auto mb-5 flex max-w-6xl flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-surface p-5">
-                <div><h2 className="font-semibold text-ink">Préparons votre prochaine mission</h2><p className="mt-1 text-sm text-ink-3">Partagez vos objectifs et votre cible avec l’agence.</p></div>
-                <Link href="/client/missions" className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-fg">Mes missions</Link>
-            </div>}
             <ClientHomeView
-                greeting={getGreeting()}
+                letter={letter}
                 userName={userName}
-                monthLabel={`${currentMonth} ${currentYear}`}
-                missionName={missionName}
-                meetingsBooked={meetingsBooked}
-                callsCount={callsCountForMonth}
-                callsMonthLabel={`${MONTH_NAMES[callsMonth.getMonth()]} ${callsMonth.getFullYear()}`}
-                canGoNextMonth={callsMonthOffset < 0}
-                onPrevMonth={() => setCallsMonthOffset((o) => o - 1)}
-                onNextMonth={() => setCallsMonthOffset((o) => Math.min(o + 1, 0))}
-                isRefreshing={isRefreshing}
-                onRefresh={() => fetchData(true)}
                 showCallHistory={!!portalSettings?.portalShowCallHistory}
                 showDatabase={!!portalSettings?.portalShowDatabase}
-                breakdown={<BreakdownCharts />}
-                upcomingMeetings={upcomingMeetings}
-                team={team}
-                updatedAt={updatedAt}
+                onAssumptionsSaved={() => { fetchLetter().catch(() => undefined); }}
             />
 
             {/* Floating "rapport de la veille" — appears from 7:30 each morning. */}

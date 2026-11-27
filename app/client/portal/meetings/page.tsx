@@ -941,19 +941,22 @@ export default function ClientPortalMeetingsPage() {
   const closeModal = useCallback(()=>setModal(null),[]);
 
   // « Mon avis » reminder: ?avis=<actionId> (or its event when already on this page) opens that feedback.
+  // The weekly letter's « Fiche de préparation » links here with ?rdv=<actionId>: it opens the RDV sheet.
   useEffect(()=>{
     if (loading) return;
-    const openById = (id:string)=>{
+    const openById = (id:string, t:ModalType="feedback")=>{
       const m = meetings.find(x=>x.id===id);
-      if (m) openModal(m,"feedback"); else toast.error("Rendez-vous introuvable");
+      if (m) openModal(m,t); else toast.error("Rendez-vous introuvable");
     };
     const params = new URLSearchParams(window.location.search);
     const avis = params.get("avis");
-    if (avis){
+    const rdv = params.get("rdv");
+    if (avis || rdv){
       params.delete("avis");
+      params.delete("rdv");
       const qs = params.toString();
       window.history.replaceState(window.history.state,"",`${window.location.pathname}${qs?`?${qs}`:""}${window.location.hash}`);
-      openById(avis);
+      if (avis) openById(avis); else if (rdv) openById(rdv,"detail");
     }
     const onOpen = (e:Event)=>{ const id=(e as CustomEvent<{actionId?:string}>).detail?.actionId; if (id) openById(id); };
     window.addEventListener("cp:open-meeting-feedback",onOpen);

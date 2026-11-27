@@ -1,360 +1,483 @@
 "use client";
 
-// Client portal home (app/client/portal) — same content as before, drawn in the
-// SDR "Accueil" language (components/accueil/AccueilUI.tsx). Pure view: the page
-// owns fetching; `breakdown` is the analysis card (fetches on its own).
+// Client portal home (app/client/portal): « La lettre de la semaine ». Built for
+// someone who logs in once a week: what the mission produced, not what the
+// team did. Pure view over GET /api/client/letter (lib/client-portal/letter.ts
+// holds every rule); the page owns fetching.
+//
+// Two clocks, said on the page: confirmed RDV are live, every other figure is
+// as of the last Monday 06:00. Every figure says how it is counted on hover.
 
-import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Calendar, CalendarCheck, ChevronLeft, ChevronRight, ChevronRight as Chevron, PhoneCall, RefreshCw, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { ArrowRight, Database, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
-import {
-    CARD, CARD_HOVER, EmptyBlock, FOCUS, HeroCard, HeroPill, ICON_BUTTON, IconTile, PILL, SectionHeader, Shimmer, StatusPill, TextLink,
-} from "./AccueilUI";
-import { ClientMissionTeamCard, type ClientTeamData } from "./ClientMissionTeamCard";
-
-/** The mission pill pulses only when the team really logged an action this recently. */
-const LIVE_WINDOW_MS = 2 * 60 * 60 * 1000;
-
-export interface ClientHomeMeeting {
-    id: string;
-    createdAt: string;
-    callbackDate?: string | null;
-    note?: string | null;
-    result?: string;
-    confirmationStatus?: string;
-    contact: {
-        firstName?: string | null;
-        lastName?: string | null;
-        title?: string | null;
-        company: { name: string };
-    } | null;
-    company?: { name: string } | null;
-    campaign: {
-        name: string;
-        mission: { name: string };
-    };
-    interlocuteur?: {
-        id: string;
-        firstName?: string | null;
-        lastName?: string | null;
-        title?: string | null;
-    } | null;
-}
+import { formatPercent, paceLabel, type PaceVerdict } from "@/lib/missions/pulse";
+import { formatEuros, formatMultiple, type ClientLetter, type LetterUpcomingMeeting } from "@/lib/client-portal/letter";
+import { Shimmer } from "./AccueilUI";
+import { DEFINED, Definition } from "@/components/client/letter/Definition";
+import { DispositionChart, FunnelChart, ReasonsChart, WeeklyChart } from "@/components/client/letter/LetterCharts";
+import { AssumptionsForm } from "@/components/client/letter/AssumptionsForm";
 
 export interface ClientHomeViewProps {
-    greeting: string;
+    letter: ClientLetter;
     userName: string;
-    monthLabel: string;
-    missionName: string;
-    meetingsBooked: number;
-    callsCount: number;
-    callsMonthLabel: string;
-    canGoNextMonth: boolean;
-    onPrevMonth: () => void;
-    onNextMonth: () => void;
-    isRefreshing: boolean;
-    onRefresh: () => void;
     showCallHistory: boolean;
     showDatabase: boolean;
-    breakdown: ReactNode;
-    upcomingMeetings: ClientHomeMeeting[];
-    /** null while loading. */
-    team: ClientTeamData | null;
-    /** When the figures on screen were fetched; null before the first load. */
-    updatedAt: Date | null;
+    onAssumptionsSaved: () => void;
 }
 
-function formatMeetingDate(dateString: string): string {
-    return new Date(dateString).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-}
+const fr = (n: number) => n.toLocaleString("fr-FR");
+const CARD = "rounded-[18px] border border-line bg-surface p-5 sm:p-6 min-w-0";
+const EYEBROW = "font-mono text-[11px] sm:text-xs uppercase tracking-[0.14em]";
 
-function formatMeetingTime(dateString: string): string {
-    return new Date(dateString).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
+const VERDICT_TONE: Partial<Record<PaceVerdict, string>> = {
+    ahead: "text-success-ink",
+    on_track: "text-success-ink",
+    reached: "text-success-ink",
+    behind: "text-warning-ink",
+    ended: "text-warning-ink",
+};
 
-function formatShortMonth(dateString: string): string {
-    return new Date(dateString).toLocaleDateString("fr-FR", { month: "short" }).toUpperCase().replace(".", "");
-}
-
-export function ClientHomeView(props: ClientHomeViewProps) {
-    const {
-        greeting, userName, monthLabel, missionName, meetingsBooked, callsCount, callsMonthLabel, canGoNextMonth,
-        onPrevMonth, onNextMonth, isRefreshing, onRefresh, showCallHistory, showDatabase, breakdown, upcomingMeetings,
-        team, updatedAt,
-    } = props;
-
-    // Measured against the fetch time, so "live" describes the figures on screen.
-    const teamLive = !!team?.lastActivityAt && !!updatedAt
-        && updatedAt.getTime() - new Date(team.lastActivityAt).getTime() < LIVE_WINDOW_MS;
+export function ClientHomeView({ letter, userName, showCallHistory, showDatabase, onAssumptionsSaved }: ClientHomeViewProps) {
+    const asOf = `Arrêté au ${letter.cutoffLabel}.`;
+    const since = letter.sinceLabel ? `le ${letter.sinceLabel}` : "le lancement";
+    const called = letter.funnel.find((s) => s.key === "called")?.count ?? 0;
+    const reached = letter.funnel.find((s) => s.key === "reached")?.count ?? 0;
+    const base = letter.funnel.find((s) => s.key === "base")?.count ?? 0;
+    const notReached = letter.dispositions.find((d) => d.key === "notReached")?.count ?? 0;
+    const neverCalled = Math.max(0, base - called);
+    const hasCost = letter.roi.costPerRdv !== null;
 
     return (
-        <div className="w-full space-y-6 pb-12 antialiased text-zinc-900">
-            {/* ═══ 1. Greeting ═══ */}
-            <header className="flex items-start sm:items-end justify-between gap-4 pt-1">
-                <div className="space-y-1.5 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {missionName && (
-                            <StatusPill
-                                tone="emerald"
-                                pulse={teamLive}
-                                title={teamLive ? "Votre équipe a enregistré une action il y a moins de 2 h" : undefined}
-                            >
-                                <span className="max-w-[260px] truncate">{missionName}</span>
-                            </StatusPill>
-                        )}
-                        <StatusPill tone="slate" icon={Calendar}>Mois en cours · {monthLabel}</StatusPill>
-                    </div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
-                        {greeting}, {userName}
-                    </h1>
-                    <p className="text-xs sm:text-sm text-zinc-500 font-medium">
-                        Vos rendez-vous obtenus et l&apos;activité de prospection menée pour vous.
-                    </p>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                    {updatedAt && (
-                        <span className="hidden sm:block text-right text-[11px] font-semibold text-ink-3 leading-tight" aria-live="polite">
-                            Données à jour
-                            <span className="block text-ink-2 tabular-nums">
-                                à {updatedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                            </span>
-                        </span>
-                    )}
-                    <button
-                        type="button"
-                        onClick={onRefresh}
-                        disabled={isRefreshing}
-                        className={cn(ICON_BUTTON, "h-11 w-11 rounded-2xl")}
-                        title="Rafraîchir"
-                        aria-label="Actualiser les données"
-                    >
-                        <RefreshCw className={cn("w-4 h-4", isRefreshing && "motion-safe:animate-spin")} aria-hidden />
-                    </button>
-                </div>
-            </header>
+        <div className="mx-auto w-full max-w-[1200px] space-y-6 pb-12 text-ink antialiased sm:space-y-7">
+            <LetterHeader letter={letter} userName={userName} />
 
-            {/* ═══ 2. Hero — RDV cumulés & appels du mois ═══ */}
-            <HeroCard className="space-y-6">
-                <HeroPill icon={CalendarCheck}>Rendez-vous confirmés</HeroPill>
+            <RoiBand letter={letter} since={since} />
 
-                <div className="flex items-baseline gap-2">
-                    <AnimatedNumber
-                        value={meetingsBooked}
-                        className="text-[72px] md:text-[84px] font-black text-white leading-[0.85] tracking-tighter"
-                    />
-                    <span className="text-2xl font-black text-inverse-ink-3">RDV</span>
-                </div>
-                <p className="text-[11px] font-semibold text-inverse-ink-3 -mt-3">
-                    Confirmés au SAS, annulations exclues · depuis le début de la mission
-                </p>
-
-                <div className="pt-5 border-t border-inverse-line flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-[11px] font-bold text-inverse-ink-2 uppercase tracking-wider">Appels passés</span>
-                        {/* Month stepper — track 12px / p-1 → buttons 8px */}
-                        <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-inverse-raised border border-inverse-line">
-                            <button
-                                type="button"
-                                onClick={onPrevMonth}
-                                className={cn(
-                                    "w-7 h-7 rounded-lg flex items-center justify-center text-inverse-ink-2 hover:text-white hover:bg-white/10 transition-colors",
-                                    "outline-none focus-visible:ring-2 focus-visible:ring-accent-300",
-                                )}
-                                aria-label="Mois précédent"
-                            >
-                                <ChevronLeft className="w-4 h-4" aria-hidden />
-                            </button>
-                            <span className="min-w-[116px] text-center text-xs font-bold text-white px-1 tabular-nums" aria-live="polite">
-                                {callsMonthLabel}
-                            </span>
-                            <button
-                                type="button"
-                                onClick={onNextMonth}
-                                disabled={!canGoNextMonth}
-                                className={cn(
-                                    "w-7 h-7 rounded-lg flex items-center justify-center text-inverse-ink-2 hover:text-white hover:bg-white/10 transition-colors",
-                                    "disabled:opacity-35 disabled:pointer-events-none outline-none focus-visible:ring-2 focus-visible:ring-accent-300",
-                                )}
-                                aria-label="Mois suivant"
-                            >
-                                <ChevronRight className="w-4 h-4" aria-hidden />
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 p-3.5 pr-5 rounded-2xl bg-inverse-raised border border-inverse-line">
-                        <div className="w-10 h-10 rounded-xl bg-white/10 border border-inverse-line flex items-center justify-center flex-shrink-0">
-                            <PhoneCall className="w-[18px] h-[18px] text-inverse-ink-2" aria-hidden />
-                        </div>
-                        <div>
-                            <AnimatedNumber value={callsCount} className="text-xl font-black text-white leading-none" />
-                            <p className="text-[11px] text-inverse-ink-3 mt-1 font-semibold">appels en {callsMonthLabel.toLowerCase()}</p>
-                        </div>
-                    </div>
-                </div>
-            </HeroCard>
-
-            {/* ═══ 3. Votre mission & votre équipe ═══ */}
-            <ClientMissionTeamCard data={team} now={updatedAt} />
-
-            {/* ═══ 4. Shortcuts (portal settings) ═══ */}
-            {(showCallHistory || showDatabase) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {showCallHistory && (
-                        <ShortcutCard
-                            href="/client/portal/calls"
-                            icon={<IconTile icon={PhoneCall} tone="emerald" size="lg" />}
-                            title="Historique des appels"
-                            hint="Consultez tous les appels passés par l'équipe."
-                        />
-                    )}
-                    {showDatabase && (
-                        <ShortcutCard
-                            href="/client/portal/database"
-                            icon={<IconTile icon={Users} tone="indigo" size="lg" />}
-                            title="Base de données"
-                            hint="Vue des entreprises et contacts suivis par l'équipe."
-                        />
-                    )}
-                </div>
-            )}
-
-            {/* ═══ 5. Analyse de la prospection ═══ */}
-            {breakdown}
-
-            {/* ═══ 6. Prochains rendez-vous ═══ */}
-            <section className={cn(CARD, "p-6 space-y-4")}>
-                <SectionHeader
-                    icon={CalendarCheck}
-                    tone="emerald"
-                    title="Prochains rendez-vous"
-                    count={upcomingMeetings.length}
-                    subtitle="Planifiés par votre équipe"
-                    right={<TextLink href="/client/portal/meetings">Voir tous mes rendez-vous</TextLink>}
+            {/* ═══ Chiffres clés ═══ */}
+            <section aria-label="Chiffres clés" className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2", hasCost ? "xl:grid-cols-4" : "xl:grid-cols-3")}>
+                <MonthTile month={letter.month} />
+                <Figure
+                    label="Décideurs contactés"
+                    definition={`Décideurs de votre cible appelés au moins une fois, depuis ${since} jusqu’au ${letter.cutoffLabel}.`}
+                    value={fr(called)}
+                    note={base ? `sur ${fr(base)} dans votre cible · ${formatPercent(called / base)}` : "Aucune base active pour l’instant"}
                 />
-
-                {upcomingMeetings.length === 0 ? (
-                    <EmptyBlock
-                        icon={Calendar}
-                        tone="slate"
-                        title="Aucun RDV à venir"
-                        hint="Les prochains RDV planifiés par votre équipe apparaîtront ici."
+                <Figure
+                    label="Joignabilité"
+                    definition={`Part des décideurs appelés qu’on a eus en ligne au moins une fois (tout sauf pas de réponse, barrage, numéro invalide). ${asOf}`}
+                    value={called ? formatPercent(reached / called) : "—"}
+                    note={`${fr(reached)} ${reached > 1 ? "décideurs ont décroché" : "décideur a décroché"}`}
+                />
+                {hasCost && (
+                    <Figure
+                        label="Coût par RDV confirmé"
+                        definition={`Montant HT facturé pour ${letter.roi.investedLabel}, divisé par les RDV confirmés sur ces mêmes mois. ${asOf}`}
+                        value={formatEuros(letter.roi.costPerRdv as number)}
+                        note={`${formatEuros(letter.roi.invested as number)} ÷ ${letter.roi.confirmedInvoiced} RDV · ${letter.roi.investedLabel}`}
                     />
-                ) : (
-                    <ul className="space-y-2.5">
-                        {upcomingMeetings.map((m) => (
-                            <li key={m.id}>
-                                <MeetingRow meeting={m} />
-                            </li>
-                        ))}
-                    </ul>
                 )}
             </section>
+
+            {/* ═══ Funnel + dispositions ═══ */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <section aria-labelledby="letter-funnel" className={CARD}>
+                    <CardHead id="letter-funnel" title="De votre cible aux rendez-vous" sub={`Depuis ${since}, arrêté au ${letter.cutoffLabel}. À droite, la part de l’étape précédente.`} />
+                    <FunnelChart steps={letter.funnel} />
+                </section>
+                <section aria-labelledby="letter-dispositions" className={CARD}>
+                    <CardHead id="letter-dispositions" title={`Ce que sont devenus les ${fr(called)} contactés`} sub={`Le statut actuel de chaque décideur appelé. ${asOf}`} />
+                    {called ? (
+                        <>
+                            <DispositionChart items={letter.dispositions} total={called} />
+                            {(notReached > 0 || neverCalled > 0) && (
+                                <p className="mt-4 text-sm text-ink-3">
+                                    {notReached > 0 && <>{fr(notReached)} {notReached > 1 ? "décideurs appelés restent" : "décideur appelé reste"} à joindre. </>}
+                                    {neverCalled > 0 && <>{fr(neverCalled)} {neverCalled > 1 ? "décideurs de votre cible n’ont" : "décideur de votre cible n’a"} pas encore été {neverCalled > 1 ? "appelés" : "appelé"}.</>}
+                                </p>
+                            )}
+                        </>
+                    ) : (
+                        <Empty>Aucun décideur appelé à la date de la lettre.</Empty>
+                    )}
+                </section>
+            </div>
+
+            {/* ═══ Weekly RDV + market ═══ */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <section aria-labelledby="letter-weeks" className={CARD}>
+                    <CardHead id="letter-weeks" title="RDV confirmés par semaine" sub="Depuis le lancement, par semaine de confirmation. La semaine en cours se remplit en direct, dès qu’un RDV est confirmé." />
+                    {letter.weeks.length ? <WeeklyChart weeks={letter.weeks} letterWeekStart={letter.week.start} /> : <Empty>La mission n’a pas encore commencé.</Empty>}
+                </section>
+                <section aria-labelledby="letter-market" className={CARD}>
+                    <CardHead
+                        id="letter-market"
+                        title="Ce que le marché vous dit"
+                        sub={letter.refusals.total
+                            ? `Les ${fr(letter.refusals.total)} décideurs qui ont décliné, par motif noté par l’équipe au moment de l’appel. ${asOf}`
+                            : `Les motifs de refus, notés par l’équipe au moment de l’appel. ${asOf}`}
+                    />
+                    {letter.refusals.total ? <ReasonsChart refusals={letter.refusals} /> : <Empty>Aucun refus enregistré à cette date.</Empty>}
+                </section>
+            </div>
+
+            <UpcomingMeetings meetings={letter.upcoming} total={letter.upcomingTotal} />
+
+            {/* ═══ Vos hypothèses ═══ */}
+            <section id="hypotheses" aria-labelledby="letter-assumptions" className={cn(CARD, "scroll-mt-24 border-dashed")}>
+                <CardHead
+                    id="letter-assumptions"
+                    title="Vos hypothèses"
+                    sub="Deux chiffres que vous seul connaissez. Ils servent uniquement à estimer le pipeline généré par les RDV tenus."
+                />
+                <AssumptionsForm value={letter.assumptions} onSaved={onAssumptionsSaved} />
+            </section>
+
+            {(showCallHistory || showDatabase) && (
+                <nav aria-label="Pour aller plus loin" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {showCallHistory && (
+                        <Shortcut href="/client/portal/calls" icon={<PhoneCall className="h-[18px] w-[18px]" aria-hidden />} title="Historique des appels" hint="Le détail des appels passés par l’équipe." />
+                    )}
+                    {showDatabase && (
+                        <Shortcut href="/client/portal/database" icon={<Database className="h-[18px] w-[18px]" aria-hidden />} title="Base de données" hint="Les entreprises et contacts suivis par l’équipe." />
+                    )}
+                </nav>
+            )}
+
+            <footer className="flex flex-wrap gap-x-6 gap-y-2 border-t border-line pt-4 text-xs text-ink-3 sm:text-sm">
+                <span className="inline-flex items-center gap-2"><LiveDot />RDV confirmés en direct</span>
+                <span>Le reste arrêté au {letter.cutoffLabel}</span>
+                <span>Mêmes définitions que votre manager de mission</span>
+                <span>Aucun appel individuel n’est affiché sur cette page</span>
+            </footer>
         </div>
     );
 }
 
-function ShortcutCard({ href, icon, title, hint }: { href: string; icon: ReactNode; title: string; hint: string }) {
+// ── Header ────────────────────────────────────────────────────────────────
+
+function LetterHeader({ letter, userName }: { letter: ClientLetter; userName: string }) {
+    const missionLine = [
+        `Bonjour ${userName}`,
+        letter.missions.length === 1 ? letter.missions[0].name : `${letter.missions.length} missions`,
+        letter.sdrCount ? `${letter.sdrCount} ${letter.sdrCount > 1 ? "SDR dédiés" : "SDR dédié"}` : null,
+        letter.sinceLabel ? `depuis le ${letter.sinceLabel}` : null,
+    ].filter(Boolean).join(" · ");
     return (
-        <Link href={href} className={cn(CARD, CARD_HOVER, FOCUS, "group flex items-center gap-4 p-5")}>
-            {icon}
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-extrabold text-zinc-900">{title}</p>
-                <p className="text-xs font-medium text-zinc-500 mt-0.5">{hint}</p>
+        <header className="flex flex-col gap-5 pt-1 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
+            <div className="min-w-0 max-w-4xl">
+                <p className={cn(EYEBROW, "text-accent-soft-ink")}>
+                    Lettre du lundi · semaine {letter.week.number} · {letter.week.rangeLabel}
+                </p>
+                <Definition
+                    text={`RDV confirmés par votre manager de mission ${letter.week.rangeLabel} (date de confirmation). Compté en direct : un RDV annulé depuis n’y figure plus.`}
+                    className="mt-3 rounded-xl"
+                >
+                    <h1 className="font-display text-[34px] font-semibold leading-[1.04] tracking-[-0.04em] text-ink text-balance sm:text-5xl lg:text-[58px]">
+                        {letter.headline.title}
+                    </h1>
+                </Definition>
+                {letter.headline.detail && <p className="mt-3 text-base text-ink-2 sm:text-lg">{letter.headline.detail}</p>}
+                <p className="mt-3 text-sm text-ink-3">{missionLine}</p>
             </div>
-            <span className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:bg-zinc-950 transition-colors">
-                <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" aria-hidden />
-            </span>
-        </Link>
+            <div className="shrink-0 space-y-1 text-sm text-ink-3 lg:text-right">
+                <p className="inline-flex items-center gap-2 font-semibold text-success-ink lg:justify-end"><LiveDot />RDV confirmés : en direct</p>
+                <p>Le reste arrêté au {letter.cutoffLabel}</p>
+            </div>
+        </header>
     );
 }
 
-function MeetingRow({ meeting: m }: { meeting: ClientHomeMeeting }) {
-    const contactName = m.contact
-        ? [m.contact.firstName, m.contact.lastName].filter(Boolean).join(" ") || "Contact"
-        : "Contact entreprise";
-    const companyName = m.contact?.company?.name ?? m.company?.name ?? "Entreprise inconnue";
-    const d = m.callbackDate ? new Date(m.callbackDate) : null;
-    const interlocuteur = m.interlocuteur
-        ? [m.interlocuteur.firstName, m.interlocuteur.lastName].filter(Boolean).join(" ") || "Commercial assigné"
-        : null;
+function LiveDot() {
+    return (
+        <span className="relative inline-flex h-2 w-2" aria-hidden>
+            <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50 motion-safe:animate-ping" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
+        </span>
+    );
+}
+
+// ── ROI band ──────────────────────────────────────────────────────────────
+
+function RoiBand({ letter, since }: { letter: ClientLetter; since: string }) {
+    const { roi, assumptions } = letter;
+    const asOf = `Arrêté au ${letter.cutoffLabel}.`;
+    const ready = roi.pipeline !== null;
+    const rate = assumptions.meetingToOppRate !== null ? formatPercent(assumptions.meetingToOppRate) : null;
+    const deal = assumptions.avgDealValue !== null ? formatEuros(assumptions.avgDealValue) : null;
+    const comparable = roi.invested !== null && roi.pipelineInvoiced !== null;
+    const barMax = comparable ? Math.max(roi.invested as number, roi.pipelineInvoiced as number, 1) : 1;
+    const heldDef = `RDV confirmés qui ont eu lieu : un retour le dit, ou le délai de 48 h pour signaler une absence est passé sans signalement (même règle que la facturation). ${asOf}`;
 
     return (
-        <Link
-            href="/client/portal/meetings"
-            className={cn(
-                "group flex items-center gap-4 p-3.5 rounded-2xl border bg-white border-slate-200 shadow-2xs",
-                "hover:border-slate-300 hover:shadow-[0_4px_14px_rgba(15,23,42,0.05)] transition-[border-color,box-shadow]",
-                FOCUS,
-            )}
-        >
-            {/* Date block — 12px radius inside the 16px row */}
-            <div className="w-14 h-14 shrink-0 flex flex-col items-center justify-center rounded-xl bg-slate-50 border border-slate-200 group-hover:bg-emerald-50 group-hover:border-emerald-200/80 transition-colors">
-                {d ? (
-                    <>
-                        <span className="text-lg font-black text-zinc-900 leading-none tabular-nums">{d.getDate()}</span>
-                        <span className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-wider mt-1">{formatShortMonth(m.callbackDate!)}</span>
-                    </>
-                ) : (
-                    <span className="text-[10px] font-extrabold text-zinc-400 text-center leading-tight px-1">À<br />confirmer</span>
-                )}
+        <section aria-labelledby="letter-roi" className="rounded-3xl bg-inverse p-5 text-inverse-ink sm:p-8">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+                <h2 id="letter-roi" className="font-display text-xl font-semibold tracking-[-0.02em] sm:text-[22px]">
+                    Ce que la mission a produit depuis {since}
+                </h2>
+                <a href="#hypotheses" className="rounded text-sm text-inverse-ink-2 underline decoration-inverse-ink-3 underline-offset-4 hover:text-inverse-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                    {ready ? "Vos hypothèses · les modifier" : "Renseigner vos hypothèses"}
+                </a>
             </div>
 
-            <div className="flex-1 min-w-0">
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-1.5 min-w-0">
-                    <span className="text-sm font-extrabold text-zinc-900 truncate">{contactName}</span>
-                    <span className="text-xs font-semibold text-zinc-500 truncate">chez {companyName}</span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-2 mt-1">
-                    {m.callbackDate ? (
+            <div className="mt-6 flex flex-col gap-8 lg:flex-row lg:items-center lg:gap-12">
+                <div className="min-w-0 flex-1 space-y-5">
+                    {comparable ? (
                         <>
-                            <span className="text-xs font-bold text-emerald-700 capitalize">{formatMeetingDate(m.callbackDate)}</span>
-                            <span className="text-[11px] font-bold text-zinc-400 tabular-nums">{formatMeetingTime(m.callbackDate)}</span>
+                            <BandBar
+                                label={`Investi · facturé pour ${roi.investedLabel}`}
+                                definition={`Montants HT facturés pour ${roi.investedLabel} : factures validées, envoyées ou payées, avoirs déduits. ${asOf}`}
+                                value={formatEuros(roi.invested as number)}
+                                width={(roi.invested as number) / barMax}
+                                fill="bg-inverse-ink-3"
+                            />
+                            <BandBar
+                                label={`Pipeline généré · RDV tenus de ${roi.investedLabel}`}
+                                definition={`RDV tenus de ${roi.investedLabel} × votre taux de passage en opportunité × votre panier moyen. Une estimation fondée sur vos hypothèses, pas un chiffre d’affaires. ${asOf}`}
+                                value={formatEuros(roi.pipelineInvoiced as number)}
+                                width={(roi.pipelineInvoiced as number) / barMax}
+                                fill="bg-accent"
+                            />
+                            <p className="text-sm text-inverse-ink-2">
+                                {roi.heldInvoiced} {roi.heldInvoiced > 1 ? "RDV tenus" : "RDV tenu"} × {rate} qui deviennent une opportunité × {deal} de panier moyen.
+                                {roi.heldOutsideInvoices > 0 && roi.pipeline !== null && (
+                                    <> En plus, {roi.heldOutsideInvoices} {roi.heldOutsideInvoices > 1 ? "RDV tenus" : "RDV tenu"} hors des mois facturés, soit {formatEuros(roi.pipeline - (roi.pipelineInvoiced as number))} de pipeline non compté dans le multiple.</>
+                                )}
+                            </p>
+                        </>
+                    ) : ready ? (
+                        <>
+                            <BandBar
+                                label={`Pipeline généré · ${roi.held} ${roi.held > 1 ? "RDV tenus" : "RDV tenu"}`}
+                                definition={`RDV tenus × votre taux de passage en opportunité × votre panier moyen. Une estimation fondée sur vos hypothèses, pas un chiffre d’affaires. ${asOf}`}
+                                value={formatEuros(roi.pipeline as number)}
+                                width={roi.pipeline ? 1 : 0}
+                                fill="bg-accent"
+                            />
+                            <p className="text-sm text-inverse-ink-2">
+                                {roi.held} {roi.held > 1 ? "RDV tenus" : "RDV tenu"} × {rate} qui deviennent une opportunité × {deal} de panier moyen.
+                                {" "}Aucune facture n’est encore émise pour cette mission : le coût n’est pas connu, le multiple sera calculé dès la première facture.
+                            </p>
                         </>
                     ) : (
-                        <span className="text-xs font-semibold text-zinc-400 italic">Date à confirmer</span>
+                        <div className="space-y-3">
+                            <Definition text={heldDef} className="max-w-md rounded-xl">
+                                <div className="flex items-baseline gap-3">
+                                    <span className="font-display text-6xl font-semibold leading-none tracking-[-0.05em] tabular-nums">{roi.held}</span>
+                                    <span className={cn("text-sm text-inverse-ink-2", DEFINED, "decoration-inverse-ink-3")}>{roi.held > 1 ? "RDV tenus" : "RDV tenu"} depuis {since}</span>
+                                </div>
+                            </Definition>
+                            <p className="max-w-xl text-sm text-inverse-ink-2">
+                                Pour chiffrer le pipeline qu’ils représentent, indiquez votre panier moyen et la part de RDV tenus qui deviennent une opportunité.
+                                {roi.invested === null && " Aucune facture n’est encore émise : le coût de la mission n’est pas encore connu."}
+                            </p>
+                            {roi.invested !== null && (
+                                <Definition text={`Montants HT facturés pour ${roi.investedLabel} : factures validées, envoyées ou payées, avoirs déduits. ${asOf}`} className="max-w-md rounded-xl">
+                                    <p className="text-sm text-inverse-ink-2">
+                                        <span className={cn(DEFINED, "decoration-inverse-ink-3")}>Investi, facturé pour {roi.investedLabel}</span>
+                                        {" "}<span className="font-mono text-base tabular-nums text-inverse-ink">{formatEuros(roi.invested)}</span>
+                                    </p>
+                                </Definition>
+                            )}
+                        </div>
+                    )}
+                    {letter.heldPending > 0 && (
+                        <p className="text-sm text-inverse-ink-2">
+                            {letter.heldPending} {letter.heldPending > 1 ? "RDV passés juste avant lundi ne sont" : "RDV passé juste avant lundi n’est"} pas encore {letter.heldPending > 1 ? "comptés" : "compté"} :
+                            une absence peut être signalée jusqu’à 48 h après le RDV. Ils entreront dans la lettre de lundi prochain.
+                        </p>
                     )}
                 </div>
-            </div>
 
-            <div className="hidden md:flex items-center gap-1.5 shrink-0 max-w-[40%]">
-                <span className={cn("inline-flex h-6 items-center px-2.5 rounded-full border text-[11px] font-bold truncate", PILL.emerald)}>
-                    {m.campaign?.mission?.name ?? "—"}
-                </span>
-                {interlocuteur && (
-                    <span className={cn("inline-flex h-6 items-center px-2.5 rounded-full border text-[11px] font-bold truncate", PILL.indigo)}>
-                        {interlocuteur}
-                    </span>
+                {roi.multiple !== null ? (
+                    <Definition text={`Pipeline des mois facturés ÷ montant facturé pour ces mêmes mois. ${asOf}`} className="shrink-0 rounded-xl lg:w-[240px]">
+                        <p className="font-display text-[64px] font-semibold leading-[0.85] tracking-[-0.06em] text-inverse-ink tabular-nums sm:text-[96px]">{formatMultiple(roi.multiple)}</p>
+                        <p className={cn("mt-3 text-sm text-inverse-ink-2", DEFINED, "decoration-inverse-ink-3")}>le pipeline rapporté à ce qui vous a été facturé</p>
+                    </Definition>
+                ) : ready ? (
+                    <Definition text={heldDef} className="shrink-0 rounded-xl lg:w-[240px]">
+                        <p className="font-display text-[64px] font-semibold leading-[0.85] tracking-[-0.06em] tabular-nums sm:text-[88px]">{roi.held}</p>
+                        <p className={cn("mt-3 text-sm text-inverse-ink-2", DEFINED, "decoration-inverse-ink-3")}>{roi.held > 1 ? "RDV tenus" : "RDV tenu"} depuis {since}</p>
+                    </Definition>
+                ) : null}
+            </div>
+        </section>
+    );
+}
+
+function BandBar({ label, definition, value, width, fill }: { label: string; definition: string; value: string; width: number; fill: string }) {
+    return (
+        <Definition text={definition} className="rounded-xl">
+            <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[13rem_minmax(0,1fr)] sm:gap-4">
+                <div className="min-w-0">
+                    <p className={cn("text-[13px] text-inverse-ink-2", DEFINED, "decoration-inverse-ink-3")}>{label}</p>
+                    <p className="font-mono text-xl tabular-nums sm:text-[22px]">{value}</p>
+                </div>
+                <div className="h-3 rounded-r-md bg-inverse-raised sm:h-[22px]" aria-hidden>
+                    <div className={cn("h-full rounded-r-md", fill, width > 0 && "min-w-[10px]")} style={{ width: `${Math.max(0, Math.min(1, width)) * 100}%` }} />
+                </div>
+            </div>
+        </Definition>
+    );
+}
+
+// ── Key figures ───────────────────────────────────────────────────────────
+
+function Figure({ label, definition, value, note }: { label: string; definition: string; value: string; note: string }) {
+    return (
+        <Definition text={definition} className="rounded-[18px]">
+            <div className={cn(CARD, "h-full")}>
+                <p className={cn("text-sm text-ink-2", DEFINED)}>{label}</p>
+                <p className="mt-1 font-display text-[40px] font-semibold leading-[1.15] tracking-[-0.035em] tabular-nums">{value}</p>
+                <p className="text-sm text-ink-3">{note}</p>
+            </div>
+        </Definition>
+    );
+}
+
+const todayLabel = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "Europe/Paris" });
+
+function MonthTile({ month }: { month: ClientLetter["month"] }) {
+    const { pace, target, confirmed } = month;
+    const expected = pace.expected !== null ? Math.round(pace.expected) : null;
+    const verdict =
+        pace.verdict === "no_target"
+            ? "Aucun objectif chiffré sur la mission"
+            : pace.verdict === "on_track" || pace.verdict === "ahead" || pace.verdict === "behind"
+                ? `${paceLabel(pace.verdict)} · ${expected} ${expected !== null && expected > 1 ? "attendus" : "attendu"} au ${todayLabel.format(new Date())}`
+                : paceLabel(pace.verdict);
+    const definition = target
+        ? `RDV confirmés en ${month.label}, en direct. Objectif du mois : l’objectif de la mission réparti sur sa durée, soit ${target} en ${month.label}. Le repère montre où en serait un rythme régulier.`
+        : `RDV confirmés en ${month.label}, en direct. La mission n’a pas d’objectif chiffré.`;
+    return (
+        <Definition text={definition} className="rounded-[18px]">
+            <div className={cn(CARD, "h-full")}>
+                <p className={cn("text-sm text-ink-2 first-letter:uppercase", DEFINED)}>RDV confirmés · {month.label}</p>
+                <p className="mt-1 font-display text-[40px] font-semibold leading-[1.15] tracking-[-0.035em] tabular-nums">
+                    {confirmed}
+                    {target && <span className="ml-1.5 text-lg font-medium text-ink-3">/ {target}</span>}
+                </p>
+                {target && (
+                    <div className="relative mt-2 h-2.5 rounded-full bg-surface-3" aria-hidden>
+                        <div className="absolute inset-y-0 left-0 rounded-full bg-accent" style={{ width: `${Math.min(100, (confirmed / target) * 100)}%` }} />
+                        {expected !== null && expected > 0 && (
+                            <div className="absolute -inset-y-1 w-0.5 rounded-full bg-ink" style={{ left: `${Math.min(100, (expected / target) * 100)}%` }} />
+                        )}
+                    </div>
                 )}
+                <p className={cn("mt-2 text-sm font-semibold", VERDICT_TONE[pace.verdict] ?? "text-ink-3")}>{verdict}</p>
             </div>
+        </Definition>
+    );
+}
 
-            <span className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center shrink-0 group-hover:bg-zinc-950 transition-colors">
-                <Chevron className="w-4 h-4 text-zinc-400 group-hover:text-white transition-colors" aria-hidden />
+// ── Upcoming meetings ─────────────────────────────────────────────────────
+
+const dayFmt = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/Paris" });
+const timeFmt = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+const dayKey = new Intl.DateTimeFormat("fr-CA", { timeZone: "Europe/Paris" });
+
+function meetingDay(iso: string): string {
+    const at = new Date(iso);
+    const key = dayKey.format(at);
+    const now = new Date();
+    if (key === dayKey.format(now)) return "Aujourd’hui";
+    if (key === dayKey.format(new Date(now.getTime() + 86_400_000))) return "Demain";
+    const label = dayFmt.format(at);
+    return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function UpcomingMeetings({ meetings, total }: { meetings: LetterUpcomingMeeting[]; total: number }) {
+    return (
+        <section aria-labelledby="letter-upcoming" className={CARD}>
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 id="letter-upcoming" className="font-display text-xl font-semibold tracking-[-0.02em]">
+                    {total > 0 ? `Vos ${total > meetings.length ? meetings.length : total} prochains rendez-vous` : "Vos prochains rendez-vous"}
+                </h2>
+                <Link href="/client/portal/meetings" className="rounded text-sm font-semibold text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+                    Tous les rendez-vous
+                </Link>
+            </div>
+            <p className="mb-3 text-sm text-ink-3">Confirmés par votre manager de mission, en direct.</p>
+            {meetings.length === 0 ? (
+                <Empty>Aucun rendez-vous confirmé à venir pour l’instant.</Empty>
+            ) : (
+                <ul>
+                    {meetings.map((m) => (
+                        <li key={m.id} className="grid grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-x-4 gap-y-2 border-t border-line-subtle py-3.5 sm:grid-cols-[9rem_minmax(0,1fr)_auto] sm:items-center">
+                            <div>
+                                <p className="text-sm font-semibold">{m.date ? meetingDay(m.date) : "Date à fixer"}</p>
+                                {m.date && <p className="font-mono text-sm tabular-nums text-ink-3">{timeFmt.format(new Date(m.date))}</p>}
+                            </div>
+                            <div className="min-w-0">
+                                <p className="truncate font-semibold">{m.person}</p>
+                                <p className="truncate text-sm text-ink-3">{[m.title, m.company].filter(Boolean).join(" · ")}</p>
+                            </div>
+                            <div className="col-start-2 flex flex-wrap items-center gap-2 sm:col-start-auto sm:justify-end">
+                                {m.format && <span className="inline-flex h-6 items-center rounded-full bg-success-soft px-2.5 text-xs font-semibold text-success-ink">{m.format}</span>}
+                                <Link
+                                    href={`/client/portal/meetings?rdv=${encodeURIComponent(m.id)}`}
+                                    className="inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-[13px] font-semibold text-primary-fg hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                                >
+                                    {m.hasFiche ? "Fiche de préparation" : "Détail du RDV"}
+                                </Link>
+                            </div>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {total > meetings.length && (
+                <p className="border-t border-line-subtle pt-3 text-sm text-ink-3">+ {total - meetings.length} autres RDV confirmés à venir</p>
+            )}
+        </section>
+    );
+}
+
+// ── Small parts ───────────────────────────────────────────────────────────
+
+function CardHead({ id, title, sub }: { id: string; title: string; sub: string }) {
+    return (
+        <div className="mb-5">
+            <h2 id={id} className="font-display text-xl font-semibold tracking-[-0.02em]">{title}</h2>
+            <p className="mt-1 text-sm text-ink-3">{sub}</p>
+        </div>
+    );
+}
+
+function Empty({ children }: { children: ReactNode }) {
+    return <p className="rounded-xl bg-surface-2 px-4 py-6 text-center text-sm text-ink-3">{children}</p>;
+}
+
+function Shortcut({ href, icon, title, hint }: { href: string; icon: ReactNode; title: string; hint: string }) {
+    return (
+        <Link href={href} className="group flex items-center gap-4 rounded-[18px] border border-line bg-surface p-5 transition-colors hover:border-line-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-3 text-ink-2">{icon}</span>
+            <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">{title}</span>
+                <span className="block text-xs text-ink-3">{hint}</span>
             </span>
+            <ArrowRight className="h-4 w-4 text-ink-3 transition-transform group-hover:translate-x-0.5" aria-hidden />
         </Link>
     );
 }
 
 export function ClientHomeSkeleton() {
     return (
-        <div className="w-full space-y-6 pb-12" aria-busy="true" aria-label="Chargement de l'accueil">
-            <div className="flex items-end justify-between gap-4 pt-1">
-                <div className="space-y-2.5">
-                    <div className="flex gap-2">
-                        <Shimmer className="h-7 w-40 rounded-full" />
-                        <Shimmer className="h-7 w-32 rounded-full" />
-                    </div>
-                    <Shimmer className="h-9 w-72 rounded-xl" />
-                    <Shimmer className="h-4 w-80 max-w-full rounded-lg" />
-                </div>
-                <Shimmer className="h-11 w-11 rounded-2xl" />
+        <div className="mx-auto w-full max-w-[1200px] space-y-6 pb-12" aria-busy="true" aria-label="Chargement de la lettre de la semaine">
+            <div className="space-y-3 pt-1">
+                <Shimmer className="h-4 w-72 max-w-full rounded-md" />
+                <Shimmer className="h-14 w-[36rem] max-w-full rounded-xl" />
+                <Shimmer className="h-4 w-80 max-w-full rounded-md" />
             </div>
-            <div className="h-[300px] rounded-3xl bg-inverse/90 motion-safe:animate-pulse" />
-            <Shimmer className="h-[240px] rounded-3xl" />
-            <Shimmer className="h-[420px] rounded-3xl" />
-            <Shimmer className="h-[260px] rounded-3xl" />
+            <div className="h-[260px] rounded-3xl bg-inverse/90 motion-safe:animate-pulse" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[0, 1, 2, 3].map((i) => <Shimmer key={i} className="h-[150px] rounded-[18px]" />)}
+            </div>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Shimmer className="h-[320px] rounded-[18px]" />
+                <Shimmer className="h-[320px] rounded-[18px]" />
+            </div>
         </div>
     );
 }

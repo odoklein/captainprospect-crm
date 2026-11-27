@@ -813,6 +813,15 @@ model Client {
   // RDV email notifications
   rdvEmailNotificationsEnabled Boolean @default(true)
 
+  // Client portal « Vos hypothèses »: entered once by the client so the weekly
+  // letter can estimate the pipeline its held RDV generated
+  // (lib/client-portal/letter.ts). Null until the client sets them.
+  /// Average deal value, euros HT.
+  portalAvgDealValue         Int?
+  /// Share of held RDV that become an opportunity, 0–1.
+  portalMeetingToOppRate     Float?
+  portalAssumptionsUpdatedAt DateTime?
+
   // Business Developer relations
   bdAssignments BusinessDeveloperClient[]
   onboarding    ClientOnboarding?
