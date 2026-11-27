@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
-    AlertTriangle, CalendarClock, ChevronDown, Crosshair, ExternalLink, FileText, History, Keyboard,
+    AlertTriangle, CalendarClock, Crosshair, ExternalLink, FileText, History, Keyboard,
     LogOut, Pause, Phone, PhoneOff, Play, RefreshCw, SkipForward, X,
 } from "lucide-react";
 import { Kbd, useToast } from "@/components/ui";
@@ -35,6 +35,13 @@ import type { QualificationView } from "@/lib/qualification/types";
 import {
     EMPTY_STATS, callbackPresets, connectRate, dispositionKeys, isTypingTarget, parseLocalCallback, type SessionStats,
 } from "@/lib/focus/focus";
+import { buildDayRail, cycleMission, gateCall, livePace, upNext } from "@/lib/focus/console";
+import { isReached, statusFamily } from "@/lib/workspace/status-family";
+import type { JournalRow } from "@/lib/calls-journal/types";
+import { useSdrPace } from "@/components/sdr/SdrPaceProvider";
+import { useFocusConsole } from "@/components/sdr/console/useFocusConsole";
+import { DayRail, fallbackMeta, type StatusMeta } from "@/components/sdr/console/DayRail";
+import { MissionSwitcher, UnqualifiedBanner, UpNextList } from "@/components/sdr/console/ConsoleParts";
 
 const UnifiedActionDrawer = dynamic(
     () => import("@/components/drawers/UnifiedActionDrawer").then((m) => ({ default: m.UnifiedActionDrawer })),
@@ -58,6 +65,8 @@ interface Status {
     sortOrder: number;
     requiresNote: boolean;
     triggersCallback: boolean;
+    /** Reporting category (Paramètres → Téléphonie → Statuts): decides reached / not reached. */
+    resultCategoryCode?: string | null;
 }
 
 interface LastAction {
@@ -191,6 +200,11 @@ export default function FocusPage() {
 
     // The integrated-phone call placed to the prospect on screen (kept after the dock is closed).
     const [ourCallId, setOurCallId] = useState<string | null>(null);
+    // Mission Control band: prospects handled this session (kept out of « Ensuite »),
+    // the call with no result being qualified, a mission switched with [ / ].
+    const [handled, setHandled] = useState<Set<string>>(() => new Set());
+    const [qualifying, setQualifying] = useState<JournalRow | null>(null);
+    const switchedMission = useRef(false);
     const nextRequest = useRef<AbortController | null>(null);
     const saveLock = useRef(false);
     useEffect(() => () => nextRequest.current?.abort(), []);
@@ -273,6 +287,40 @@ export default function FocusPage() {
     const insights = useCallTranscript(insightsOn ? ourCallId : null, insightsOn && Boolean(ourCallId));
     const suggestedStatus = insights.summary.status === "done" ? insights.summary.data.suggestedStatus : null;
 
+    // ── Mission Control band ───────────────────────────────────────────────
+    const consoleData = useFocusConsole(missionId, phase !== "setup");
+    const { pace } = useSdrPace();
+    const categoryOf = useCallback((code: string) => statusOf.get(code)?.resultCategoryCode ?? null, [statusOf]);
+    const rail = useMemo(
+        () => buildDayRail(
+            consoleData.calls.map((c) => ({ at: c.createdAt, result: c.result, category: categoryOf(c.result) })),
+            consoleData.blocks,
+            consoleData.now,
+        ),
+        [consoleData.calls, consoleData.blocks, consoleData.now, categoryOf],
+    );
+    const live = pace ? livePace(pace.callsDone, pace.expected, consoleData.calls.length) : null;
+    const dayJoints = consoleData.calls.filter((c) => isReached(c.result, categoryOf(c.result))).length;
+    const dayMeetings = consoleData.calls.filter((c) => c.result === "MEETING_BOOKED").length;
+    const statusMeta = useCallback(
+        (code: string): StatusMeta => {
+            const s = statusOf.get(code);
+            const fromDay = consoleData.calls.find((c) => c.result === code)?.resultLabel;
+            return s ? { label: s.label, color: s.color, family: statusFamily(code, s.resultCategoryCode) } : fallbackMeta(code, fromDay);
+        },
+        [statusOf, consoleData.calls],
+    );
+    // The prospect on screen is about to be qualified by the outcome panel: not a gap.
+    const gate = gateCall(
+        consoleData.unqualified.filter((r) => !prospect || r.company?.id !== prospect.company.id),
+        ourCallId,
+    );
+    const nextUp = useMemo(() => upNext(consoleData.queue ?? [], prospectKey, handled), [consoleData.queue, prospectKey, handled]);
+    const missionIds = useMemo(() => (missions ?? []).map((m) => m.id), [missions]);
+    const markHandled = useCallback((key: string | null) => {
+        if (key) setHandled((cur) => new Set(cur).add(key));
+    }, []);
+
     // ── queue ──────────────────────────────────────────────────────────────
     const loadNext = useCallback(
         async (skip = skipped) => {
@@ -323,8 +371,28 @@ export default function FocusPage() {
         setSessionStart(Date.now());
         setStats(EMPTY_STATS);
         setSkipped({ contacts: [], companies: [] });
+        setHandled(new Set());
         void loadNext({ contacts: [], companies: [] });
     };
+
+    // [ and ]: the next mission of the list, without leaving the session.
+    const switchMission = useCallback(
+        (step: 1 | -1) => {
+            if (inCall || saving) return;
+            const next = cycleMission(missionIds, missionId, step);
+            if (!next) return;
+            switchedMission.current = true;
+            writeLS(LS_MISSION, next);
+            setSkipped({ contacts: [], companies: [] });
+            setMissionId(next);
+        },
+        [inCall, saving, missionIds, missionId],
+    );
+    useEffect(() => {
+        if (!switchedMission.current) return;
+        switchedMission.current = false;
+        void loadNext({ contacts: [], companies: [] });
+    }, [loadNext]);
 
     const placeCall = useCallback(() => {
         if (!prospect || !phone || inCall || saving || phase !== "ready") return;
@@ -344,13 +412,14 @@ export default function FocusPage() {
 
     // Auto-dial: a visible, cancellable countdown once a prospect is on screen.
     useEffect(() => {
-        if (phase !== "ready" || !autoDial || paused || !softphoneOn || !phone || inCall || drawer || helpOpen) {
+        // A call left without a result holds the automatic call until it is qualified.
+        if (phase !== "ready" || !autoDial || paused || !softphoneOn || !phone || inCall || drawer || helpOpen || gate || qualifying) {
             setCountdown(null);
             return;
         }
         if (dialedFor.current === prospectKey || selected) return;
         setCountdown(AUTO_DIAL_SECONDS);
-    }, [phase, autoDial, paused, softphoneOn, phone, inCall, prospectKey, selected, drawer, helpOpen]);
+    }, [phase, autoDial, paused, softphoneOn, phone, inCall, prospectKey, selected, drawer, helpOpen, gate, qualifying]);
 
     useEffect(() => {
         if (countdown === null) return;
@@ -377,13 +446,16 @@ export default function FocusPage() {
             : { ...skipped, companies: [...skipped.companies, prospect.company.id] };
         setSkipped(next);
         setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
+        markHandled(prospectKey);
         void loadNext(next);
-    }, [prospect, inCall, skipped, loadNext, saving, phase]);
+    }, [prospect, inCall, skipped, loadNext, saving, phase, markHandled, prospectKey]);
 
     // Result confirmed from the island's suggestion: counted, and the next prospect comes up.
     useCallQualified((q) => {
+        consoleData.refresh();
         if (!prospect || q.companyId !== prospect.company.id) return;
         setStats((st) => ({ ...st, saved: st.saved + 1 }));
+        markHandled(prospectKey);
         void loadNext();
     });
 
@@ -442,6 +514,8 @@ export default function FocusPage() {
             });
             setStats((st) => ({ ...st, saved: st.saved + 1 }));
             success("Enregistré", `${personName(prospect)} · ${s?.label ?? selected}`);
+            markHandled(prospectKey);
+            consoleData.refresh();
             void loadNext(); // pause only stops the automatic call, not the queue
         } catch (e) {
             setFormError(e instanceof Error ? e.message : "Enregistrement impossible");
@@ -449,13 +523,15 @@ export default function FocusPage() {
             saveLock.current = false;
             setSaving(false);
         }
-    }, [prospect, selected, saving, statusOf, note, presets, callbackChoice, customCallback, inCall, callIsOurs, hangup, success, loadNext, phase]);
+        // consoleData.refresh is stable (useCallback); the object itself changes each render.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [prospect, selected, saving, statusOf, note, presets, callbackChoice, customCallback, inCall, callIsOurs, hangup, success, loadNext, phase, markHandled, prospectKey, consoleData.refresh]);
 
     // ── keyboard ───────────────────────────────────────────────────────────
     useEffect(() => {
         if (phase !== "ready" && phase !== "empty") return;
         const onKey = (e: KeyboardEvent) => {
-            if (drawer || e.defaultPrevented || e.repeat) return;
+            if (drawer || qualifying || e.defaultPrevented || e.repeat) return;
             if (helpOpen) {
                 if (e.key === "Escape" || e.key === "?") setHelpOpen(false);
                 return;
@@ -510,6 +586,21 @@ export default function FocusPage() {
                 case "p":
                     setPaused((v) => !v);
                     return;
+                case "q":
+                    if (gate) {
+                        e.preventDefault();
+                        cancelAutoDial();
+                        setQualifying(gate);
+                    }
+                    return;
+                case "[":
+                    e.preventDefault();
+                    switchMission(-1);
+                    return;
+                case "]":
+                    e.preventDefault();
+                    switchMission(1);
+                    return;
                 case "enter":
                     if (selected) {
                         e.preventDefault();
@@ -521,7 +612,7 @@ export default function FocusPage() {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [phase, drawer, helpOpen, countdown, keyed, inCall, call?.phase, selected, save, skip, placeCall, hangup, toggleMute, cancelAutoDial]);
+    }, [phase, drawer, helpOpen, countdown, keyed, inCall, call?.phase, selected, save, skip, placeCall, hangup, toggleMute, cancelAutoDial, gate, switchMission, qualifying]);
 
     // ════════════════════════════════════════════════════════════════════════
     // RENDER
@@ -572,9 +663,20 @@ export default function FocusPage() {
     // Three panes, each scrolling on its own: the session (rail), the prospect
     // (what to read), the outcome (what to do). Nothing floats over them.
     return (
-        <div className="cp-calling-workspace flex h-full min-h-0 w-full flex-col bg-canvas lg:flex-row">
+        <div className="cp-calling-workspace flex h-full min-h-0 w-full flex-col bg-canvas">
+            {/* ── The day: every call at its time, the pace, the last calls ── */}
+            <DayRail
+                rail={rail}
+                pace={live}
+                dayQuota={pace?.dayQuota ?? null}
+                joints={dayJoints}
+                meetings={dayMeetings}
+                recent={consoleData.calls.slice(0, 5)}
+                statusMeta={statusMeta}
+            />
+            <div className="flex min-h-0 w-full flex-1 flex-col lg:flex-row">
             {/* ── Rail: the session ── */}
-            <aside className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2.5 lg:w-[200px] lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0 lg:border-b-0 lg:border-r lg:p-0">
+            <aside className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line bg-surface px-4 py-2.5 lg:w-[220px] lg:flex-col lg:flex-nowrap lg:items-stretch lg:gap-0 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:p-0">
                 <div className="flex min-w-0 items-center gap-2.5 lg:px-4 lg:pb-4 lg:pt-5">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-primary text-primary-fg">
                         <Crosshair className="h-4 w-4" aria-hidden />
@@ -582,16 +684,14 @@ export default function FocusPage() {
                     <div className="min-w-0">
                         <p className="text-[13px] font-semibold leading-tight text-ink">Mode Focus</p>
                         <span className="text-[10px] font-medium uppercase tracking-wider text-ink-4">Session d’appels</span>
-                        <button
-                            type="button"
-                            onClick={() => { nextRequest.current?.abort(); setPhase("setup"); }}
+                        <MissionSwitcher
+                            name={mission?.name ?? prospect?.missionName ?? "Mission"}
+                            canSwitch={missionIds.length > 1}
                             disabled={inCall || saving}
-                            className="flex max-w-full items-center gap-1 text-[12px] text-ink-3 hover:text-ink"
-                            title="Changer de mission"
-                        >
-                            <span className="truncate">{mission?.name ?? prospect?.missionName ?? "Mission"}</span>
-                            <ChevronDown className="h-3 w-3 shrink-0" aria-hidden />
-                        </button>
+                            onPrev={() => switchMission(-1)}
+                            onNext={() => switchMission(1)}
+                            onOpen={() => { nextRequest.current?.abort(); setPhase("setup"); }}
+                        />
                     </div>
                 </div>
 
@@ -624,6 +724,9 @@ export default function FocusPage() {
                     </RailButton>
                 </div>
 
+                <div className="lg:border-t lg:border-line-subtle">
+                    <UpNextList rows={nextUp} loading={consoleData.queue === null} />
+                </div>
                 <div className="hidden min-h-0 flex-1 lg:block" />
                 <DockList className="hidden px-2 pb-2 lg:flex" />
                 <div className="lg:border-t lg:border-line-subtle lg:p-2">
@@ -671,6 +774,16 @@ export default function FocusPage() {
                             {/* Who, and the call: stays in view while reading the brief and the script. */}
                             <header className="sticky top-0 z-10 border-b border-line-subtle bg-canvas/85 backdrop-blur-md">
                                 <div className="mx-auto flex max-w-[860px] flex-col gap-4 px-6 pb-4 pt-6 lg:px-10">
+                                    {gate && (
+                                        <UnqualifiedBanner
+                                            call={gate}
+                                            count={consoleData.unqualified.filter((r) => r.company && r.company.id !== prospect.company.id && r.id !== ourCallId).length}
+                                            onQualify={() => {
+                                                cancelAutoDial();
+                                                setQualifying(gate);
+                                            }}
+                                        />
+                                    )}
                                     <div className="flex items-start gap-4">
                                         <div className="min-w-0 flex-1">
                                             <ProspectIdentity heading name={prospect.contact ? personName(prospect) : null} company={prospect.company.name} role={prospect.contact?.title} website={prospect.company.website} />
@@ -923,8 +1036,26 @@ export default function FocusPage() {
                     </aside>
                 )}
             </div>
+            </div>
 
             {helpOpen && <ShortcutsSheet onClose={() => setHelpOpen(false)} />}
+
+            {qualifying?.company && (
+                <UnifiedActionDrawer
+                    isOpen
+                    onClose={() => setQualifying(null)}
+                    contactId={qualifying.contact?.id ?? null}
+                    companyId={qualifying.company.id}
+                    missionId={qualifying.mission?.id}
+                    missionName={qualifying.mission?.name}
+                    telephonyCallId={qualifying.id}
+                    onActionRecorded={() => {
+                        setQualifying(null);
+                        consoleData.refresh();
+                        success("Appel qualifié", "Le résultat est rattaché à cet appel.");
+                    }}
+                />
+            )}
 
             {drawer && prospect && (
                 <UnifiedActionDrawer
@@ -943,6 +1074,8 @@ export default function FocusPage() {
                     enableGooglePhoneLookup
                     onActionRecorded={() => {
                         setDrawer(null);
+                        markHandled(prospectKey);
+                        consoleData.refresh();
                         setStats((st) => ({
                             ...st,
                             saved: st.saved + 1,
@@ -1220,6 +1353,8 @@ const SHORTCUTS: [string, string][] = [
     ["S", "Passer ce prospect"],
     ["F", "Ouvrir la fiche complète"],
     ["P", "Pause / reprendre l'appel automatique"],
+    ["Q", "Qualifier un appel resté sans résultat"],
+    ["[  ]", "Mission précédente / suivante"],
     ["Échap", "Annuler l'appel automatique"],
     ["?", "Afficher cette aide"],
 ];
